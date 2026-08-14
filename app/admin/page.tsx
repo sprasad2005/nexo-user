@@ -7,7 +7,12 @@ import { ShieldCheck } from "@phosphor-icons/react";
 
 export default function AdminPage() {
   const router = useRouter();
-  const [status, setStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("LOADING");
+  const [status, setStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("nexo_admin_authenticated") === "true") {
+      return "AUTHORIZED";
+    }
+    return "LOADING";
+  });
 
   useEffect(() => {
     document.title = "NEXO- Admin";
@@ -23,14 +28,23 @@ export default function AdminPage() {
             data.member?.role === "ADMIN");
 
         if (isAdmin) {
+          try {
+            sessionStorage.setItem("nexo_admin_authenticated", "true");
+          } catch {}
           setStatus("AUTHORIZED");
         } else {
+          try {
+            sessionStorage.removeItem("nexo_admin_authenticated");
+          } catch {}
           setStatus("UNAUTHORIZED");
           router.replace("/admin/login");
         }
       })
       .catch(() => {
         if (!isMounted) return;
+        try {
+          sessionStorage.removeItem("nexo_admin_authenticated");
+        } catch {}
         setStatus("UNAUTHORIZED");
         router.replace("/admin/login");
       });

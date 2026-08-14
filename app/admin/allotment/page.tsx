@@ -14,7 +14,12 @@ function AdminAllotmentPageContent() {
   const router = useRouter();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isAddIpoOpen, setIsAddIpoOpen] = useState(false);
-  const [adminStatus, setAdminStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("LOADING");
+  const [adminStatus, setAdminStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("nexo_admin_authenticated") === "true") {
+      return "AUTHORIZED";
+    }
+    return "LOADING";
+  });
 
   useEffect(() => {
     document.title = "NEXO- Allotment";
@@ -28,14 +33,23 @@ function AdminAllotmentPageContent() {
       .then((data) => {
         if (!active) return;
         if (data.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
+          try {
+            sessionStorage.setItem("nexo_admin_authenticated", "true");
+          } catch {}
           setAdminStatus("AUTHORIZED");
         } else {
+          try {
+            sessionStorage.removeItem("nexo_admin_authenticated");
+          } catch {}
           setAdminStatus("UNAUTHORIZED");
           router.replace("/admin/login");
         }
       })
       .catch(() => {
         if (active) {
+          try {
+            sessionStorage.removeItem("nexo_admin_authenticated");
+          } catch {}
           setAdminStatus("UNAUTHORIZED");
           router.replace("/admin/login");
         }
