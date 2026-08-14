@@ -24,7 +24,7 @@ export function AdminProfileMenu({ onOpenShortcutsModal }: AdminProfileMenuProps
   const [isOpen, setIsOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
-  const activeUser = currentMember || currentUser;
+  const activeUser = currentUser || currentMember;
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {

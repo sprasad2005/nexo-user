@@ -38,7 +38,7 @@ export function AdminSidebar({
   const { ipos, members, transactions, currentMember, currentUser, logout } = useNexo();
   const router = useRouter();
 
-  const activeUser = currentMember || currentUser;
+  const activeUser = currentUser || currentMember;
   const visibleIpos = ipos.filter((i) => !i.isHidden);
   const totalAppsCount = visibleIpos.reduce((sum, ipo) => sum + (ipo.applications?.length || 0), 0);
 
@@ -219,8 +219,8 @@ export function AdminSidebar({
                 <h4 className="text-xs font-extrabold text-ink truncate">
                   {activeUser?.name || "Shivam Prasad"}
                 </h4>
-                <span className="text-[9px] font-mono text-blue-600 bg-blue-50 px-1 rounded uppercase border border-blue-200">
-                  ADMIN
+                <span className="text-[9px] font-mono text-blue-600 dark:text-[#6B93FF] bg-blue-50 dark:bg-blue-950/40 px-1 rounded uppercase border border-blue-200 dark:border-blue-800">
+                  {activeUser?.role === "SUPER_ADMIN" ? "SUPER ADMIN" : "ADMIN"}
                 </span>
               </div>
             </div>

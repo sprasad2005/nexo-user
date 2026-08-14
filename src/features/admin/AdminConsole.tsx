@@ -53,7 +53,7 @@ export function AdminConsole() {
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
-  const activeUser = currentMember || currentUser;
+  const activeUser = currentUser || currentMember;
   const isDark = theme === "dark";
 
   const showToast = (msg: string) => {

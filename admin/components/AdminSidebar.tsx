@@ -135,7 +135,7 @@ export function AdminSidebar({
                 {currentUser.name}
               </p>
               <p className="text-[10px] text-slate-400 dark:text-[#858D99] font-mono font-bold uppercase truncate">
-                {currentUser.role || "ADMIN"}
+                {currentUser.role === "SUPER_ADMIN" ? "SUPER ADMIN" : "ADMIN"}
               </p>
             </div>
           </div>

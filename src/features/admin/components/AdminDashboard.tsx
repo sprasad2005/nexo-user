@@ -51,7 +51,7 @@ export function AdminDashboard({
   const [timeframe, setTimeframe] = useState<"1M" | "3M" | "6M" | "1Y" | "ALL">("1M");
   const [lastRefreshed, setLastRefreshed] = useState<string>("Just now");
 
-  const activeUser = currentMember || currentUser;
+  const activeUser = currentUser || currentMember;
   const adminName = activeUser?.name || "Niranjan";
 
   // Financial metrics from backend or calculated fallback
