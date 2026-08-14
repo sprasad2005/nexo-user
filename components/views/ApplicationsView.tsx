@@ -598,10 +598,9 @@ export function ApplicationsView() {
             {/* TABLE HEADER */}
             <div className="hidden md:grid grid-cols-12 px-6 py-3 bg-surface-alt/60 border-b border-line text-caption font-semibold text-ink-tertiary uppercase tracking-wider">
               <div className="col-span-1">#</div>
-              <div className="col-span-3">Applicant / Contributors</div>
-              <div className="col-span-2">PAN Card</div>
+              <div className="col-span-4">Applicant / Contributors</div>
+              <div className="col-span-3">PAN Card</div>
               <div className="col-span-2 text-right">Amount</div>
-              <div className="col-span-2 text-center">Status</div>
               <div className="col-span-2 text-right">Actions</div>
             </div>
 
@@ -705,7 +704,7 @@ export function ApplicationsView() {
                           </div>
 
                           {/* Contributors List / Name */}
-                          <div className="col-span-3">
+                          <div className="col-span-4">
                             <div className="text-body-md font-semibold text-ink tracking-tight">
                               {lotDisplayName}
                             </div>
@@ -717,7 +716,7 @@ export function ApplicationsView() {
                           </div>
 
                           {/* PAN Card Column */}
-                          <div className="col-span-2 self-center">
+                          <div className="col-span-3 self-center">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-surface-alt border border-line-strong font-mono text-[12px] font-bold text-ink tracking-wider shadow-2xs">
                               {panDisplay}
                             </span>
@@ -726,11 +725,6 @@ export function ApplicationsView() {
                           {/* Amount */}
                           <div className="col-span-2 text-right self-center num-table text-ink font-semibold">
                             {formatINR(perLotAmount)}
-                          </div>
-
-                          {/* Status */}
-                          <div className="col-span-2 text-center self-center">
-                            {renderStatusControl(currentStatus)}
                           </div>
 
                           {/* ACTIONS: EDIT & DELETE */}

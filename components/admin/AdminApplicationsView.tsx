@@ -389,7 +389,6 @@ export function AdminApplicationsView() {
                   <th className="py-3 px-4">Lots / PANs</th>
                   <th className="py-3 px-4">PAN Card(s)</th>
                   <th className="py-3 px-4 text-right">Contribution</th>
-                  <th className="py-3 px-4">Status</th>
                   <th className="py-3 px-4 text-center">Actions</th>
                 </tr>
               </thead>
@@ -471,11 +470,6 @@ export function AdminApplicationsView() {
                       {/* Contribution */}
                       <td className="py-3.5 px-4 text-right font-mono font-bold text-blue-600 dark:text-[#6B93FF]">
                         {formatINR(app.totalContribution)}
-                      </td>
-
-                      {/* Status */}
-                      <td className="py-3.5 px-4">
-                        {getStatusBadge(app.allotmentStatus || app.status)}
                       </td>
 
                       {/* Actions */}
