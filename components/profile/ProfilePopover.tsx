@@ -34,8 +34,7 @@ export function ProfilePopover({
   const activeUser = currentUser || members[0];
   const name = activeUser?.name || "Member";
   const rawRole = String(activeUser?.role || "MEMBER").toUpperCase();
-  // SUPER_ADMIN is masked as Member on user-side — admin identity belongs to admin panel only
-  const role = rawRole === "SUPER_ADMIN" ? "MEMBER" : rawRole;
+  const role = rawRole;
 
   useEffect(() => {
     if (!isOpen) return;
@@ -84,12 +83,14 @@ export function ProfilePopover({
           <div className="flex items-center gap-2 mt-0.5">
             <span
               className={`text-[10px] font-semibold px-2 py-0.2 rounded uppercase tracking-wider ${
-                role === "ADMIN"
+                role === "SUPER_ADMIN"
+                  ? "bg-purple-500/15 text-purple-400 border border-purple-500/30"
+                  : role === "ADMIN"
                   ? "bg-accent-soft text-accent border border-accent/20"
                   : "bg-surface-alt text-ink-secondary border border-line-subtle"
               }`}
             >
-              {role === "ADMIN" ? "Admin" : "Member"}
+              {role === "SUPER_ADMIN" ? "Super Admin" : role === "ADMIN" ? "Admin" : "Member"}
             </span>
             <span className="text-[11px] font-medium text-positive flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-positive animate-pulse" />

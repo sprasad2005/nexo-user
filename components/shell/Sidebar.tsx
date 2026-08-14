@@ -278,14 +278,14 @@ export function Sidebar() {
                 onClick={() => setIsPopoverOpen(!isPopoverOpen)}
                 className="w-full flex items-center gap-2.5 p-2 rounded-xl bg-surface-alt/70 border border-line hover:border-line-strong transition-all cursor-pointer text-left group"
               >
-                <ProfileAvatar src={adminMember?.avatar} name={adminMember?.name || "Member"} size="md" />
+                <ProfileAvatar src={activeUser?.avatar} name={activeUser?.name || "Admin"} size="md" />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1">
-                    <p className="text-small font-semibold text-ink truncate">{adminMember?.name || "Member"}</p>
+                    <p className="text-small font-semibold text-ink truncate">{activeUser?.name || "Admin"}</p>
                     <span className="w-1.5 h-1.5 rounded-full bg-positive shrink-0" />
                   </div>
                   <p className="text-caption text-ink-tertiary font-semibold tracking-wide truncate">
-                    Member
+                    {activeUser?.role === "SUPER_ADMIN" ? "Super Admin" : activeUser?.role === "ADMIN" ? "Admin" : "Member"}
                   </p>
                 </div>
                 <CaretUp size={14} className="text-ink-tertiary group-hover:text-ink transition-transform shrink-0" />
