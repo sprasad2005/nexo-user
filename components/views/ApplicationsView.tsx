@@ -717,11 +717,12 @@ export function ApplicationsView() {
                           </div>
 
                           {/* PAN Card Column */}
-                          <div className="col-span-3 self-center flex items-center gap-1.5">
-                            <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-surface-alt border border-line-strong font-mono text-[12px] font-bold text-ink tracking-wider shadow-2xs">
-                              {panDisplay}
-                            </span>
-                            <CopyButton text={panDisplay} iconOnly />
+                          <div className="col-span-3 self-center">
+                            <CopyButton
+                              text={panDisplay}
+                              label={panDisplay}
+                              className="font-mono text-[12px] font-bold tracking-wider px-2.5 py-1 bg-surface-alt border border-line-strong text-ink shadow-2xs hover:bg-surface-hover"
+                            />
                           </div>
 
                           {/* Amount */}
