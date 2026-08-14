@@ -55,12 +55,18 @@ export async function POST(req: Request) {
     const finalizedDate = new Date();
     const adminName = auth.displayName || auth.username || "Admin";
 
-    const checkIsAllotted = (appId: string): boolean => {
-      if (allottedSet.has(appId)) return true;
+    const getAllottedIndices = (appId: string): number[] => {
+      const indices: number[] = [];
       for (const item of Array.from(allottedSet)) {
-        if (item === appId || item.startsWith(`${appId}_lot_`)) return true;
+        if (item === appId) {
+          indices.push(0);
+        } else if (item.startsWith(`${appId}_lot_`)) {
+          const idxStr = item.split("_lot_")[1];
+          const idx = parseInt(idxStr, 10);
+          if (!isNaN(idx)) indices.push(idx);
+        }
       }
-      return false;
+      return indices;
     };
 
     // 1. Update shared_ipos.json
@@ -77,14 +83,16 @@ export async function POST(req: Request) {
 
         const updatedApps = (ipo.applications || []).map((app: any) => {
           const appId = app.id || app.applicationNumber;
-          const isAllotted = checkIsAllotted(appId);
-          if (isAllotted) allottedCount++;
-          else notAllottedCount++;
+          const allottedIndices = getAllottedIndices(appId);
+          const isAllotted = allottedIndices.length > 0;
+          if (isAllotted) allottedCount += allottedIndices.length;
+          else notAllottedCount += Math.max(1, app.lotCount || app.numberOfPanCards || 1);
 
           return {
             ...app,
             allotmentStatus: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
             status: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
+            allottedIndices,
             updatedAt: finalizedDate.toISOString(),
           };
         });
@@ -126,7 +134,8 @@ export async function POST(req: Request) {
 
         for (const app of dbApps) {
           const appId = app.id || app._id?.toString() || app.applicationNumber;
-          const isAllotted = checkIsAllotted(appId);
+          const allottedIndices = getAllottedIndices(appId);
+          const isAllotted = allottedIndices.length > 0;
 
           await db.collection("applications").updateOne(
             { _id: app._id },
@@ -134,6 +143,7 @@ export async function POST(req: Request) {
               $set: {
                 allotmentStatus: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
                 status: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
+                allottedIndices,
                 updatedAt: finalizedDate,
               }
             }

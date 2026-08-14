@@ -191,6 +191,7 @@ export async function GET(req: Request) {
             username: cleanUsername,
             pan: pan,
             panNumbers: panNumbersList,
+            allottedIndices: app.allottedIndices || (normalizedStatus === "ALLOTTED" ? Array.from({ length: Number(lots) || 1 }, (_, i) => i) : []),
             applicationNumber: appNo,
             lotsApplied: Number(lots) || 1,
             allotmentStatus: normalizedStatus,

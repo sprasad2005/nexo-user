@@ -119,8 +119,12 @@ export function AllotmentManagementView() {
         // Pre-populate workingAllottedIds with currently allotted applications
         const allottedSet = new Set<string>();
         apps.forEach((a) => {
-          if (a.allotmentStatus === "ALLOTTED") {
-            const lotCount = Math.max(1, a.lotsApplied || 1);
+          const lotCount = Math.max(1, a.lotsApplied || 1);
+          if (Array.isArray((a as any).allottedIndices) && (a as any).allottedIndices.length > 0) {
+            (a as any).allottedIndices.forEach((idx: number) => {
+              allottedSet.add(lotCount > 1 ? `${a.id}_lot_${idx}` : a.id);
+            });
+          } else if (a.allotmentStatus === "ALLOTTED") {
             for (let i = 0; i < lotCount; i++) {
               allottedSet.add(lotCount > 1 ? `${a.id}_lot_${i}` : a.id);
             }
@@ -165,17 +169,28 @@ export function AllotmentManagementView() {
           nameForLot = `${names[0] || app.applicantName} ${i + 1}`;
         }
 
+        const lotId = lotCount > 1 ? `${app.id}_lot_${i}` : app.id;
+        const isLotAllotted = workingAllottedIds.has(lotId);
+
+        let statusForLot: "PENDING" | "ALLOTTED" | "NOT_ALLOTTED" = "PENDING";
+        if (selectedIpo?.allotmentFinalized) {
+          statusForLot = isLotAllotted ? "ALLOTTED" : "NOT_ALLOTTED";
+        } else {
+          statusForLot = isLotAllotted ? "ALLOTTED" : app.allotmentStatus;
+        }
+
         result.push({
           ...app,
-          id: lotCount > 1 ? `${app.id}_lot_${i}` : app.id,
+          id: lotId,
           applicantName: nameForLot,
           pan: panForLot,
           lotsApplied: 1,
+          allotmentStatus: statusForLot,
         });
       }
     });
     return result;
-  }, [applications]);
+  }, [applications, workingAllottedIds, selectedIpo]);
 
   // Real-time filtering
   const filteredApplications = useMemo(() => {
