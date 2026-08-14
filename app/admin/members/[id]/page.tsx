@@ -508,116 +508,131 @@ function MemberDetailPageContent() {
             <div className="space-y-6">
               
               {/* ── HEADER PROFILE BOX ── */}
-              <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl p-6 flex flex-col md:flex-row md:items-center justify-between gap-6 shadow-xs select-none">
-                <div className="flex items-center gap-4">
-                  <img
-                    src={member.avatar || "/oggy.png"}
-                    alt={member.name}
-                    className="w-16 h-16 rounded-full object-cover border-2 border-slate-200 dark:border-slate-800"
-                  />
-                  <div>
-                    <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight">{member.name}</h1>
-                    <p className="text-xs text-slate-400 dark:text-[#858D99] mt-0.5">@{member.username}</p>
-                    
-                    <div className="flex items-center gap-2 mt-2">
-                      {/* Role indicator */}
-                      {member.role === "SUPER_ADMIN" ? (
-                        <span className="inline-flex items-center gap-1 text-[#6B93FF] bg-[#6B93FF]/10 px-2 py-0.5 rounded-full border border-[#6B93FF]/20 text-[9px] font-mono font-bold uppercase">
-                          SUPER ADMIN
+              <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl p-6 shadow-xs select-none">
+                <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+                  {/* Member Profile Avatar & Main Info */}
+                  <div className="flex items-center gap-4 min-w-0">
+                    <div className="relative shrink-0">
+                      <img
+                        src={member.avatar || "/oggy.png"}
+                        alt={member.name}
+                        className="w-16 h-16 rounded-2xl object-cover ring-2 ring-blue-500/20 bg-slate-100 dark:bg-slate-800"
+                      />
+                      <span
+                        className={`w-4 h-4 rounded-full ring-2 ring-white dark:ring-[#101114] absolute -bottom-0.5 -right-0.5 ${
+                          member.status === "SUSPENDED" ? "bg-amber-500" : "bg-emerald-500"
+                        }`}
+                      />
+                    </div>
+
+                    <div className="space-y-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h1 className="text-xl font-black text-slate-900 dark:text-white tracking-tight truncate">
+                          {member.name}
+                        </h1>
+
+                        {member.role === "SUPER_ADMIN" ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30 text-[10px] font-mono font-extrabold uppercase">
+                            SUPER ADMIN
+                          </span>
+                        ) : member.role === "ADMIN" ? (
+                          <span className="px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-500 dark:text-[#6B93FF] border border-blue-500/30 text-[10px] font-mono font-extrabold uppercase">
+                            ADMIN
+                          </span>
+                        ) : (
+                          <span className="px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 text-[10px] font-mono font-bold uppercase">
+                            MEMBER
+                          </span>
+                        )}
+
+                        <span
+                          className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold uppercase ${
+                            member.status === "ACTIVE"
+                              ? "bg-emerald-500/10 text-emerald-500 border border-emerald-500/20"
+                              : "bg-amber-500/10 text-amber-500 border border-amber-500/20"
+                          }`}
+                        >
+                          • {member.status || "ACTIVE"}
                         </span>
-                      ) : member.role === "ADMIN" ? (
-                        <span className="inline-flex items-center gap-1 text-blue-500 dark:text-[#8B9CFF] bg-blue-500/10 px-2 py-0.5 rounded-full border border-blue-500/20 text-[9px] font-mono font-bold uppercase">
-                          ADMIN
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-slate-500 dark:text-[#AEB5C0] bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded-full text-[9px] font-mono font-bold">
-                          MEMBER
-                        </span>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500 dark:text-[#858D99] pt-0.5">
+                        <span className="font-mono text-blue-600 dark:text-[#6B93FF] font-bold">@{member.username}</span>
+                        {member.email && <span>{member.email}</span>}
+                        {member.phone && <span>{member.phone}</span>}
+                        {member.panMasked && <span className="font-mono text-slate-400">PAN: {member.panMasked}</span>}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Actions Toolbar */}
+                  <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 shrink-0 pt-4 lg:pt-0 border-t lg:border-t-0 border-slate-100 dark:border-slate-800">
+                    <button
+                      onClick={() => setActiveSubTab("edit")}
+                      className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shadow-md shadow-blue-500/25 active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <PencilSimple size={15} weight="bold" />
+                      <span>Edit Profile</span>
+                    </button>
+
+                    {isSuperAdmin && (
+                      <button
+                        onClick={() => setShowActivePass(!showActivePass)}
+                        className="px-3.5 py-2 rounded-xl border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 dark:text-[#6B93FF] text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                        title={showActivePass ? "Hide Password" : "Reveal Member Password"}
+                      >
+                        {showActivePass ? <EyeSlash size={15} /> : <Eye size={15} />}
+                        <span>{showActivePass ? `Pass: ${member.password || "user123"}` : "See Password"}</span>
+                      </button>
+                    )}
+
+                    {/* Secondary Actions Group */}
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      {isSuperAdmin && (
+                        <button
+                          onClick={handleResetPassword}
+                          className="px-3 py-2 rounded-xl border border-slate-200 dark:border-[#252931] hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-[#AEB5C0]"
+                          title="Reset Password"
+                        >
+                          <Key size={15} />
+                          <span>Reset</span>
+                        </button>
                       )}
 
-                      {/* Status indicator */}
-                      {member.status === "ACTIVE" ? (
-                        <span className="inline-flex items-center gap-1 text-emerald-600 dark:text-[#32C98B] font-bold text-[10px]">
-                          <span className="w-1 h-1 rounded-full bg-emerald-500"></span>
-                          <span>Active</span>
-                        </span>
-                      ) : member.status === "SUSPENDED" ? (
-                        <span className="inline-flex items-center gap-1 text-amber-500 dark:text-[#F3B85B] font-bold text-[10px]">
-                          <span className="w-1 h-1 rounded-full bg-amber-500"></span>
-                          <span>Suspended</span>
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 text-rose-500 dark:text-[#FF6B6B] font-bold text-[10px]">
-                          <span className="w-1 h-1 rounded-full bg-rose-500"></span>
-                          <span>Disabled</span>
-                        </span>
-                      )}
+                      <button
+                        onClick={handleRevokeSessions}
+                        className="px-3 py-2 rounded-xl border border-slate-200 dark:border-[#252931] hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-[#AEB5C0]"
+                        title="Revoke All Active Sessions"
+                      >
+                        <Keyhole size={15} />
+                        <span>Revoke</span>
+                      </button>
 
-                      {/* Verification status */}
-                      {member.isVerified && (
-                        <span className="inline-flex items-center gap-1 text-emerald-500 font-bold text-[9px] bg-emerald-500/5 px-2 py-0.5 border border-emerald-500/20 rounded-md">
-                          Verified
-                        </span>
+                      <button
+                        onClick={handleToggleSuspend}
+                        className={`px-3 py-2 rounded-xl border text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          member.status === "SUSPENDED"
+                            ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-[#32C98B]"
+                            : "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-[#FF6B6B]"
+                        }`}
+                        title={member.status === "SUSPENDED" ? "Reactivate Account" : "Suspend Account Access"}
+                      >
+                        <Prohibit size={15} />
+                        <span>{member.status === "SUSPENDED" ? "Reactivate" : "Suspend"}</span>
+                      </button>
+
+                      {member.role !== "SUPER_ADMIN" && member.username !== "ankitgod" && (
+                        <button
+                          onClick={handleDeleteMemberProfile}
+                          className="px-3 py-2 rounded-xl border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                          title="Delete Member Profile"
+                        >
+                          <Trash size={15} />
+                          <span>Delete</span>
+                        </button>
                       )}
                     </div>
                   </div>
-                </div>
-
-                {/* Top Quick Actions */}
-                <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 dark:border-slate-800 md:border-none pt-4 md:pt-0">
-                  <button
-                    onClick={() => setActiveSubTab("edit")}
-                    className="px-3.5 py-2 rounded-xl bg-[#4F75FF] hover:bg-[#3E64F0] text-white font-extrabold text-xs shadow-md shadow-blue-500/20 active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    <PencilSimple size={14} weight="bold" />
-                    <span>Edit Profile</span>
-                  </button>
-                  {isSuperAdmin && (
-                    <>
-                      <button
-                        onClick={() => setShowActivePass(!showActivePass)}
-                        className="px-3.5 py-2 rounded-xl border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 dark:text-[#6B93FF] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                      >
-                        {showActivePass ? <EyeSlash size={14} /> : <Eye size={14} />}
-                        <span>{showActivePass ? `Pass: ${member.password || "user123"}` : "See Password"}</span>
-                      </button>
-                      <button
-                        onClick={handleResetPassword}
-                        className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-[#252931] hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-[#AEB5C0]"
-                      >
-                        <Key size={14} />
-                        <span>Reset Password</span>
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={handleRevokeSessions}
-                    className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-[#252931] hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-[#AEB5C0]"
-                  >
-                    <Keyhole size={14} />
-                    <span>Revoke Sessions</span>
-                  </button>
-                  <button
-                    onClick={handleToggleSuspend}
-                    className={`px-3.5 py-2 rounded-xl border text-xs font-extrabold transition-all flex items-center gap-1.5 cursor-pointer ${
-                      member.status === "SUSPENDED"
-                        ? "bg-emerald-500/10 border-emerald-500/20 text-emerald-600 dark:text-[#32C98B]"
-                        : "bg-rose-500/10 border-rose-500/20 text-rose-600 dark:text-[#FF6B6B]"
-                    }`}
-                  >
-                    <Prohibit size={14} />
-                    <span>{member.status === "SUSPENDED" ? "Reactivate" : "Suspend Account"}</span>
-                  </button>
-
-                  {member.role !== "SUPER_ADMIN" && member.username !== "ankitgod" && (
-                    <button
-                      onClick={handleDeleteMemberProfile}
-                      className="px-3.5 py-2 rounded-xl border border-rose-500/30 bg-rose-500/5 hover:bg-rose-500/10 text-rose-600 dark:text-rose-400 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <Trash size={14} />
-                      <span>Delete Profile</span>
-                    </button>
-                  )}
                 </div>
               </div>
 
