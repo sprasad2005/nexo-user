@@ -39,7 +39,8 @@ interface AdminContextType {
     ipoId: string,
     totalProfit: number,
     totalLots: number,
-    allottedLots?: number
+    allottedLots?: number,
+    memberPayouts?: any[]
   ) => Promise<{ success: boolean; message?: string }>;
   refreshIpos: () => Promise<void>;
 }
@@ -349,7 +350,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     ipoId: string,
     totalProfit: number,
     totalLots: number,
-    allottedLots: number = 1
+    allottedLots: number = 1,
+    memberPayouts: any[] = []
   ) => {
     const oneLotProfit = totalLots > 0 ? Math.round(totalProfit / totalLots) : 0;
     const dist = {
@@ -369,6 +371,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           action: "publishProfit",
           ipoId,
           profitDistribution: dist,
+          memberPayouts,
         }),
       });
     } catch (e) {}

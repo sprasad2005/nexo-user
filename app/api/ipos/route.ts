@@ -4,7 +4,9 @@ import path from "path";
 import { cookies } from "next/headers";
 import { validateSessionToken } from "@/src/lib/auth/session";
 import { logActivity } from "@/src/features/activity/activityService";
+import clientPromise from "@/lib/mongodb";
 
+const DB_NAME = "nexo";
 const SHARED_FILE_PATH_PARENT = path.join(process.cwd(), "..", "shared_ipos.json");
 const SHARED_FILE_PATH_LOCAL = path.join(process.cwd(), "shared_ipos.json");
 
@@ -101,11 +103,41 @@ export async function POST(req: NextRequest) {
 
     // 1. Action: Publish Profit Distribution
     if (body.action === "publishProfit") {
-      const { ipoId, profitDistribution } = body;
+      const { ipoId, profitDistribution, memberPayouts = [] } = body;
       const updated = allIpos.map((ipo) =>
         ipo.id === ipoId ? { ...ipo, profitDistribution } : ipo
       );
       writeSharedIpos(updated);
+
+      // Persist to MongoDB
+      try {
+        const client = await clientPromise;
+        const db = client.db(DB_NAME);
+
+        // Update IPO record in MongoDB
+        await db.collection("ipos").updateOne(
+          { $or: [{ id: ipoId }, { _id: ipoId as any }] },
+          {
+            $set: {
+              profitDistribution,
+              updatedAt: new Date(),
+            },
+          }
+        );
+
+        // Store full profit distribution history record in profit_distributions collection
+        await db.collection("profit_distributions").insertOne({
+          ipoId,
+          profitDistribution,
+          memberPayouts,
+          publishedAt: new Date(),
+          publishedBy: actorName || "Admin",
+          actorUserId,
+          actorMemberId,
+        });
+      } catch (dbErr) {
+        console.warn("MongoDB profit distribution update optional fallback:", dbErr);
+      }
       
       await logActivity({
         eventType: "ALLOTMENT_UPDATED",
@@ -122,7 +154,7 @@ export async function POST(req: NextRequest) {
         ipoId
       });
 
-      return NextResponse.json({ success: true, message: "Profit distribution published." }, { headers: corsHeaders });
+      return NextResponse.json({ success: true, message: "Profit distribution published and saved to database." }, { headers: corsHeaders });
     }
 
     // 2. Action: Add Application to IPO

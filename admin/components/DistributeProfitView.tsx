@@ -20,6 +20,8 @@ export function DistributeProfitView() {
 
   const selectedIpo = activeIpos.find((ipo) => ipo.id === selectedIpoId) || activeIpos[0];
 
+  const [autoAllottedBadge, setAutoAllottedBadge] = useState<string | null>(null);
+
   // Fetch real applications from API whenever selected IPO changes
   React.useEffect(() => {
     if (!selectedIpoId) return;
@@ -29,11 +31,37 @@ export function DistributeProfitView() {
       .then((data) => {
         if (data.success && Array.isArray(data.applications)) {
           setRealApplications(data.applications);
+
+          // Auto-calculate allotted lots from the allotment section
+          let autoCount = 0;
+          data.applications.forEach((app: any) => {
+            if (Array.isArray(app.allottedIndices) && app.allottedIndices.length > 0) {
+              autoCount += app.allottedIndices.length;
+            } else if (app.allotmentStatus === "ALLOTTED") {
+              autoCount += Number(app.lotsApplied || app.lotCount || 1);
+            }
+          });
+
+          if (autoCount > 0) {
+            setAllottedLots(autoCount);
+            setAutoAllottedBadge(`✓ Auto-fetched ${autoCount} Allotted Lot${autoCount > 1 ? "s" : ""} from Allotment Section`);
+          } else {
+            const totalApplied = data.applications.reduce(
+              (sum: number, app: any) => sum + Number(app.lotsApplied || app.lotCount || 1),
+              0
+            );
+            setAllottedLots(totalApplied > 0 ? totalApplied : 1);
+            setAutoAllottedBadge("ℹ No lots marked Allotted yet in Allotment Section (showing total applied)");
+          }
         } else {
           setRealApplications([]);
+          setAutoAllottedBadge(null);
         }
       })
-      .catch(() => setRealApplications([]))
+      .catch(() => {
+        setRealApplications([]);
+        setAutoAllottedBadge(null);
+      })
       .finally(() => setIsFetchingApps(false));
   }, [selectedIpoId]);
 
@@ -208,12 +236,22 @@ export function DistributeProfitView() {
   const handlePublish = async () => {
     if (!selectedIpo || numProfit <= 0 || !hasApplicants) return;
 
+    const payouts = memberApplications.map((m) => ({
+      memberId: m.id,
+      name: m.name,
+      pan: m.pan,
+      contribution: m.contribution,
+      lots: m.lots,
+      profit: Math.round(m.lots * perLotProfit),
+    }));
+
     if (publishProfitDistribution) {
       await publishProfitDistribution(
         selectedIpo.id,
         numProfit,
         totalAppliedLots,
-        typeof numAllottedLots === "number" ? numAllottedLots : 1
+        typeof numAllottedLots === "number" ? numAllottedLots : 1,
+        payouts
       );
     }
 
@@ -320,6 +358,11 @@ export function DistributeProfitView() {
                 className="w-full bg-slate-50 dark:bg-[#101114] border border-slate-300 dark:border-[#252931] rounded-xl pl-10 pr-4 py-3 text-xs sm:text-sm font-mono font-black text-slate-900 dark:text-[#F5F7FA] focus:bg-white dark:focus:bg-[#14161A] focus:border-blue-600 dark:focus:border-[#6B93FF] focus:outline-none shadow-xs"
               />
             </div>
+            {autoAllottedBadge && (
+              <p className="text-[11px] font-bold text-emerald-600 dark:text-[#32C98B] mt-1.5 flex items-center gap-1 font-mono">
+                {autoAllottedBadge}
+              </p>
+            )}
           </div>
 
           {/* 3. Total Realized Profit (Admin enters) */}

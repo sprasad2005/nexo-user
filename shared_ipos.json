@@ -57,11 +57,12 @@
             "status": "SUBMITTED"
           }
         ],
-        "updatedAt": "2026-08-14T20:23:59.366Z"
+        "updatedAt": "2026-08-14T20:33:03.048Z",
+        "allottedIndices": []
       }
     ],
     "allotmentFinalized": true,
-    "allotmentFinalizedAt": "2026-08-14T20:23:59.366Z",
+    "allotmentFinalizedAt": "2026-08-14T20:33:03.048Z",
     "allotmentFinalizedBy": "Ankit"
   },
   {
