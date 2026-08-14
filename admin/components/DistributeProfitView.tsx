@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from "react";
 import { Coins, CheckCircle, ArrowRight, User, Users, Calculator, Package, Wallet } from "@phosphor-icons/react";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { useAdmin } from "../context/AdminContext";
 
 export function DistributeProfitView() {
@@ -14,8 +15,27 @@ export function DistributeProfitView() {
   const [allottedLots, setAllottedLots] = useState<number | "">(1);
   const [totalProfit, setTotalProfit] = useState<number | "">("");
   const [isSuccessToast, setIsSuccessToast] = useState(false);
+  const [realApplications, setRealApplications] = useState<any[]>([]);
+  const [isFetchingApps, setIsFetchingApps] = useState(false);
 
   const selectedIpo = activeIpos.find((ipo) => ipo.id === selectedIpoId) || activeIpos[0];
+
+  // Fetch real applications from API whenever selected IPO changes
+  React.useEffect(() => {
+    if (!selectedIpoId) return;
+    setIsFetchingApps(true);
+    fetch(`/api/admin/allotment?ipoId=${selectedIpoId}`)
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.applications)) {
+          setRealApplications(data.applications);
+        } else {
+          setRealApplications([]);
+        }
+      })
+      .catch(() => setRealApplications([]))
+      .finally(() => setIsFetchingApps(false));
+  }, [selectedIpoId]);
 
   // Auto-select first IPO if none selected
   React.useEffect(() => {
@@ -86,7 +106,8 @@ export function DistributeProfitView() {
 
   // ── Auto-fetch individual member contributions & lots ──
   const memberApplications = useMemo(() => {
-    if (!selectedIpo?.applications || selectedIpo.applications.length === 0) {
+    const rawApps = realApplications.length > 0 ? realApplications : selectedIpo?.applications || [];
+    if (!rawApps || rawApps.length === 0) {
       return [];
     }
 
@@ -99,7 +120,7 @@ export function DistributeProfitView() {
 
     const membersMap = new Map<string, { id: string; name: string; lots: number; contribution: number; pan: string }>();
 
-    selectedIpo.applications.forEach((app: any) => {
+    rawApps.forEach((app: any) => {
       // Combined pool application with multiple participants
       if (Array.isArray(app.participants) && app.participants.length > 0) {
         app.participants.forEach((p: any) => {
@@ -109,7 +130,7 @@ export function DistributeProfitView() {
           }
           const formattedName = formatHandle(pName);
           const pKey = (p.memberId || formattedName.replace(/^@/, "")).toLowerCase().trim();
-          const pPan = app.panMasked || p.panMasked || p.panFull || "UTRID8988P";
+          const pPan = app.pan || app.panMasked || p.panMasked || p.panFull || "ABCDE1234F";
           const pContrib = p.contribution || (app.totalContribution ? app.totalContribution / app.participants.length : minInv);
           const lotVal = pContrib / minInv;
 
@@ -129,10 +150,10 @@ export function DistributeProfitView() {
         });
       } else {
         // Single applicant or comma-separated names
-        const rawName = app.applicantName || "Member";
-        const lotVal = app.lotCount || 1;
+        const rawName = app.applicantName || app.username || "Member";
+        const lotVal = app.lotsApplied || app.lotCount || 1;
         const appContrib = app.totalContribution || (lotVal * minInv);
-        const aPan = app.panMasked || "XXXXXXXX41";
+        const aPan = app.pan || app.panMasked || (Array.isArray(app.panNumbers) && app.panNumbers[0]) || "ABCDE1234F";
 
         if (rawName.includes(",")) {
           const splitNames = rawName.split(",").map((s: string) => s.trim()).filter(Boolean);
@@ -157,7 +178,7 @@ export function DistributeProfitView() {
           });
         } else {
           const formattedName = formatHandle(rawName);
-          const aKey = (app.memberId || formattedName.replace(/^@/, "")).toLowerCase().trim();
+          const aKey = (app.username || app.memberId || formattedName.replace(/^@/, "")).toLowerCase().trim();
           if (membersMap.has(aKey)) {
             const existing = membersMap.get(aKey)!;
             existing.lots += lotVal;
@@ -176,7 +197,7 @@ export function DistributeProfitView() {
     });
 
     return Array.from(membersMap.values());
-  }, [selectedIpo]);
+  }, [selectedIpo, realApplications]);
 
   // ── Auto-calculated values ──
   const totalApplicants = memberApplications.length;
@@ -264,20 +285,17 @@ export function DistributeProfitView() {
             <label className="block text-xs sm:text-sm font-extrabold text-slate-900 dark:text-[#F5F7FA] mb-2">
               Select IPO
             </label>
-            <select
+            <CustomSelect
               value={selectedIpoId}
-              onChange={(e) => setSelectedIpoId(e.target.value)}
-              className="w-full bg-slate-50 dark:bg-[#101114] border border-slate-300 dark:border-[#252931] rounded-xl p-3.5 text-xs sm:text-sm font-extrabold text-slate-900 dark:text-[#F5F7FA] focus:bg-white dark:focus:bg-[#14161A] focus:border-blue-600 dark:focus:border-[#6B93FF] focus:outline-none shadow-xs"
-            >
-              {activeIpos.length === 0 && (
-                <option value="">No active IPOs</option>
-              )}
-              {activeIpos.map((ipo) => (
-                <option key={ipo.id} value={ipo.id}>
-                  {ipo.name} {ipo.isHidden ? "(History)" : ""} ({ipo.metrics.issueSize})
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setSelectedIpoId(val)}
+              options={activeIpos.map((ipo) => ({
+                value: ipo.id,
+                label: ipo.name,
+                sublabel: ipo.metrics?.issueSize ? `(${ipo.metrics.issueSize})` : undefined,
+                badge: ipo.isHidden ? "History" : undefined,
+              }))}
+              className="w-full"
+            />
           </div>
 
           {/* 2. Number of Allotted Lots (Admin enters) */}
