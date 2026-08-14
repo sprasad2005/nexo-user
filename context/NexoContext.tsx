@@ -495,7 +495,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
 
     window.addEventListener("hashchange", handleHashChange);
     window.addEventListener("storage", refreshIpos);
-    const ipoInterval = setInterval(refreshIpos, 2000);
+    const ipoInterval = setInterval(refreshIpos, 15000);
 
     return () => {
       window.removeEventListener("hashchange", handleHashChange);

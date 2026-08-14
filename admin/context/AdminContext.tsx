@@ -147,8 +147,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     refreshIpos();
-    // Poll every 3 seconds to keep synchronized
-    const interval = setInterval(refreshIpos, 3000);
+    // Poll every 15 seconds to keep synchronized
+    const interval = setInterval(refreshIpos, 15000);
     return () => clearInterval(interval);
   }, []);
 

@@ -193,7 +193,7 @@ function MembersPageContent() {
           }
         })
         .catch(() => {});
-    }, 3000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [adminStatus, searchQuery, roleFilter, statusFilter, verifFilter, sortBy]);

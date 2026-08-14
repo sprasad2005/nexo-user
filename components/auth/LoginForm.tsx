@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
+import { useRouter } from "next/navigation";
 import { useNexo } from "@/context/NexoContext";
 import { Lock, Eye, EyeSlash, ShieldCheck, ArrowRight, WarningCircle, CircleNotch, Phone, Sparkle, CheckCircle, UploadSimple } from "@phosphor-icons/react";
 
@@ -19,6 +20,7 @@ function safeNextPath(raw: string | null): string {
 }
 
 export function LoginForm() {
+  const router = useRouter();
   const { login, authError, setAuthError, isAuthenticated, currentUser } = useNexo();
 
   const [usernameInput, setUsernameInput] = useState("");
@@ -58,9 +60,9 @@ export function LoginForm() {
     ) {
       const params = new URLSearchParams(window.location.search);
       const target = safeNextPath(params.get("next"));
-      window.location.href = target;
+      router.replace(target);
     }
-  }, [isAuthenticated, step]);
+  }, [isAuthenticated, step, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,13 +94,7 @@ export function LoginForm() {
             sessionStorage.setItem("nexo_just_logged_in", "true");
           } catch {}
 
-          if (typeof window !== "undefined") {
-            if (window.location.pathname === target) {
-              window.location.reload();
-            } else {
-              window.location.href = target;
-            }
-          }
+          router.push(target);
         }
       } else if (res.message && setAuthError) {
         setAuthError(res.message);
@@ -156,17 +152,9 @@ export function LoginForm() {
         sessionStorage.setItem("nexo_just_logged_in", "true");
       } catch {}
 
-      if (typeof window !== "undefined") {
-        if (window.location.pathname === targetPath) {
-          window.location.reload();
-        } else {
-          window.location.href = targetPath;
-        }
-      }
+      router.push(targetPath);
     } catch {
-      if (typeof window !== "undefined") {
-        window.location.href = targetPath;
-      }
+      router.push(targetPath);
     } finally {
       setIsSubmitting(false);
     }

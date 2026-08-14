@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useEffect, useState, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import { CheckCircle, ArrowRight } from "@phosphor-icons/react";
 import { Member } from "@/types/nexo";
 
@@ -12,6 +13,7 @@ interface LoginSuccessModalProps {
 }
 
 export function LoginSuccessModal({ isOpen, onClose, user, isAdminConsole = false }: LoginSuccessModalProps) {
+  const router = useRouter();
   const [progress, setProgress] = useState(100);
 
   const handleEnterWorkspace = useCallback(() => {
@@ -19,10 +21,10 @@ export function LoginSuccessModal({ isOpen, onClose, user, isAdminConsole = fals
     if (typeof window !== "undefined") {
       const target = isAdminConsole ? "/admin/members" : "/";
       if (window.location.pathname !== target && !window.location.pathname.startsWith("/admin/members")) {
-        window.location.href = target;
+        router.push(target);
       }
     }
-  }, [onClose, isAdminConsole]);
+  }, [onClose, isAdminConsole, router]);
 
   useEffect(() => {
     if (!isOpen) return;

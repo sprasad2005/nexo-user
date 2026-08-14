@@ -228,7 +228,7 @@ function MemberDetailPageContent() {
           }
         })
         .catch(() => {});
-    }, 3000);
+    }, 15000);
 
     return () => clearInterval(interval);
   }, [adminStatus, memberId]);
