@@ -22,15 +22,18 @@ import {
   Trash,
   Eye,
   EyeSlash,
+  Megaphone,
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { Member, MemberRole } from "@/types/nexo";
+import { SendNotificationModal } from "../admin/SendNotificationModal";
 
 export function MembersView() {
   const router = useRouter();
   const { members, ipos, addMember, updateMember, deleteMember, currentUser, openDirectChatWithUser } = useNexo();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [isSendNotifOpen, setIsSendNotifOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
@@ -191,14 +194,23 @@ export function MembersView() {
         </div>
 
         {canAddMembers && (
-          <Button
-            size="sm"
-            variant="primary"
-            onClick={() => setIsAddModalOpen(true)}
-            className="shadow-sm shadow-accent/20 hover:shadow-accent/40"
-          >
-            <UserPlus size={16} /> Add Member
-          </Button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsSendNotifOpen(true)}
+              className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shadow-md shadow-blue-500/20 active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer"
+            >
+              <Megaphone size={16} weight="bold" />
+              <span>Send Notification</span>
+            </button>
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setIsAddModalOpen(true)}
+              className="shadow-sm shadow-accent/20 hover:shadow-accent/40"
+            >
+              <UserPlus size={16} /> Add Member
+            </Button>
+          </div>
         )}
       </div>
 
@@ -644,6 +656,12 @@ export function MembersView() {
           </div>
         </div>
       )}
+
+      {/* Admin Send Notification Modal */}
+      <SendNotificationModal
+        isOpen={isSendNotifOpen}
+        onClose={() => setIsSendNotifOpen(false)}
+      />
     </div>
   );
 }

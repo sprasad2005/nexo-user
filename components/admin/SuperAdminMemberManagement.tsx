@@ -23,16 +23,20 @@ import {
   Buildings,
   Check,
   Warning,
+  Megaphone,
 } from "@phosphor-icons/react";
 import { Member, MemberRole, MemberStatus, MemberPermissions } from "@/types/nexo";
 import { MOCK_MEMBERS } from "@/lib/mockData";
 import { useNexo } from "@/context/NexoContext";
 import { useRouter } from "next/navigation";
+import { SendNotificationModal } from "./SendNotificationModal";
 
 export function SuperAdminMemberManagement() {
   const router = useRouter();
   const { currentUser } = useNexo();
   const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
+
+  const [isSendNotifOpen, setIsSendNotifOpen] = useState(false);
 
   const [members, setMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -330,13 +334,22 @@ export function SuperAdminMemberManagement() {
           </p>
         </div>
 
-        <button
-          onClick={() => setIsCreateModalOpen(true)}
-          className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 dark:bg-[#6B93FF] hover:bg-blue-700 dark:hover:bg-[#7BA0FF] text-white dark:text-[#101114] font-extrabold text-xs transition-all shadow-md cursor-pointer self-start sm:self-auto active:scale-[0.98]"
-        >
-          <UserPlus size={18} weight="bold" />
-          <span>Create User</span>
-        </button>
+        <div className="flex items-center gap-2 self-start sm:self-auto">
+          <button
+            onClick={() => setIsSendNotifOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-blue-500/30 bg-blue-500/10 hover:bg-blue-500/20 text-blue-600 dark:text-[#6B93FF] font-extrabold text-xs transition-all shadow-xs cursor-pointer active:scale-[0.98]"
+          >
+            <Megaphone size={18} weight="bold" />
+            <span>Send Notification</span>
+          </button>
+          <button
+            onClick={() => setIsCreateModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-blue-600 dark:bg-[#6B93FF] hover:bg-blue-700 dark:hover:bg-[#7BA0FF] text-white dark:text-[#101114] font-extrabold text-xs transition-all shadow-md cursor-pointer active:scale-[0.98]"
+          >
+            <UserPlus size={18} weight="bold" />
+            <span>Create User</span>
+          </button>
+        </div>
       </div>
 
       {/* ── METRICS SUMMARY CARDS ── */}
@@ -977,6 +990,12 @@ export function SuperAdminMemberManagement() {
           </div>
         </div>
       )}
+
+      {/* Send Broadcast Notification Modal */}
+      <SendNotificationModal
+        isOpen={isSendNotifOpen}
+        onClose={() => setIsSendNotifOpen(false)}
+      />
     </div>
   );
 }

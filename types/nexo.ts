@@ -208,6 +208,22 @@ export interface ActionItem {
   memberAvatar?: string;
 }
 
+export interface BroadcastNotification {
+  id: string;
+  senderName: string;
+  senderAvatar?: string;
+  targetMemberId?: string;
+  title: string;
+  message: string;
+  severity: "INFO" | "SUCCESS" | "WARNING" | "CRITICAL";
+  ipoId?: string;
+  ipoName?: string;
+  ctaLabel?: string;
+  ctaLink?: string;
+  createdAt: string;
+  isRead?: boolean;
+}
+
 export interface Transaction {
   id: string;
   ipoId: string;

@@ -13,6 +13,7 @@ import {
   AllotmentStatus,
   IPOLifecycleStage,
   ActionItem,
+  BroadcastNotification,
   RecommendationType,
   Transaction,
   ListedIPO,
@@ -51,6 +52,8 @@ export interface NexoContextType {
   activities: ActivityItem[];
   actionItems: ActionItem[];
   dismissActionItem: (id: string) => void;
+  notifications: BroadcastNotification[];
+  sendBroadcastNotification: (notif: BroadcastNotification) => void;
   portfolioSummary: PortfolioSummary;
   individualSavings: number;
   updateIndividualSavings: (amount: number) => void;
@@ -750,7 +753,23 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
   const [ipos, setIpos] = useState<IPOOpportunity[]>(MOCK_IPOS);
   const [activities, setActivities] = useState<ActivityItem[]>(MOCK_ACTIVITIES);
   const [actionItems, setActionItems] = useState<ActionItem[]>(MOCK_ACTION_ITEMS);
+  const [notifications, setNotifications] = useState<BroadcastNotification[]>([]);
   const [portfolioSummary] = useState<PortfolioSummary>(MOCK_PORTFOLIO_SUMMARY);
+
+  useEffect(() => {
+    fetch("/api/notifications")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.notifications)) {
+          setNotifications(data.notifications);
+        }
+      })
+      .catch(() => {});
+  }, []);
+
+  const sendBroadcastNotification = (notif: BroadcastNotification) => {
+    setNotifications((prev) => [notif, ...prev]);
+  };
   const [individualSavings, setIndividualSavings] = useState<number>(0);
   const [userContributions, setUserContributions] = useState<Record<string, number>>({});
   const [transactions, setTransactions] = useState<Transaction[]>([]);
@@ -1488,6 +1507,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
         activities,
         actionItems,
         dismissActionItem,
+        notifications,
+        sendBroadcastNotification,
         portfolioSummary,
         individualSavings,
         updateIndividualSavings,
