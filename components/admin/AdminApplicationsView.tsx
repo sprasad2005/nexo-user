@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useNexo } from "@/context/NexoContext";
 import { Application, AllotmentStatus } from "@/types/nexo";
 import { formatINR } from "@/lib/mockData";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CopyButton } from "@/components/ui/CopyButton";
 import {
   Files,
@@ -278,17 +279,16 @@ export function AdminApplicationsView() {
           <label className="text-xs font-bold text-slate-500 dark:text-[#858D99] whitespace-nowrap">
             Select IPO:
           </label>
-          <select
+          <CustomSelect
             value={selectedIpoId}
-            onChange={(e) => setSelectedIpoId(e.target.value)}
-            className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-xl px-3.5 py-2 text-xs font-bold text-slate-850 dark:text-[#F5F7FA] focus:outline-none focus:border-blue-500 transition-all cursor-pointer shadow-2xs"
-          >
-            {ipos.map((ipo) => (
-              <option key={ipo.id} value={ipo.id}>
-                {ipo.name} ({ipo.applications?.length || 0} apps)
-              </option>
-            ))}
-          </select>
+            onChange={(val) => setSelectedIpoId(val)}
+            options={ipos.map((ipo) => ({
+              value: ipo.id,
+              label: ipo.name,
+              badge: `${ipo.applications?.length || 0} apps`,
+            }))}
+            className="min-w-[220px]"
+          />
         </div>
       </div>
 

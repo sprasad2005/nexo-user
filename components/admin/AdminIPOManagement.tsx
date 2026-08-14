@@ -21,6 +21,7 @@ import {
   UserPlus,
   UserGear,
 } from "@phosphor-icons/react";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { AddIPODrawer } from "./AddIPODrawer";
 import { formatINR } from "@/lib/mockData";
 
@@ -453,17 +454,15 @@ export function AdminIPOManagement({
             {/* IPO Selector Filter */}
             <div className="flex items-center gap-2">
               <span className="text-xs font-bold text-ink-secondary">Select IPO:</span>
-              <select
+              <CustomSelect
                 value={allotmentIpoFilter}
-                onChange={(e) => setAllotmentIpoFilter(e.target.value)}
-                className="bg-surface-alt border border-line rounded-xl px-3 py-1.5 text-xs font-bold text-ink focus:border-accent outline-none cursor-pointer"
-              >
-                {visibleIpos.map((ipo) => (
-                  <option key={ipo.id} value={ipo.id}>
-                    {ipo.name}
-                  </option>
-                ))}
-              </select>
+                onChange={(val) => setAllotmentIpoFilter(val)}
+                options={visibleIpos.map((ipo) => ({
+                  value: ipo.id,
+                  label: ipo.name,
+                }))}
+                className="min-w-[180px]"
+              />
             </div>
           </div>
 

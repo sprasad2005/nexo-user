@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useNexo } from "@/context/NexoContext";
 import { formatINR } from "@/lib/mockData";
 import { AllotmentStatus } from "@/types/nexo";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CopyButton } from "@/components/ui/CopyButton";
 import {
   LockKey,
@@ -269,17 +270,17 @@ export function ApplicationsView() {
           {/* Left: Select IPO / Company */}
           <div className="flex items-center gap-2.5 shrink-0">
             <span className="text-small font-semibold text-ink-secondary">Select IPO:</span>
-            <select
+            <CustomSelect
               value={ipoFilter}
-              onChange={(e) => setIpoFilter(e.target.value)}
-              className="bg-surface-alt border border-line-strong rounded-xl px-3.5 py-2 text-small font-semibold text-ink focus:border-accent focus:bg-surface outline-none cursor-pointer min-w-[200px] shadow-2xs transition-all"
-            >
-              {ipos.map((ipo) => (
-                <option key={ipo.id} value={ipo.id}>
-                  {ipo.name} {ipo.isHidden ? "(History)" : ""} {ipo.metrics?.issueSize ? `(${ipo.metrics.issueSize})` : ""}
-                </option>
-              ))}
-            </select>
+              onChange={(val) => setIpoFilter(val)}
+              options={ipos.map((ipo) => ({
+                value: ipo.id,
+                label: ipo.name,
+                sublabel: ipo.metrics?.issueSize ? `(${ipo.metrics.issueSize})` : undefined,
+                badge: ipo.isHidden ? "History" : undefined,
+              }))}
+              className="min-w-[220px]"
+            />
           </div>
 
           {/* Divider */}

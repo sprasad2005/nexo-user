@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CopyButton } from "@/components/ui/CopyButton";
 import {
   CheckCircle,
@@ -386,21 +387,17 @@ export function AllotmentManagementView() {
             Select IPO:
           </label>
           <div className="relative min-w-[240px]">
-            <select
+            <CustomSelect
               value={selectedIpoId}
-              onChange={(e) => setSelectedIpoId(e.target.value)}
+              onChange={(val) => setSelectedIpoId(val)}
               disabled={isLoading}
-              className="w-full h-10 px-3.5 pr-8 rounded-xl bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-800 dark:text-[#F5F7FA] focus:outline-none focus:border-blue-500 cursor-pointer shadow-2xs transition-all"
-            >
-              <option value="" disabled>
-                Select IPO ▼
-              </option>
-              {ipos.map((ipo) => (
-                <option key={ipo.id} value={ipo.id}>
-                  {ipo.name} {ipo.allotmentFinalized ? "✓ (Finalized)" : ""}
-                </option>
-              ))}
-            </select>
+              placeholder="Select IPO"
+              options={ipos.map((ipo) => ({
+                value: ipo.id,
+                label: ipo.name,
+                badge: ipo.allotmentFinalized ? "Finalized ✓" : undefined,
+              }))}
+            />
           </div>
         </div>
       </div>
