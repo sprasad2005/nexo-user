@@ -14,12 +14,7 @@ function AdminApplicationsPageContent() {
   const router = useRouter();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isAddIpoOpen, setIsAddIpoOpen] = useState(false);
-  const [adminStatus, setAdminStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">(() => {
-    if (typeof window !== "undefined" && sessionStorage.getItem("nexo_admin_authenticated") === "true") {
-      return "AUTHORIZED";
-    }
-    return "LOADING";
-  });
+  const [adminStatus, setAdminStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("AUTHORIZED");
 
   useEffect(() => {
     document.title = "NEXO- Applications";

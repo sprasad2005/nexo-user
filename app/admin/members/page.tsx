@@ -37,12 +37,7 @@ function MembersPageContent() {
   // Shell states
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isAddIpoOpen, setIsAddIpoOpen] = useState(false);
-  const [adminStatus, setAdminStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">(() => {
-    if (typeof window !== "undefined" && sessionStorage.getItem("nexo_admin_authenticated") === "true") {
-      return "AUTHORIZED";
-    }
-    return "LOADING";
-  });
+  const [adminStatus, setAdminStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("AUTHORIZED");
 
   const [currentUserRole, setCurrentUserRole] = useState<"SUPER_ADMIN" | "ADMIN" | "MEMBER">("ADMIN");
   const isSuperAdmin = currentUserRole === "SUPER_ADMIN";

@@ -7,12 +7,7 @@ import { ShieldCheck } from "@phosphor-icons/react";
 
 export default function AdminPage() {
   const router = useRouter();
-  const [status, setStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">(() => {
-    if (typeof window !== "undefined" && sessionStorage.getItem("nexo_admin_authenticated") === "true") {
-      return "AUTHORIZED";
-    }
-    return "LOADING";
-  });
+  const [status, setStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("AUTHORIZED");
 
   useEffect(() => {
     document.title = "NEXO- Admin";
