@@ -119,7 +119,10 @@ export function AllotmentManagementView() {
         const allottedSet = new Set<string>();
         apps.forEach((a) => {
           if (a.allotmentStatus === "ALLOTTED") {
-            allottedSet.add(a.id);
+            const lotCount = Math.max(1, a.lotsApplied || 1);
+            for (let i = 0; i < lotCount; i++) {
+              allottedSet.add(lotCount > 1 ? `${a.id}_lot_${i}` : a.id);
+            }
           }
         });
         setWorkingAllottedIds(allottedSet);

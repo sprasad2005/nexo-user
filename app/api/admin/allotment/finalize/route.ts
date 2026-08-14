@@ -49,9 +49,19 @@ export async function POST(req: Request) {
       return NextResponse.json({ success: false, error: "IPO ID is required." }, { status: 400 });
     }
 
-    const allottedSet = new Set(allottedApplicationIds);
+    const allottedSet = new Set<string>(
+      Array.isArray(allottedApplicationIds) ? allottedApplicationIds.map(String) : []
+    );
     const finalizedDate = new Date();
     const adminName = auth.displayName || auth.username || "Admin";
+
+    const checkIsAllotted = (appId: string): boolean => {
+      if (allottedSet.has(appId)) return true;
+      for (const item of Array.from(allottedSet)) {
+        if (item === appId || item.startsWith(`${appId}_lot_`)) return true;
+      }
+      return false;
+    };
 
     // 1. Update shared_ipos.json
     const sharedIpos = readSharedIpos();
@@ -67,7 +77,7 @@ export async function POST(req: Request) {
 
         const updatedApps = (ipo.applications || []).map((app: any) => {
           const appId = app.id || app.applicationNumber;
-          const isAllotted = allottedSet.has(appId);
+          const isAllotted = checkIsAllotted(appId);
           if (isAllotted) allottedCount++;
           else notAllottedCount++;
 
@@ -116,7 +126,7 @@ export async function POST(req: Request) {
 
         for (const app of dbApps) {
           const appId = app.id || app._id?.toString() || app.applicationNumber;
-          const isAllotted = allottedSet.has(appId);
+          const isAllotted = checkIsAllotted(appId);
 
           await db.collection("applications").updateOne(
             { _id: app._id },

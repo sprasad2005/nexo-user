@@ -5,7 +5,7 @@
     "company": "NEW IPO",
     "logo": "NE",
     "category": "Mainboard",
-    "status": "APPLICATION_OPEN",
+    "status": "ALLOTMENT_OUT",
     "recommendation": "APPLY",
     "thesis": "2pm",
     "isHidden": false,
@@ -41,8 +41,8 @@
         "totalContribution": 1234,
         "lotCount": 1,
         "verified": true,
-        "allotmentStatus": "AWAITING",
-        "status": "AWAITING",
+        "allotmentStatus": "NOT_ALLOTTED",
+        "status": "NOT_ALLOTTED",
         "createdAt": "2026-08-14T16:49:06.220Z",
         "applicationNumber": "NEXO-APP-4331",
         "participants": [
@@ -56,9 +56,13 @@
             "panFull": "HSCPP7066Q",
             "status": "SUBMITTED"
           }
-        ]
+        ],
+        "updatedAt": "2026-08-14T20:13:54.522Z"
       }
-    ]
+    ],
+    "allotmentFinalized": true,
+    "allotmentFinalizedAt": "2026-08-14T20:13:54.522Z",
+    "allotmentFinalizedBy": "Ankit"
   },
   {
     "id": "ipo_1786694812510",
