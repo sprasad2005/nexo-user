@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNexo } from "@/context/NexoContext";
-import { MagnifyingGlass, X, Moon, Sun, SquaresFour, TrendUp, ChartPie, Users } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
+import { MagnifyingGlass, X, Moon, Sun, SquaresFour, TrendUp, ChartPie, Users, Shield, Megaphone } from "@phosphor-icons/react";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { GMPBadge } from "./Badge";
 
@@ -11,9 +12,12 @@ interface CommandPaletteProps {
 }
 
 export function CommandPalette({ isOpen, onClose, onOpen }: CommandPaletteProps) {
-  const { ipos, members, setActiveTab, openIpoDetail } = useNexo();
+  const router = useRouter();
+  const { ipos, members, currentUser, setActiveTab, openIpoDetail } = useNexo();
   const { theme, toggleTheme } = useTheme();
   const [query, setQuery] = useState("");
+
+  const isAdmin = currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN";
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -42,7 +46,9 @@ export function CommandPalette({ isOpen, onClose, onOpen }: CommandPaletteProps)
   );
 
   const filteredMembers = members.filter((m) =>
-    m.name.toLowerCase().includes(query.toLowerCase())
+    m.name.toLowerCase().includes(query.toLowerCase()) ||
+    (m.username && m.username.toLowerCase().includes(query.toLowerCase())) ||
+    (m.panMasked && m.panMasked.toLowerCase().includes(query.toLowerCase()))
   );
 
   return (
@@ -58,7 +64,7 @@ export function CommandPalette({ isOpen, onClose, onOpen }: CommandPaletteProps)
           <input
             type="text"
             autoFocus
-            placeholder="Search IPOs, members, applications..."
+            placeholder="Search IPOs, members, PAN, applications..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1 bg-transparent text-body font-semibold text-ink placeholder:text-ink-muted focus:outline-none"
@@ -145,6 +151,41 @@ export function CommandPalette({ isOpen, onClose, onOpen }: CommandPaletteProps)
                   ⌘3
                 </kbd>
               </button>
+
+              {isAdmin && (
+                <>
+                  <button
+                    onClick={() => {
+                      router.push("/admin");
+                      onClose();
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-surface-hover text-blue-600 dark:text-[#6B93FF] font-semibold text-small transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Shield size={16} />
+                      <span>Open Admin Management Console</span>
+                    </div>
+                    <kbd className="hidden sm:inline-block text-[10px] font-sans font-semibold px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-500">
+                      ADMIN
+                    </kbd>
+                  </button>
+                  <button
+                    onClick={() => {
+                      router.push("/admin/security");
+                      onClose();
+                    }}
+                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-surface-hover text-blue-600 dark:text-[#6B93FF] font-semibold text-small transition-colors cursor-pointer"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Shield size={16} />
+                      <span>Open Security Console</span>
+                    </div>
+                    <kbd className="hidden sm:inline-block text-[10px] font-sans font-semibold px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-500">
+                      SECURITY
+                    </kbd>
+                  </button>
+                </>
+              )}
             </div>
           )}
 
@@ -193,7 +234,11 @@ export function CommandPalette({ isOpen, onClose, onOpen }: CommandPaletteProps)
                 <button
                   key={member.id}
                   onClick={() => {
-                    setActiveTab("members");
+                    if (isAdmin) {
+                      router.push(`/admin/members/${member.id}`);
+                    } else {
+                      setActiveTab("members");
+                    }
                     onClose();
                   }}
                   className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-surface-hover transition-colors cursor-pointer text-left"
@@ -209,7 +254,7 @@ export function CommandPalette({ isOpen, onClose, onOpen }: CommandPaletteProps)
                         {member.name}
                       </div>
                       <div className="text-caption text-ink-tertiary font-mono font-medium">
-                        {member.panMasked}
+                        @{member.username || member.name.toLowerCase()} {member.panMasked && `· PAN: ${member.panMasked}`}
                       </div>
                     </div>
                   </div>

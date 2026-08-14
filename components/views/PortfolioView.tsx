@@ -6,6 +6,7 @@ import { MetricCard, Card } from "../ui/Card";
 import { StatusBadge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { formatINR } from "@/lib/mockData";
+import { CopyButton } from "../ui/CopyButton";
 import {
   Wallet,
   FileText,
@@ -328,20 +329,11 @@ export function PortfolioView() {
                         ) : null}
                       </td>
                       <td className="py-3.5 px-3">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            const appNo = txn.applicationNumber || "NEXO-APP-0000";
-                            navigator.clipboard.writeText(appNo);
-                            setDeleteNotification(`Copied Application No: ${appNo}`);
-                            setTimeout(() => setDeleteNotification(null), 2500);
-                          }}
-                          title="Click to copy Application Number"
-                          className="font-mono text-[11px] font-bold text-ink bg-surface-alt hover:bg-blue-500/10 hover:text-blue-500 hover:border-blue-500/30 px-2.5 py-1 rounded-md border border-line inline-flex items-center gap-1.5 shadow-2xs transition-all cursor-pointer group"
-                        >
-                          <span>{txn.applicationNumber || "NEXO-APP-0000"}</span>
-                          <Copy size={12} className="opacity-60 group-hover:opacity-100" />
-                        </button>
+                        <CopyButton
+                          text={txn.applicationNumber || "NEXO-APP-0000"}
+                          label={txn.applicationNumber || "NEXO-APP-0000"}
+                          className="font-mono text-xs font-bold"
+                        />
                       </td>
                       <td className="py-3.5 px-3 text-ink-secondary">
                         <div className="font-semibold text-ink text-xs">{dateStr}</div>
