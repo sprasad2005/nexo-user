@@ -478,7 +478,7 @@ export function AdminIPOManagement({
                 <thead>
                   <tr className="border-b border-line text-ink-secondary uppercase text-[10px] tracking-wider font-bold bg-surface-alt">
                     <th className="py-2.5 px-3">Applicant Name</th>
-                    <th className="py-2.5 px-3">App No / PAN</th>
+                    <th className="py-2.5 px-3">PAN Card</th>
                     <th className="py-2.5 px-3">Contribution</th>
                     <th className="py-2.5 px-3">Current Status</th>
                     <th className="py-2.5 px-3 text-center">Change Allotment Status</th>
@@ -489,7 +489,7 @@ export function AdminIPOManagement({
                     <tr key={app.id} className="hover:bg-surface-alt/50 transition-colors">
                       <td className="py-3 px-3 font-extrabold text-ink">{app.applicantName || "Member"}</td>
                       <td className="py-3 px-3 font-mono text-ink-secondary text-[11px]">
-                        {app.applicationNumber || "NEXO-APP-0000"} ({app.panMasked || "ABCDE1234F"})
+                        {app.panMasked || "ABCDE1234F"}
                       </td>
                       <td className="py-3 px-3 font-extrabold text-ink num-tabular">
                         {formatINR(app.totalContribution)}

@@ -252,7 +252,6 @@ export function PortfolioView() {
                   <th className="py-3 px-3">Type</th>
                   <th className="py-3 px-3">Participants</th>
                   <th className="py-3 px-3">Deducted Amount</th>
-                  <th className="py-3 px-3">App No.</th>
                   <th className="py-3 px-3">Date &amp; Time</th>
                   <th className="py-3 px-3 text-center">Status</th>
                   <th className="py-3 px-3 text-center">Actions</th>
@@ -327,13 +326,6 @@ export function PortfolioView() {
                             {formatINR(txn.groupTotalPool)} Total Pool
                           </div>
                         ) : null}
-                      </td>
-                      <td className="py-3.5 px-3">
-                        <CopyButton
-                          text={txn.applicationNumber || "NEXO-APP-0000"}
-                          label={txn.applicationNumber || "NEXO-APP-0000"}
-                          className="font-mono text-xs font-bold"
-                        />
                       </td>
                       <td className="py-3.5 px-3 text-ink-secondary">
                         <div className="font-semibold text-ink text-xs">{dateStr}</div>

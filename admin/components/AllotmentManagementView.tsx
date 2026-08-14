@@ -631,7 +631,6 @@ export function AllotmentManagementView() {
                       </th>
                       <th className="py-3 px-4">Applicant</th>
                       <th className="py-3 px-4">PAN</th>
-                      <th className="py-3 px-4">Application No.</th>
                       <th className="py-3 px-4 text-center">Lots Applied</th>
                       <th className="py-3 px-4 text-center">Intended</th>
                       <th className="py-3 px-4 text-right">Status</th>
@@ -679,11 +678,6 @@ export function AllotmentManagementView() {
                           {/* PAN */}
                           <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-[#AEB5C0]">
                             {app.pan}
-                          </td>
-
-                          {/* Application No. */}
-                          <td className="py-3 px-4 font-mono text-slate-600 dark:text-[#858D99]">
-                            {app.applicationNumber}
                           </td>
 
                           {/* Lots Applied */}

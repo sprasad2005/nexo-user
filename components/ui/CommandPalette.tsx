@@ -64,7 +64,7 @@ export function CommandPalette({ isOpen, onClose, onOpen }: CommandPaletteProps)
           <input
             type="text"
             autoFocus
-            placeholder="Search IPOs, members, PAN, applications..."
+            placeholder="Search IPOs, members, PAN..."
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             className="flex-1 bg-transparent text-body font-semibold text-ink placeholder:text-ink-muted focus:outline-none"

@@ -383,7 +383,6 @@ export function AdminApplicationsView() {
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-[#14161A]/50 text-[10px] font-black text-slate-400 dark:text-[#858D99] uppercase tracking-wider">
-                  <th className="py-3 px-4">Application #</th>
                   <th className="py-3 px-4">Applicant</th>
                   <th className="py-3 px-4">Date &amp; Time</th>
                   <th className="py-3 px-4">Structure</th>
@@ -412,11 +411,6 @@ export function AdminApplicationsView() {
 
                   return (
                     <tr key={app.id} className="hover:bg-slate-50/80 dark:hover:bg-[#16181E] transition-colors">
-                      {/* App # */}
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-[#F5F7FA]">
-                        {app.applicationNumber || app.id}
-                      </td>
-
                       {/* Applicant */}
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-2">

@@ -184,9 +184,6 @@ export function IPODetailDrawer() {
                           <span className="px-2 py-0.5 rounded bg-accent-soft text-accent font-semibold text-[11px]">
                             {app.type} POOL
                           </span>
-                          <span className="font-mono text-[12px] text-ink-secondary">
-                            {app.applicationNumber}
-                          </span>
                         </div>
                         <span className="font-semibold text-ink num-tabular">
                           {formatINR(app.totalContribution)}
