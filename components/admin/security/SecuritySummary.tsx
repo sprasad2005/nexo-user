@@ -49,7 +49,7 @@ export function SecuritySummary({ summary, onRefresh, isLoading }: Props) {
     {
       label: "Logins Today",
       value: logins,
-      sub: "successful",
+      sub: "successful sign-ins",
       icon: SignIn,
       color: "text-emerald-600 dark:text-[#32C98B]",
       bg: "bg-emerald-50 dark:bg-[#102C22]",
@@ -73,23 +73,30 @@ export function SecuritySummary({ summary, onRefresh, isLoading }: Props) {
   ];
 
   return (
-    <div className="space-y-4">
-      {/* Metrics Row */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3.5 select-none">
+    <div className="select-none">
+      {/* Metrics Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {cards.map(({ label, value, sub, icon: Icon, color, bg }) => (
           <div
             key={label}
-            className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl p-4 flex items-center gap-3 shadow-2xs transition-all"
+            className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl p-4.5 flex flex-col justify-between shadow-2xs hover:border-slate-300 dark:hover:border-slate-700 transition-all space-y-3"
           >
-            <div className={`w-9 h-9 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
-              <Icon size={18} className={color} weight="bold" />
-            </div>
-            <div>
-              <p className="text-[10px] font-extrabold text-slate-400 dark:text-[#626A75] uppercase tracking-wider">{label}</p>
-              <div className="flex items-baseline gap-1 mt-0.5">
-                <span className="text-xl font-black text-slate-900 dark:text-[#F5F7FA]">{value}</span>
-                <span className="text-[9px] font-semibold text-slate-400 dark:text-[#626A75] truncate max-w-[90px]">{sub}</span>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-extrabold text-slate-400 dark:text-[#858D99] uppercase tracking-wider truncate">
+                {label}
+              </span>
+              <div className={`w-8 h-8 rounded-xl ${bg} flex items-center justify-center shrink-0`}>
+                <Icon size={16} className={color} weight="bold" />
               </div>
+            </div>
+
+            <div>
+              <span className="text-2xl font-black text-slate-900 dark:text-[#F5F7FA] tracking-tight block">
+                {value}
+              </span>
+              <span className="text-[11px] font-semibold text-slate-400 dark:text-[#858D99] block mt-0.5 truncate">
+                {sub}
+              </span>
             </div>
           </div>
         ))}
@@ -160,39 +167,41 @@ export function SecurityAlerts({ summary, onNavigate }: { summary: SummaryData |
 
   if (alerts.length === 0) {
     return (
-      <div className="p-4 bg-slate-50/50 dark:bg-[#14161A]/40 border border-dashed border-slate-200 dark:border-[#252931] rounded-xl text-center select-none text-[10px] text-slate-400">
-        All systems are operating normally. No security alerts require attention.
+      <div className="p-4 bg-slate-50/50 dark:bg-[#14161A]/40 border border-dashed border-slate-200 dark:border-[#252931] rounded-2xl text-center select-none text-xs text-slate-400 font-medium">
+        ✓ All authentication &amp; security parameters are operating normally. No security alerts require attention.
       </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      <h3 className="text-[10px] font-extrabold text-slate-400 dark:text-[#626A75] uppercase tracking-wider select-none mb-1 block">Requires Attention</h3>
-      <div className="space-y-2">
+    <div className="space-y-2 select-none">
+      <h3 className="text-[10px] font-extrabold text-slate-400 dark:text-[#858D99] uppercase tracking-wider block">
+        Requires Attention ({alerts.length})
+      </h3>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
         {alerts.map((alert) => (
           <div
             key={alert.id}
-            className={`p-3.5 rounded-xl border flex items-start gap-3 transition-colors ${
+            className={`p-3.5 rounded-2xl border flex items-start gap-3 transition-colors ${
               alert.severity === "CRITICAL"
-                ? "bg-rose-500/5 border-rose-500/25"
+                ? "bg-rose-500/5 dark:bg-rose-500/10 border-rose-500/25"
                 : alert.severity === "WARNING"
-                ? "bg-amber-500/5 border-amber-500/25"
-                : "bg-blue-500/5 border-blue-500/25"
+                ? "bg-amber-500/5 dark:bg-amber-500/10 border-amber-500/25"
+                : "bg-blue-500/5 dark:bg-blue-500/10 border-blue-500/25"
             }`}
           >
-            <div className={`w-5 h-5 rounded flex items-center justify-center shrink-0 mt-0.5 ${
+            <div className={`w-7 h-7 rounded-xl flex items-center justify-center shrink-0 ${
               alert.severity === "CRITICAL"
-                ? "text-rose-500 bg-rose-500/10"
+                ? "text-rose-500 bg-rose-500/15"
                 : alert.severity === "WARNING"
-                ? "text-amber-500 bg-amber-500/10"
-                : "text-blue-500 bg-blue-500/10"
+                ? "text-amber-500 bg-amber-500/15"
+                : "text-blue-500 bg-blue-500/15"
             }`}>
-              <Info size={13} weight="bold" />
+              <Info size={16} weight="bold" />
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="text-[11px] font-extrabold text-slate-800 dark:text-slate-200 leading-normal">{alert.title}</h4>
-              <p className="text-[10px] text-slate-400 dark:text-[#858D99] mt-0.5 leading-normal">{alert.desc}</p>
+              <h4 className="text-xs font-black text-slate-900 dark:text-[#F5F7FA] leading-tight">{alert.title}</h4>
+              <p className="text-[11px] font-semibold text-slate-500 dark:text-[#858D99] mt-1 leading-relaxed">{alert.desc}</p>
             </div>
           </div>
         ))}

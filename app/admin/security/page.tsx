@@ -259,15 +259,11 @@ function AdminSecurityPageContent() {
             </button>
           </div>
 
-          {/* Top Panel: Health Indicator + Metrics */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-            <div className="md:col-span-2 space-y-4">
-              <SecurityHealth summary={summary} isLoading={isLoading} />
-              <SecuritySummary summary={summary} onRefresh={fetchSecurityData} isLoading={isLoading} />
-            </div>
-            <div>
-              <SecurityAlerts summary={summary} onNavigate={handleViewMemberDetails} />
-            </div>
+          {/* Top Panel: Health Indicator + Metrics + Alerts */}
+          <div className="space-y-4">
+            <SecurityHealth summary={summary} isLoading={isLoading} />
+            <SecuritySummary summary={summary} onRefresh={fetchSecurityData} isLoading={isLoading} />
+            <SecurityAlerts summary={summary} onNavigate={handleViewMemberDetails} />
           </div>
 
           {/* Tab Worksheets */}
