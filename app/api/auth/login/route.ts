@@ -261,6 +261,7 @@ export async function POST(req: Request) {
         username: member.username,
         avatar:   member.avatar,
         role:     member.role,
+        phone:    member.phone,
       },
     });
 

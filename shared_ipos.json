@@ -26,8 +26,39 @@
     },
     "createdBy": "Shivam Prasad",
     "participantsCount": 0,
-    "combinedCapital": 0,
-    "applications": []
+    "combinedCapital": 1234,
+    "applications": [
+      {
+        "id": "app_1786726146220",
+        "ipoId": "ipo_1786720662450",
+        "type": "INDIVIDUAL",
+        "applicantName": "user2",
+        "memberId": "mem_1786684116726",
+        "panMasked": "HSCPP7066Q",
+        "panNumbers": [
+          "HSCPP7066Q"
+        ],
+        "totalContribution": 1234,
+        "lotCount": 1,
+        "verified": true,
+        "allotmentStatus": "AWAITING",
+        "status": "AWAITING",
+        "createdAt": "2026-08-14T16:49:06.220Z",
+        "applicationNumber": "NEXO-APP-4331",
+        "participants": [
+          {
+            "memberId": "mem_1786684116726",
+            "memberName": "user2",
+            "avatar": "/oggy.png",
+            "contribution": 1234,
+            "percentage": 100,
+            "panMasked": "HSCPP7066Q",
+            "panFull": "HSCPP7066Q",
+            "status": "SUBMITTED"
+          }
+        ]
+      }
+    ]
   },
   {
     "id": "ipo_1786694812510",

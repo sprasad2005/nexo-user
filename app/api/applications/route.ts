@@ -145,3 +145,61 @@ export async function POST(req: Request) {
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
+
+/* ────────────────────────────────────────────────────────────────
+   PUT /api/applications
+   Updates an existing IPO application in MongoDB.
+ * ──────────────────────────────────────────────────────────────── */
+export async function PUT(req: Request) {
+  try {
+    const body = await req.json().catch(() => ({}));
+    if (!body.id) {
+      return NextResponse.json({ success: false, error: "Application ID is required" }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const col = client.db(DB).collection<IPOApplicationDocument>(COL);
+
+    const updateFields: any = { updatedAt: new Date() };
+    if (body.applicantName) updateFields.applicantName = body.applicantName;
+    if (body.lotCount !== undefined || body.numberOfPanCards !== undefined) {
+      updateFields.numberOfPanCards = body.lotCount ?? body.numberOfPanCards;
+    }
+    if (body.panMasked) updateFields.panMasked = body.panMasked;
+    if (Array.isArray(body.panNumbers)) updateFields.panNumbers = body.panNumbers;
+    if (body.totalContribution !== undefined) updateFields.totalContribution = body.totalContribution;
+    if (body.allotmentStatus) updateFields.allotmentStatus = body.allotmentStatus;
+    if (body.status) updateFields.status = body.status;
+
+    await col.updateOne({ id: body.id }, { $set: updateFields });
+
+    return NextResponse.json({ success: true, message: "Application updated successfully" });
+  } catch (err: any) {
+    console.error("PUT /api/applications error:", err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}
+
+/* ────────────────────────────────────────────────────────────────
+   DELETE /api/applications
+   Deletes an IPO application from MongoDB by id.
+ * ──────────────────────────────────────────────────────────────── */
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Application ID is required" }, { status: 400 });
+    }
+
+    const client = await clientPromise;
+    const col = client.db(DB).collection<IPOApplicationDocument>(COL);
+
+    await col.deleteOne({ id });
+
+    return NextResponse.json({ success: true, message: "Application deleted successfully" });
+  } catch (err: any) {
+    console.error("DELETE /api/applications error:", err);
+    return NextResponse.json({ success: false, error: err.message }, { status: 500 });
+  }
+}

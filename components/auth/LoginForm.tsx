@@ -19,7 +19,7 @@ function safeNextPath(raw: string | null): string {
 }
 
 export function LoginForm() {
-  const { login, authError, setAuthError, isAuthenticated } = useNexo();
+  const { login, authError, setAuthError, isAuthenticated, currentUser } = useNexo();
 
   const [usernameInput, setUsernameInput] = useState("");
   const [password, setPassword] = useState("");
@@ -77,7 +77,29 @@ export function LoginForm() {
           target = safeNextPath(params.get("next"));
         }
         setTargetPath(target);
-        setStep("PROFILE_SETUP");
+
+        // Check if member already has a registered phone number
+        const loggedInMember = res.member || currentUser;
+        const phone = loggedInMember?.phone;
+        const hasPhone = Boolean(phone && typeof phone === "string" && phone.trim().length > 0);
+
+        if (!hasPhone) {
+          // First time login without a registered phone number -> prompt for phone number & profile setup
+          setStep("PROFILE_SETUP");
+        } else {
+          // Member already registered phone number previously -> skip setup screen & redirect immediately
+          try {
+            sessionStorage.setItem("nexo_just_logged_in", "true");
+          } catch {}
+
+          if (typeof window !== "undefined") {
+            if (window.location.pathname === target) {
+              window.location.reload();
+            } else {
+              window.location.href = target;
+            }
+          }
+        }
       } else if (res.message && setAuthError) {
         setAuthError(res.message);
         isFormSigningIn.current = false;

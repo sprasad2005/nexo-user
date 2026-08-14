@@ -11,6 +11,7 @@ import {
   SignOut,
   ShieldCheck,
   CheckCircle,
+  Files,
 } from "@phosphor-icons/react";
 import { useAdmin } from "../context/AdminContext";
 
@@ -32,6 +33,7 @@ export function AdminSidebar({
 
   const mainNav = [
     { id: "ipos", label: "IPO Management", icon: TrendUp },
+    { id: "applications", label: "Applications", icon: Files },
     { id: "allotment", label: "Allotment", icon: CheckCircle },
     { id: "distribute-profit", label: "Distribute Profit", icon: Coins },
     { id: "members", label: "Members", icon: Users },

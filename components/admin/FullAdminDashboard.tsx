@@ -14,6 +14,7 @@ import { AdminLogoutModal } from "./AdminLogoutModal";
 import { SuperAdminMemberManagement } from "./SuperAdminMemberManagement";
 import { ActivityPage } from "./activity/ActivityPage";
 import { AllotmentManagementView } from "../../admin/components/AllotmentManagementView";
+import { AdminApplicationsView } from "./AdminApplicationsView";
 import { UserCircle, Gear, SignOut } from "@phosphor-icons/react";
 
 function AdminOverview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
@@ -151,9 +152,11 @@ function AdminDashboardContent() {
   }, []);
 
   useEffect(() => {
-    if (tabParam && ["ipos", "allotment", "allotments", "distribute-profit", "members", "activity", "security", "profile", "settings"].includes(tabParam)) {
+    if (tabParam && ["ipos", "applications", "allotment", "allotments", "distribute-profit", "members", "activity", "security", "profile", "settings"].includes(tabParam)) {
       if (tabParam === "allotment" || tabParam === "allotments") {
         router.push("/admin/allotment");
+      } else if (tabParam === "applications") {
+        router.push("/admin/applications");
       } else if (tabParam === "members") {
         router.push("/admin/members");
       } else if (tabParam === "activity") {
@@ -169,6 +172,8 @@ function AdminDashboardContent() {
   const handleSelectTab = (tab: string) => {
     if (tab === "allotment" || tab === "allotments") {
       router.push("/admin/allotment");
+    } else if (tab === "applications") {
+      router.push("/admin/applications");
     } else if (tab === "members") {
       router.push("/admin/members");
     } else if (tab === "activity") {
@@ -191,6 +196,8 @@ function AdminDashboardContent() {
     switch (tab) {
       case "ipos":
         return "IPO Management";
+      case "applications":
+        return "Applications Management";
       case "allotment":
       case "allotments":
         return "Allotment";
@@ -254,6 +261,7 @@ function AdminDashboardContent() {
         {/* Page Content */}
         <main className="p-4 sm:p-6 md:p-8 flex-1 max-w-6xl w-full mx-auto">
           {activeTab === "ipos" && <AdminIPOManagement />}
+          {activeTab === "applications" && <AdminApplicationsView />}
           {(activeTab === "allotment" || activeTab === "allotments") && <AllotmentManagementView />}
           {activeTab === "distribute-profit" && <DistributeProfitView />}
           {activeTab === "members" && <SuperAdminMemberManagement />}
@@ -263,6 +271,7 @@ function AdminDashboardContent() {
           )}
           {activeTab === "settings" && <AdminSettingsView />}
           {activeTab !== "ipos" &&
+            activeTab !== "applications" &&
             activeTab !== "allotment" &&
             activeTab !== "allotments" &&
             activeTab !== "distribute-profit" &&

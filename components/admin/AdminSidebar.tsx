@@ -18,7 +18,7 @@ import {
   CaretRight,
 } from "@phosphor-icons/react";
 
-export type AdminTab = "ipos" | "allotments" | "members" | "transactions";
+export type AdminTab = "ipos" | "applications" | "allotments" | "members" | "transactions";
 
 interface AdminSidebarProps {
   activeTab: AdminTab;
@@ -56,6 +56,12 @@ export function AdminSidebar({
           label: "IPO Catalog & Status",
           icon: Buildings,
           badge: visibleIpos.length,
+        },
+        {
+          id: "applications" as AdminTab,
+          label: "Applications List",
+          icon: Files,
+          badge: totalAppsCount,
         },
         {
           id: "allotments" as AdminTab,

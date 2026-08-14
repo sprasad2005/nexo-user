@@ -37,7 +37,7 @@ export interface NexoContextType {
   isAuthLoaded: boolean;
   currentUser: Member | null;
   currentMember: Member;
-  login: (userId: string, pass: string) => Promise<{ success: boolean; role?: MemberRole; message?: string }> | { success: boolean; role?: MemberRole; message?: string };
+  login: (userId: string, pass: string) => Promise<{ success: boolean; role?: MemberRole; message?: string; member?: Member }> | { success: boolean; role?: MemberRole; message?: string; member?: Member };
   logout: () => void;
   authError: string | null;
   setAuthError: (err: string | null) => void;
@@ -646,7 +646,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const login = async (userIdInput: string, passInput: string): Promise<{ success: boolean; role?: MemberRole; message?: string }> => {
+  const login = async (userIdInput: string, passInput: string): Promise<{ success: boolean; role?: MemberRole; message?: string; member?: Member }> => {
     setAuthError(null);
     const cleanUser = userIdInput.trim().toLowerCase();
     const cleanPass = passInput.trim();
@@ -681,7 +681,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
           localStorage.setItem("nexo_active_tab", "dashboard");
           if (typeof window !== "undefined") window.history.replaceState(null, "", "#dashboard");
         } catch {}
-        return { success: true, role: data.member.role };
+        return { success: true, role: data.member.role, member: data.member };
       } else if (data.error && res.status !== 404 && res.status !== 500) {
         setAuthError(data.error);
         return { success: false, message: data.error };
@@ -729,7 +729,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== "undefined") window.history.replaceState(null, "", "#dashboard");
     } catch {}
 
-    return { success: true, role: foundMember.role };
+    return { success: true, role: foundMember.role, member: foundMember };
   };
 
   const logout = () => {
