@@ -408,50 +408,6 @@ export function MembersView() {
                         <span className="text-white/80 font-sans font-normal">→</span>
                       </button>
                     )}
-
-                    {canAddMembers && (
-                      <button
-                        onClick={() => openEditModal(member)}
-                        className="text-ink-tertiary hover:text-accent font-semibold cursor-pointer flex items-center gap-1 px-2.5 py-1.5 rounded-xl hover:bg-surface-hover transition-all border border-transparent hover:border-line"
-                      >
-                        <Pencil size={13} /> Edit
-                      </button>
-                    )}
-
-                    {isSuperAdmin && (
-                      <button
-                        onClick={() =>
-                          setRevealedPasswords((prev) => ({
-                            ...prev,
-                            [member.id]: !prev[member.id],
-                          }))
-                        }
-                        className="text-[#6B93FF] hover:text-[#4F75FF] font-semibold cursor-pointer flex items-center gap-1 px-2.5 py-1.5 rounded-xl hover:bg-[#6B93FF]/10 transition-all border border-transparent hover:border-[#6B93FF]/20"
-                        title={revealedPasswords[member.id] ? "Hide Password" : "See Password"}
-                      >
-                        {revealedPasswords[member.id] ? (
-                          <>
-                            <EyeSlash size={13} />
-                            <span className="font-mono text-[11px] font-bold text-[#6B93FF]">{member.password || "user123"}</span>
-                          </>
-                        ) : (
-                          <>
-                            <Eye size={13} />
-                            <span>Password</span>
-                          </>
-                        )}
-                      </button>
-                    )}
-
-                    {canAddMembers && member.role !== "SUPER_ADMIN" && member.id !== currentUser?.id && (
-                      <button
-                        onClick={() => handleDeleteMember(member)}
-                        className="text-rose-500/80 hover:text-rose-600 font-semibold cursor-pointer flex items-center gap-1 px-2.5 py-1.5 rounded-xl hover:bg-rose-500/10 transition-all border border-transparent hover:border-rose-500/20"
-                        title={`Delete @${mUsername}`}
-                      >
-                        <Trash size={13} /> Delete
-                      </button>
-                    )}
                   </div>
                 </div>
               </div>
