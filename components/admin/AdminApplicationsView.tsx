@@ -385,6 +385,7 @@ export function AdminApplicationsView() {
                 <tr className="border-b border-slate-100 dark:border-slate-800/80 bg-slate-50/50 dark:bg-[#14161A]/50 text-[10px] font-black text-slate-400 dark:text-[#858D99] uppercase tracking-wider">
                   <th className="py-3 px-4">Application #</th>
                   <th className="py-3 px-4">Applicant</th>
+                  <th className="py-3 px-4">Date &amp; Time</th>
                   <th className="py-3 px-4">Structure</th>
                   <th className="py-3 px-4">Lots / PANs</th>
                   <th className="py-3 px-4">PAN Card(s)</th>
@@ -399,6 +400,15 @@ export function AdminApplicationsView() {
                   const pansList = app.panNumbers && app.panNumbers.length > 0
                     ? app.panNumbers
                     : [app.panMasked || "ABCDE2741D"];
+
+                  const appDateRaw = app.createdAt || new Date().toISOString();
+                  const appDateObj = new Date(appDateRaw);
+                  const dateStr = !isNaN(appDateObj.getTime())
+                    ? appDateObj.toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })
+                    : "14 Aug 2026";
+                  const timeStr = !isNaN(appDateObj.getTime())
+                    ? appDateObj.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", hour12: true })
+                    : "02:30 PM";
 
                   return (
                     <tr key={app.id} className="hover:bg-slate-50/80 dark:hover:bg-[#16181E] transition-colors">
@@ -421,6 +431,16 @@ export function AdminApplicationsView() {
                               ID: {app.memberId}
                             </span>
                           </div>
+                        </div>
+                      </td>
+
+                      {/* Date & Time */}
+                      <td className="py-3.5 px-4">
+                        <div className="font-bold text-slate-800 dark:text-slate-200 text-[11px] whitespace-nowrap">
+                          {dateStr}
+                        </div>
+                        <div className="text-[10px] font-mono text-slate-400 dark:text-[#858D99]">
+                          {timeStr}
                         </div>
                       </td>
 
