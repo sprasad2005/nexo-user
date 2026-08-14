@@ -29,9 +29,15 @@ export function CustomSelect({
   disabled = false,
 }: CustomSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const selectedOption = options.find((opt) => opt.value === value);
+  const isDisabled = isMounted ? Boolean(disabled) : false;
 
   // Close dropdown when clicking outside
   useEffect(() => {
@@ -49,13 +55,13 @@ export function CustomSelect({
       {/* Trigger Button */}
       <button
         type="button"
-        disabled={disabled}
-        onClick={() => setIsOpen((prev) => !prev)}
+        disabled={isDisabled ? true : undefined}
+        onClick={() => !isDisabled && setIsOpen((prev) => !prev)}
         className={`w-full flex items-center justify-between gap-3 px-3.5 py-2 rounded-xl text-xs font-bold border transition-all cursor-pointer select-none active:scale-[0.99] ${
           isOpen
             ? "bg-slate-100 dark:bg-[#1A1D24] border-blue-500 shadow-xs ring-1 ring-blue-500/30 text-slate-900 dark:text-[#F5F7FA]"
             : "bg-white dark:bg-[#101114] border-slate-200 dark:border-[#252931] hover:border-slate-400 dark:hover:border-slate-600 text-slate-800 dark:text-[#F5F7FA] shadow-2xs"
-        } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
+        } ${isDisabled ? "opacity-50 cursor-not-allowed" : ""}`}
       >
         <span className="truncate flex items-center gap-1.5 min-w-0">
           {selectedOption ? (
