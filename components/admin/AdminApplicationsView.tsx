@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useNexo } from "@/context/NexoContext";
 import { Application, AllotmentStatus } from "@/types/nexo";
 import { formatINR } from "@/lib/mockData";
+import { CopyButton } from "@/components/ui/CopyButton";
 import {
   Files,
   MagnifyingGlass,
@@ -464,6 +465,7 @@ export function AdminApplicationsView() {
                           >
                             {isRevealed ? <EyeSlash size={14} /> : <Eye size={14} />}
                           </button>
+                          <CopyButton text={pansList.join(", ")} iconOnly />
                         </div>
                       </td>
 

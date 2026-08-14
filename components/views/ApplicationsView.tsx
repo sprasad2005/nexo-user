@@ -4,6 +4,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { useNexo } from "@/context/NexoContext";
 import { formatINR } from "@/lib/mockData";
 import { AllotmentStatus } from "@/types/nexo";
+import { CopyButton } from "@/components/ui/CopyButton";
 import {
   LockKey,
   ArrowSquareOut,
@@ -716,10 +717,11 @@ export function ApplicationsView() {
                           </div>
 
                           {/* PAN Card Column */}
-                          <div className="col-span-3 self-center">
+                          <div className="col-span-3 self-center flex items-center gap-1.5">
                             <span className="inline-flex items-center px-2.5 py-1 rounded-lg bg-surface-alt border border-line-strong font-mono text-[12px] font-bold text-ink tracking-wider shadow-2xs">
                               {panDisplay}
                             </span>
+                            <CopyButton text={panDisplay} iconOnly />
                           </div>
 
                           {/* Amount */}
