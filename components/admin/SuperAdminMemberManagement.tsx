@@ -26,8 +26,12 @@ import {
 } from "@phosphor-icons/react";
 import { Member, MemberRole, MemberStatus, MemberPermissions } from "@/types/nexo";
 import { MOCK_MEMBERS } from "@/lib/mockData";
+import { useNexo } from "@/context/NexoContext";
 
 export function SuperAdminMemberManagement() {
+  const { currentUser } = useNexo();
+  const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
+
   const [members, setMembers] = useState<Member[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -540,16 +544,18 @@ export function SuperAdminMemberManagement() {
                           </button>
 
                           {/* Reset Password */}
-                          <button
-                            onClick={() => {
-                              setResetPassMember(m);
-                              setCustomResetPass(m.password || "");
-                            }}
-                            title="Reset Password"
-                            className="p-2 rounded-xl text-slate-500 dark:text-[#AEB5C0] hover:text-amber-600 dark:hover:text-[#F3B85B] hover:bg-slate-100 dark:hover:bg-[#1D2026] transition-colors cursor-pointer"
-                          >
-                            <Key size={16} />
-                          </button>
+                          {isSuperAdmin && (
+                            <button
+                              onClick={() => {
+                                setResetPassMember(m);
+                                setCustomResetPass(m.password || "");
+                              }}
+                              title="Reset Password"
+                              className="p-2 rounded-xl text-slate-500 dark:text-[#AEB5C0] hover:text-amber-600 dark:hover:text-[#F3B85B] hover:bg-slate-100 dark:hover:bg-[#1D2026] transition-colors cursor-pointer"
+                            >
+                              <Key size={16} />
+                            </button>
+                          )}
 
                           {/* Revoke Sessions */}
                           <button
@@ -616,29 +622,45 @@ export function SuperAdminMemberManagement() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-slate-700 dark:text-[#AEB5C0] mb-1 font-extrabold">Assign Username *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="ashay"
-                    value={newMemberUsername}
-                    onChange={(e) => setNewMemberUsername(e.target.value)}
-                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs font-mono font-bold text-slate-900 dark:text-[#F5F7FA] focus:outline-none"
-                  />
-                </div>
+                {isSuperAdmin ? (
+                  <>
+                    <div>
+                      <label className="block text-slate-700 dark:text-[#AEB5C0] mb-1 font-extrabold">Assign Username *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="ashay"
+                        value={newMemberUsername}
+                        onChange={(e) => setNewMemberUsername(e.target.value)}
+                        className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs font-mono font-bold text-slate-900 dark:text-[#F5F7FA] focus:outline-none"
+                      />
+                    </div>
 
-                <div>
-                  <label className="block text-slate-700 dark:text-[#AEB5C0] mb-1 font-extrabold">Assign Password *</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="user123"
-                    value={newMemberPassword}
-                    onChange={(e) => setNewMemberPassword(e.target.value)}
-                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs font-mono font-bold text-slate-900 dark:text-[#F5F7FA] focus:outline-none"
-                  />
-                </div>
+                    <div>
+                      <label className="block text-slate-700 dark:text-[#AEB5C0] mb-1 font-extrabold">Assign Password *</label>
+                      <input
+                        type="text"
+                        required
+                        placeholder="user123"
+                        value={newMemberPassword}
+                        onChange={(e) => setNewMemberPassword(e.target.value)}
+                        className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs font-mono font-bold text-slate-900 dark:text-[#F5F7FA] focus:outline-none"
+                      />
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="block text-slate-700 dark:text-[#AEB5C0] mb-1 font-extrabold">Username</label>
+                    <input
+                      type="text"
+                      disabled
+                      readOnly
+                      value={newMemberUsername || (newMemberName ? newMemberName.toLowerCase().replace(/[^a-z0-9]/g, "_") : "auto-generated")}
+                      className="w-full p-3 rounded-xl bg-slate-100 dark:bg-[#15171C] border border-slate-200 dark:border-[#252931] text-xs font-mono font-bold text-slate-400 cursor-not-allowed opacity-80"
+                    />
+                    <span className="text-[10px] text-slate-400 mt-1 block font-normal">Username & password are automatically generated for new accounts.</span>
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-slate-700 dark:text-[#AEB5C0] mb-1 font-extrabold">Assign Role *</label>

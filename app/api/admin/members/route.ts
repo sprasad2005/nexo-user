@@ -144,18 +144,21 @@ export async function GET(req: Request) {
 // POST /api/admin/members
 export async function POST(req: Request) {
   try {
-    const auth = await requireSuperAdmin();
+    const auth = await requireAdmin();
     const body = await req.json();
 
-    const { name, username, password, role, email, phone, avatar } = body;
+    const { name, role, email, phone, avatar } = body;
+    let { username, password } = body;
 
     // Validation
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json({ success: false, error: "Full name is required." }, { status: 400 });
     }
 
-    if (!username || typeof username !== "string") {
-      return NextResponse.json({ success: false, error: "Username is required." }, { status: 400 });
+    // Auto-generate username from name if not provided
+    if (!username || typeof username !== "string" || !username.trim()) {
+      const baseUser = name.trim().toLowerCase().replace(/[^a-z0-9]/g, "_").slice(0, 18);
+      username = `${baseUser}_${Math.floor(1000 + Math.random() * 9000)}`;
     }
 
     const cleanUsername = username.trim().toLowerCase();
@@ -167,13 +170,12 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    // Auto-generate password if omitted
     if (!password || typeof password !== "string" || password.length < 6) {
-      return NextResponse.json({ success: false, error: "Password must be at least 6 characters." }, { status: 400 });
+      password = `Nexo@${Math.floor(100000 + Math.random() * 900000)}`;
     }
 
-    if (!role || !["MEMBER", "ADMIN", "SUPER_ADMIN"].includes(role)) {
-      return NextResponse.json({ success: false, error: "A valid role is required." }, { status: 400 });
-    }
+    const assignedRole = role && ["MEMBER", "ADMIN", "SUPER_ADMIN"].includes(role) ? role : "MEMBER";
 
     if (role === "SUPER_ADMIN" && cleanUsername !== "ankitgod") {
       return NextResponse.json({
@@ -242,7 +244,7 @@ export async function POST(req: Request) {
         canDistributeProfit: role === "SUPER_ADMIN" || role === "ADMIN",
         canEditIpos: role === "SUPER_ADMIN" || role === "ADMIN",
         canAccessAdminConsole: role === "SUPER_ADMIN" || role === "ADMIN",
-        canManageMembers: role === "SUPER_ADMIN",
+        canManageMembers: role === "SUPER_ADMIN" || role === "ADMIN",
       }
     };
 

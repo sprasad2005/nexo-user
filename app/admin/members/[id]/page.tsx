@@ -121,6 +121,8 @@ function MemberDetailPageContent() {
   } | null>(null);
 
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+  const [currentUserRole, setCurrentUserRole] = useState<"SUPER_ADMIN" | "ADMIN" | "MEMBER">("ADMIN");
+  const isSuperAdmin = currentUserRole === "SUPER_ADMIN";
 
   const showToast = (message: string, type: "success" | "error" = "success") => {
     setToast({ type, message });
@@ -140,6 +142,7 @@ function MemberDetailPageContent() {
         if (!active) return;
         if (data.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
           setAdminStatus("AUTHORIZED");
+          setCurrentUserRole(data.user?.role || data.member?.role || "ADMIN");
         } else {
           setAdminStatus("UNAUTHORIZED");
           router.replace("/admin/login");
@@ -557,20 +560,24 @@ function MemberDetailPageContent() {
                     <PencilSimple size={14} weight="bold" />
                     <span>Edit Profile</span>
                   </button>
-                  <button
-                    onClick={() => setShowActivePass(!showActivePass)}
-                    className="px-3.5 py-2 rounded-xl border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 dark:text-[#6B93FF] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
-                  >
-                    {showActivePass ? <EyeSlash size={14} /> : <Eye size={14} />}
-                    <span>{showActivePass ? `Pass: ${member.password || "user123"}` : "See Password"}</span>
-                  </button>
-                  <button
-                    onClick={handleResetPassword}
-                    className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-[#252931] hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-[#AEB5C0]"
-                  >
-                    <Key size={14} />
-                    <span>Reset Password</span>
-                  </button>
+                  {isSuperAdmin && (
+                    <>
+                      <button
+                        onClick={() => setShowActivePass(!showActivePass)}
+                        className="px-3.5 py-2 rounded-xl border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-600 dark:text-[#6B93FF] text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer"
+                      >
+                        {showActivePass ? <EyeSlash size={14} /> : <Eye size={14} />}
+                        <span>{showActivePass ? `Pass: ${member.password || "user123"}` : "See Password"}</span>
+                      </button>
+                      <button
+                        onClick={handleResetPassword}
+                        className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-[#252931] hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-[#AEB5C0]"
+                      >
+                        <Key size={14} />
+                        <span>Reset Password</span>
+                      </button>
+                    </>
+                  )}
                   <button
                     onClick={handleRevokeSessions}
                     className="px-3.5 py-2 rounded-xl border border-slate-200 dark:border-[#252931] hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer text-slate-700 dark:text-[#AEB5C0]"
@@ -835,9 +842,18 @@ function MemberDetailPageContent() {
                             <input
                               type="text"
                               value={editUsername}
+                              disabled={!isSuperAdmin}
+                              readOnly={!isSuperAdmin}
                               onChange={(e) => setEditUsername(e.target.value)}
-                              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] text-xs focus:outline-none"
+                              className={`w-full px-3.5 py-2.5 rounded-xl border text-xs focus:outline-none ${
+                                !isSuperAdmin
+                                  ? "bg-slate-100 dark:bg-[#15171C] border-slate-200 dark:border-[#252931] text-slate-400 cursor-not-allowed opacity-80"
+                                  : "bg-slate-50 dark:bg-[#14161A] border-slate-200 dark:border-[#252931]"
+                              }`}
                             />
+                            {!isSuperAdmin && (
+                              <span className="text-[9px] text-slate-400 mt-1 block">Username editing is restricted to Super Admin.</span>
+                            )}
                           </div>
                           <div>
                             <label className="text-[10px] font-extrabold text-slate-400 dark:text-[#858D99] uppercase tracking-wider block mb-1.5">EMAIL ADDRESS</label>

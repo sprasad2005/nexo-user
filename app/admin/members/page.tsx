@@ -38,6 +38,8 @@ function MembersPageContent() {
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isAddIpoOpen, setIsAddIpoOpen] = useState(false);
   const [adminStatus, setAdminStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("LOADING");
+  const [currentUserRole, setCurrentUserRole] = useState<"SUPER_ADMIN" | "ADMIN" | "MEMBER">("ADMIN");
+  const isSuperAdmin = currentUserRole === "SUPER_ADMIN";
 
   // Data states
   const [members, setMembers] = useState<MemberListEntry[]>([]);
@@ -58,6 +60,10 @@ function MembersPageContent() {
   // Actions dropdown active row
   const [activeDropdownRow, setActiveDropdownRow] = useState<string | null>(null);
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
+
+  useEffect(() => {
+    document.title = "NEXO- Member Management";
+  }, []);
 
   const togglePasswordReveal = (memberId: string) => {
     setRevealedPasswords((prev) => ({
@@ -961,16 +967,18 @@ function MembersPageContent() {
                                     <span>Revoke Sessions</span>
                                   </button>
 
-                                  <button
-                                    onClick={() => {
-                                      togglePasswordReveal(member.id);
-                                      setActiveDropdownRow(null);
-                                    }}
-                                    className="w-full px-3 py-2 hover:bg-slate-100/80 dark:hover:bg-[#20242F] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 rounded-xl transition-all duration-150 cursor-pointer group"
-                                  >
-                                    {revealedPasswords[member.id] ? <EyeSlash size={15} /> : <Eye size={15} />}
-                                    <span>{revealedPasswords[member.id] ? "Hide Password" : "See Password"}</span>
-                                  </button>
+                                  {isSuperAdmin && (
+                                    <button
+                                      onClick={() => {
+                                        togglePasswordReveal(member.id);
+                                        setActiveDropdownRow(null);
+                                      }}
+                                      className="w-full px-3 py-2 hover:bg-slate-100/80 dark:hover:bg-[#20242F] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 rounded-xl transition-all duration-150 cursor-pointer group"
+                                    >
+                                      {revealedPasswords[member.id] ? <EyeSlash size={15} /> : <Eye size={15} />}
+                                      <span>{revealedPasswords[member.id] ? "Hide Password" : "See Password"}</span>
+                                    </button>
+                                  )}
 
                                   <div className="my-1 border-t border-slate-100 dark:border-[#252931]" />
 
@@ -1061,25 +1069,27 @@ function MembersPageContent() {
                             <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{joinedDate}</span>
                           </div>
 
-                          <div className="flex items-center justify-between">
-                            <span className="flex items-center gap-1.5">
-                              <Key size={13} className="text-slate-400 dark:text-slate-500" />
-                              <span>Password:</span>
-                            </span>
-                            <div className="flex items-center gap-1">
-                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                                {revealedPasswords[member.id] ? (member.password || "user123") : "••••••••"}
+                          {isSuperAdmin && (
+                            <div className="flex items-center justify-between">
+                              <span className="flex items-center gap-1.5">
+                                <Key size={13} className="text-slate-400 dark:text-slate-500" />
+                                <span>Password:</span>
                               </span>
-                              <button
-                                type="button"
-                                onClick={() => togglePasswordReveal(member.id)}
-                                className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-[#6B93FF] transition-colors cursor-pointer"
-                                title={revealedPasswords[member.id] ? "Hide Password" : "See Password"}
-                              >
-                                {revealedPasswords[member.id] ? <EyeSlash size={13} /> : <Eye size={13} />}
-                              </button>
+                              <div className="flex items-center gap-1">
+                                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
+                                  {revealedPasswords[member.id] ? (member.password || "user123") : "••••••••"}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => togglePasswordReveal(member.id)}
+                                  className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-[#6B93FF] transition-colors cursor-pointer"
+                                  title={revealedPasswords[member.id] ? "Hide Password" : "See Password"}
+                                >
+                                  {revealedPasswords[member.id] ? <EyeSlash size={13} /> : <Eye size={13} />}
+                                </button>
+                              </div>
                             </div>
-                          </div>
+                          )}
                           {member.phone && (
                             <div className="flex items-center justify-between">
                               <span className="flex items-center gap-1.5">
@@ -1154,22 +1164,36 @@ function MembersPageContent() {
               {/* STEP 1: INPUT CREDENTIALS */}
               {wizardStep === 1 && (
                 <div className="space-y-4 font-sans text-xs">
-                  <div>
-                    <label className="text-[10px] font-extrabold text-slate-450 dark:text-[#858D99] uppercase tracking-wider block mb-1.5 font-bold">USERNAME * (Lowercase, no spaces)</label>
-                    <input
-                      type="text"
-                      placeholder="e.g. niranjan"
-                      value={formUsername}
-                      onChange={(e) => setFormUsername(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          if (wizardStep === 1 && !isLoading) handleCreateMemberSubmit();
-                        }
-                      }}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs focus:outline-none"
-                    />
-                  </div>
+                  {isSuperAdmin ? (
+                    <div>
+                      <label className="text-[10px] font-extrabold text-slate-450 dark:text-[#858D99] uppercase tracking-wider block mb-1.5 font-bold">USERNAME * (Lowercase, no spaces)</label>
+                      <input
+                        type="text"
+                        placeholder="e.g. niranjan"
+                        value={formUsername}
+                        onChange={(e) => setFormUsername(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (wizardStep === 1 && !isLoading) handleCreateMemberSubmit();
+                          }
+                        }}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs focus:outline-none"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="text-[10px] font-extrabold text-slate-450 dark:text-[#858D99] uppercase tracking-wider block mb-1.5 font-bold">USERNAME</label>
+                      <input
+                        type="text"
+                        disabled
+                        readOnly
+                        value={formUsername || (formName ? formName.toLowerCase().replace(/[^a-z0-9]/g, "_") : "auto-generated")}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-[#15171C] border border-slate-200 dark:border-[#252931] text-xs text-slate-500 cursor-not-allowed select-none opacity-80"
+                      />
+                      <span className="text-[9px] text-slate-400 mt-1 block">Username is automatically generated for new accounts.</span>
+                    </div>
+                  )}
 
                   <div className="relative">
                     <label className="text-[10px] font-extrabold text-slate-450 dark:text-[#858D99] uppercase tracking-wider block mb-1.5 font-bold">ASSIGN USER ROLE</label>
@@ -1221,44 +1245,46 @@ function MembersPageContent() {
 
                   </div>
 
-                  <div className="pt-3 border-t border-slate-100 dark:border-slate-805">
-                    <div className="flex items-center justify-between pb-1.5">
-                      <label className="text-[10px] font-extrabold text-slate-450 dark:text-[#858D99] uppercase tracking-wider block mb-1.5 font-bold">PASSWORD *</label>
-                      <button
-                        type="button"
-                        onClick={generatePassword}
-                        className="text-[10px] font-bold text-blue-600 dark:text-[#6B93FF] flex items-center gap-1 hover:underline cursor-pointer"
-                      >
-                        <ArrowClockwise size={12} />
-                        <span>Generate secure password</span>
-                      </button>
+                  {isSuperAdmin && (
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-805">
+                      <div className="flex items-center justify-between pb-1.5">
+                        <label className="text-[10px] font-extrabold text-slate-450 dark:text-[#858D99] uppercase tracking-wider block mb-1.5 font-bold">PASSWORD *</label>
+                        <button
+                          type="button"
+                          onClick={generatePassword}
+                          className="text-[10px] font-bold text-blue-600 dark:text-[#6B93FF] flex items-center gap-1 hover:underline cursor-pointer"
+                        >
+                          <ArrowClockwise size={12} />
+                          <span>Generate secure password</span>
+                        </button>
+                      </div>
+                      <div className="relative">
+                        <input
+                          type={showFormPassword ? "text" : "password"}
+                          placeholder="At least 6 characters"
+                          value={formPassword}
+                          onChange={(e) => {
+                            setFormPassword(e.target.value);
+                            setFormConfirmPassword(e.target.value);
+                          }}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter") {
+                              e.preventDefault();
+                              if (wizardStep === 1 && !isLoading) handleCreateMemberSubmit();
+                            }
+                          }}
+                          className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs focus:outline-none"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowFormPassword(!showFormPassword)}
+                          className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
+                        >
+                          {showFormPassword ? <EyeSlash size={16} /> : <Eye size={16} />}
+                        </button>
+                      </div>
                     </div>
-                    <div className="relative">
-                      <input
-                        type={showFormPassword ? "text" : "password"}
-                        placeholder="At least 6 characters"
-                        value={formPassword}
-                        onChange={(e) => {
-                          setFormPassword(e.target.value);
-                          setFormConfirmPassword(e.target.value);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            if (wizardStep === 1 && !isLoading) handleCreateMemberSubmit();
-                          }
-                        }}
-                        className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs focus:outline-none"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowFormPassword(!showFormPassword)}
-                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600 cursor-pointer"
-                      >
-                        {showFormPassword ? <EyeSlash size={16} /> : <Eye size={16} />}
-                      </button>
-                    </div>
-                  </div>
+                  )}
                 </div>
               )}
 

@@ -161,27 +161,16 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
 // PUT /api/admin/members/[id]
 export async function PUT(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireSuperAdmin();
+    const auth = await requireAdmin();
     const resolvedParams = await params;
     const memberId = resolvedParams.id;
 
     const body = await req.json();
-    const { name, displayName, username, email, phone, avatar } = body;
+    const { name, displayName, email, phone, avatar } = body;
+    let username = body.username;
 
     if (!name || typeof name !== "string" || !name.trim()) {
       return NextResponse.json({ success: false, error: "Full Name is required." }, { status: 400 });
-    }
-
-    if (!username || typeof username !== "string") {
-      return NextResponse.json({ success: false, error: "Username is required." }, { status: 400 });
-    }
-
-    const cleanUsername = username.trim().toLowerCase();
-    if (!/^[a-z0-9_]{3,24}$/.test(cleanUsername)) {
-      return NextResponse.json({
-        success: false,
-        error: "Username must be 3-24 characters, lowercase, containing only letters, numbers, and underscores (no spaces)."
-      }, { status: 400 });
     }
 
     const client = await clientPromise;
@@ -191,6 +180,19 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const member = await db.collection<MemberDocument>("members").findOne({ id: memberId });
     if (!member) {
       return NextResponse.json({ success: false, error: "Member not found." }, { status: 404 });
+    }
+
+    // Normal Admin cannot change username -> preserve existing username
+    if (auth.role !== "SUPER_ADMIN" || !username || typeof username !== "string") {
+      username = member.username;
+    }
+
+    const cleanUsername = username.trim().toLowerCase();
+    if (!/^[a-z0-9_]{3,24}$/.test(cleanUsername)) {
+      return NextResponse.json({
+        success: false,
+        error: "Username must be 3-24 characters, lowercase, containing only letters, numbers, and underscores (no spaces)."
+      }, { status: 400 });
     }
 
     // Check username uniqueness if changed
