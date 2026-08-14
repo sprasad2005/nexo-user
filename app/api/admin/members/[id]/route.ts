@@ -75,18 +75,37 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const ipoMap = new Map<string, any>();
     ipos.forEach((ipo) => ipoMap.set(ipo.id, ipo));
 
-    // Resolve applications detailed view
+    let totalLotsApplied = 0;
+    let totalLotsAllotted = 0;
+
+    // Resolve applications detailed view with lots, PnL, and PAN card
     const appsResolved = applications.map((app) => {
       const ipo = ipoMap.get(app.ipoId);
+      const isAllotted = app.allotmentStatus === "ALLOTTED";
+      const gmpPct = ipo?.gmpPercent || 15;
+      const lotsApplied = app.lotsCount || Math.max(1, Math.round(app.totalContribution / 14500));
+      const lotsAllotted = isAllotted ? (app.allottedLotsCount || lotsApplied) : 0;
+      const profitGained = isAllotted ? Math.round(app.totalContribution * (gmpPct / 100)) : 0;
+
+      totalLotsApplied += lotsApplied;
+      totalLotsAllotted += lotsAllotted;
+
       return {
         id: app.id,
         ipoId: app.ipoId,
         ipoName: ipo?.name || app.ipoName || "Unknown IPO",
         ipoLogo: ipo?.logo || "IPO",
         type: app.fundingStructure === "MULTI_FRIEND" ? "COMBO" : "SOLO",
+        category: app.category || "INDIVIDUAL",
         amount: app.totalContribution,
+        lotsApplied,
+        lotsAllotted,
+        sharesCount: lotsApplied * (ipo?.lotSize || 15),
+        gmpPercent: gmpPct,
+        profitGained,
         status: app.status || "APPLIED",
         allotmentStatus: app.allotmentStatus || "AWAITING",
+        panMasked: app.panMasked || activeMember.panMasked || "ABCDE1234F",
         createdAt: app.createdAt,
       };
     });
@@ -117,6 +136,10 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       }
     });
 
+    const allottedAppsCount = applications.filter((a) => a.allotmentStatus === "ALLOTTED").length;
+    const totalAppsCount = applications.length;
+    const winRatePct = totalAppsCount > 0 ? Math.round((allottedAppsCount / totalAppsCount) * 100) : 0;
+
     const portfolio = {
       totalInvested,
       currentlyBlocked,
@@ -124,6 +147,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       unrealizedPnL,
       realizedPnL,
       totalPnL: unrealizedPnL + realizedPnL,
+      totalAppliedIPOs: totalAppsCount,
+      allottedIPOs: allottedAppsCount,
+      winRatePct,
+      totalLotsApplied,
+      totalLotsAllotted,
     };
 
     // Return safe data

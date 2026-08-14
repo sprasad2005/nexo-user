@@ -23,9 +23,11 @@ import {
   Eye,
   EyeSlash,
 } from "@phosphor-icons/react";
+import { useRouter } from "next/navigation";
 import { Member, MemberRole } from "@/types/nexo";
 
 export function MembersView() {
+  const router = useRouter();
   const { members, ipos, addMember, updateMember, deleteMember, currentUser, openDirectChatWithUser } = useNexo();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
@@ -331,7 +333,11 @@ export function MembersView() {
                       {/* Name, Username & Phone */}
                       <div className="space-y-1.5 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h3 className="text-base font-black text-ink group-hover:text-accent transition-colors truncate tracking-tight">
+                          <h3
+                            onClick={() => router.push(`/admin/members/${member.id}`)}
+                            className="text-base font-black text-ink group-hover:text-accent hover:underline transition-colors truncate tracking-tight cursor-pointer"
+                            title="Click to view detailed member IPO history & PnL"
+                          >
                             {member.name}
                           </h3>
                           {member.role === "SUPER_ADMIN" ? (

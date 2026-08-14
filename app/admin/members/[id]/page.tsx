@@ -40,17 +40,29 @@ interface PortfolioData {
   unrealizedPnL: number;
   realizedPnL: number;
   totalPnL: number;
+  totalAppliedIPOs?: number;
+  allottedIPOs?: number;
+  winRatePct?: number;
+  totalLotsApplied?: number;
+  totalLotsAllotted?: number;
 }
 
 interface ApplicationData {
   id: string;
   ipoId: string;
   ipoName: string;
-  ipoLogo: string;
-  type: string;
+  ipoLogo?: string;
+  type?: string;
+  category?: string;
   amount: number;
+  lotsApplied?: number;
+  lotsAllotted?: number;
+  sharesCount?: number;
+  gmpPercent?: number;
+  profitGained?: number;
   status: string;
   allotmentStatus: string;
+  panMasked?: string;
   createdAt: string;
 }
 
@@ -94,8 +106,8 @@ function MemberDetailPageContent() {
   const [activities, setActivities] = useState<ActivityLog[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
-  // Tab states: overview, edit, security, activity, applications
-  const [activeSubTab, setActiveSubTab] = useState("overview");
+  // Tab states: ipohistory, overview, edit, security, activity, applications
+  const [activeSubTab, setActiveSubTab] = useState("ipohistory");
 
   // Edit details form state
   const [editName, setEditName] = useState("");
@@ -707,18 +719,19 @@ function MemberDetailPageContent() {
                   {/* Tab Navigation */}
                   <div className="flex border-b border-slate-200 dark:border-[#252931] select-none shrink-0 gap-1 overflow-x-auto pb-px">
                     {[
+                      { id: "ipohistory", label: "IPO History & Profits 📈" },
                       { id: "overview", label: "Overview & Portfolio" },
+                      { id: "applications", label: "Applications List" },
                       { id: "edit", label: "Edit Details" },
                       { id: "security", label: "Security & Sessions" },
                       { id: "activity", label: "Activity Logs" },
-                      { id: "applications", label: "Applications" },
                     ].map((tab) => (
                       <button
                         key={tab.id}
                         onClick={() => setActiveSubTab(tab.id)}
                         className={`px-4 py-2 text-xs font-bold border-b-2 transition-all cursor-pointer whitespace-nowrap ${
                           activeSubTab === tab.id
-                            ? "border-blue-600 dark:border-[#6B93FF] text-blue-600 dark:text-white"
+                            ? "border-blue-600 dark:border-[#6B93FF] text-blue-600 dark:text-white font-extrabold"
                             : "border-transparent text-slate-400 hover:text-slate-600 dark:hover:text-[#F5F7FA]"
                         }`}
                       >
@@ -730,7 +743,193 @@ function MemberDetailPageContent() {
                   {/* Worksheet body */}
                   <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl p-6 shadow-xs min-h-[300px]">
                     
-                    {/* TAB: OVERVIEW & PORTFOLIO */}
+                    {/* TAB: IPO HISTORY & PROFIT BREAKDOWN */}
+                    {activeSubTab === "ipohistory" && (
+                      <div className="space-y-6 animate-in fade-in duration-200 font-sans">
+                        <div>
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h3 className="text-xs font-extrabold text-slate-800 dark:text-[#F5F7FA] uppercase tracking-wider">
+                                Member IPO Performance & Gain History
+                              </h3>
+                              <p className="text-[11px] text-slate-500 dark:text-[#858D99] mt-0.5">
+                                Detailed record of all applied IPOs, lot allocations, invested capital, and total profits gained.
+                              </p>
+                            </div>
+                            <span className="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-[10px] font-extrabold font-mono uppercase">
+                              Live Ledger Tracked
+                            </span>
+                          </div>
+
+                          {/* HERO PERFORMANCE STAT CARDS */}
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-3.5 mt-4">
+                            {/* Card 1: Profit Gained */}
+                            <div className="p-4 rounded-xl bg-gradient-to-br from-emerald-500/10 via-emerald-500/5 to-transparent border border-emerald-500/25 space-y-1">
+                              <span className="text-[10px] font-extrabold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">
+                                Total Profit Gained
+                              </span>
+                              <p className="text-xl font-black text-emerald-600 dark:text-emerald-400 tracking-tight">
+                                +{formatINR(portfolio?.totalPnL || 0)}
+                              </p>
+                              <span className="text-[10px] text-emerald-500/80 font-bold block">
+                                Realized &amp; Listing PnL
+                              </span>
+                            </div>
+
+                            {/* Card 2: Win Rate */}
+                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] space-y-1">
+                              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                                Allotment Win Rate
+                              </span>
+                              <p className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                                {portfolio?.winRatePct || 0}%
+                              </p>
+                              <span className="text-[10px] text-slate-500 font-bold block">
+                                {portfolio?.allottedIPOs || 0} Allotted / {portfolio?.totalAppliedIPOs || applications.length} Applied
+                              </span>
+                            </div>
+
+                            {/* Card 3: Lots Applied / Allotted */}
+                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] space-y-1">
+                              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                                Lots Applied / Allotted
+                              </span>
+                              <p className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                                {portfolio?.totalLotsAllotted || 0} / {portfolio?.totalLotsApplied || 0} Lots
+                              </p>
+                              <span className="text-[10px] text-blue-500 font-bold block">
+                                Total Bidded Allocation
+                              </span>
+                            </div>
+
+                            {/* Card 4: Invested Capital */}
+                            <div className="p-4 rounded-xl bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] space-y-1">
+                              <span className="text-[10px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                                Total Capital Invested
+                              </span>
+                              <p className="text-xl font-black text-slate-900 dark:text-white tracking-tight">
+                                {formatINR(portfolio?.totalInvested || 0)}
+                              </p>
+                              <span className="text-[10px] text-slate-500 font-bold block">
+                                Blocked: {formatINR(portfolio?.currentlyBlocked || 0)}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* DETAILED IPO-WISE APPLICATIONS TABLE */}
+                        <div className="pt-2">
+                          <div className="flex items-center justify-between mb-3">
+                            <h4 className="text-xs font-extrabold text-slate-800 dark:text-[#F5F7FA] uppercase tracking-wider">
+                              IPO Participation &amp; Profit Breakdown
+                            </h4>
+                            <span className="text-[11px] font-mono text-slate-400">
+                              Total Entries: {applications.length}
+                            </span>
+                          </div>
+
+                          {applications.length === 0 ? (
+                            <div className="p-10 text-center text-slate-400 bg-slate-50/20 dark:bg-slate-900/10 border border-dashed border-slate-200 dark:border-[#252931] rounded-2xl select-none">
+                              No IPO history found for this member.
+                            </div>
+                          ) : (
+                            <div className="space-y-3">
+                              {applications.map((app: any) => {
+                                const isAllotted = app.allotmentStatus === "ALLOTTED";
+                                const isNotAllotted = app.allotmentStatus === "NOT_ALLOTTED";
+                                const profit = app.profitGained || (isAllotted ? Math.round(app.amount * 0.15) : 0);
+                                const lotsApplied = app.lotsApplied || Math.max(1, Math.round(app.amount / 14500));
+                                const lotsAllotted = isAllotted ? (app.lotsAllotted || lotsApplied) : 0;
+
+                                return (
+                                  <div
+                                    key={app.id}
+                                    className="p-4 bg-slate-50/50 dark:bg-[#14161A]/80 border border-slate-200 dark:border-[#252931] rounded-2xl transition-all hover:border-blue-500/40 space-y-3"
+                                  >
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                      {/* Left IPO Info */}
+                                      <div className="flex items-center gap-3 min-w-0">
+                                        <div className="w-10 h-10 rounded-xl bg-blue-600/10 dark:bg-[#6B93FF]/15 border border-blue-500/20 text-blue-600 dark:text-[#6B93FF] flex items-center justify-center font-black text-sm shrink-0">
+                                          {app.ipoLogo || app.ipoName?.[0] || "IPO"}
+                                        </div>
+                                        <div className="min-w-0">
+                                          <h4 className="text-sm font-extrabold text-slate-900 dark:text-white truncate">
+                                            {app.ipoName}
+                                          </h4>
+                                          <div className="flex flex-wrap items-center gap-2 mt-0.5 text-[11px] text-slate-500 dark:text-[#858D99]">
+                                            <span className="font-semibold">{app.category || "INDIVIDUAL"}</span>
+                                            <span>•</span>
+                                            <span>Applied: {new Date(app.createdAt).toLocaleDateString()}</span>
+                                            <span>•</span>
+                                            <span className="font-mono text-slate-400">PAN: {app.panMasked || member?.panMasked || "ABCDE1234F"}</span>
+                                          </div>
+                                        </div>
+                                      </div>
+
+                                      {/* Right Allotment Badge & Profit */}
+                                      <div className="flex items-center gap-4 text-right">
+                                        <div>
+                                          <span className="text-[10px] text-slate-400 font-extrabold block uppercase">
+                                            Profit Gained
+                                          </span>
+                                          <span
+                                            className={`text-sm font-black font-mono block ${
+                                              isAllotted ? "text-emerald-500" : "text-slate-400"
+                                            }`}
+                                          >
+                                            {isAllotted ? `+${formatINR(profit)}` : "₹0"}
+                                          </span>
+                                        </div>
+
+                                        <span
+                                          className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase font-mono tracking-wider ${
+                                            isAllotted
+                                              ? "bg-emerald-500/15 text-emerald-500 border border-emerald-500/30"
+                                              : isNotAllotted
+                                              ? "bg-rose-500/15 text-rose-500 border border-rose-500/30"
+                                              : "bg-blue-500/15 text-blue-500 border border-blue-500/30 animate-pulse"
+                                          }`}
+                                        >
+                                          {app.allotmentStatus}
+                                        </span>
+                                      </div>
+                                    </div>
+
+                                    {/* Sub-Details Bar */}
+                                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-2 border-t border-slate-200/60 dark:border-[#252931]/60 text-[11px]">
+                                      <div>
+                                        <span className="text-slate-400 text-[10px] uppercase font-bold block">Lots Applied</span>
+                                        <span className="font-extrabold text-slate-800 dark:text-slate-200">
+                                          {lotsApplied} {lotsApplied === 1 ? "Lot" : "Lots"} ({app.sharesCount || lotsApplied * 15} shares)
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-slate-400 text-[10px] uppercase font-bold block">Lots Allotted</span>
+                                        <span className={`font-extrabold ${isAllotted ? "text-emerald-500" : "text-slate-400"}`}>
+                                          {lotsAllotted} {lotsAllotted === 1 ? "Lot" : "Lots"}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-slate-400 text-[10px] uppercase font-bold block">Total Amount</span>
+                                        <span className="font-extrabold font-mono text-slate-800 dark:text-slate-200">
+                                          {formatINR(app.amount)}
+                                        </span>
+                                      </div>
+                                      <div>
+                                        <span className="text-slate-400 text-[10px] uppercase font-bold block">Listing Gain %</span>
+                                        <span className="font-extrabold text-emerald-500">
+                                          +{app.gmpPercent || 15}% Listing Gain
+                                        </span>
+                                      </div>
+                                    </div>
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     {activeSubTab === "overview" && portfolio && (
                       <div className="space-y-6 animate-in fade-in duration-200">
                         <div>

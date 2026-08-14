@@ -27,8 +27,10 @@ import {
 import { Member, MemberRole, MemberStatus, MemberPermissions } from "@/types/nexo";
 import { MOCK_MEMBERS } from "@/lib/mockData";
 import { useNexo } from "@/context/NexoContext";
+import { useRouter } from "next/navigation";
 
 export function SuperAdminMemberManagement() {
+  const router = useRouter();
   const { currentUser } = useNexo();
   const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
 
@@ -459,14 +461,18 @@ export function SuperAdminMemberManagement() {
                     <tr key={m.id} className="hover:bg-slate-50/70 dark:hover:bg-[#14161A] transition-colors">
                       {/* User Info */}
                       <td className="p-4">
-                        <div className="flex items-center gap-3">
+                        <div
+                          onClick={() => router.push(`/admin/members/${m.id}`)}
+                          className="flex items-center gap-3 cursor-pointer group/user"
+                          title="Click to view detailed IPO history, lots & profit gains"
+                        >
                           <img
                             src={m.avatar || "/oggy.png"}
                             alt={m.name}
-                            className="w-10 h-10 rounded-2xl object-cover border border-slate-200 dark:border-[#252931] shrink-0"
+                            className="w-10 h-10 rounded-2xl object-cover border border-slate-200 dark:border-[#252931] shrink-0 group-hover/user:ring-2 group-hover/user:ring-blue-500/50 transition-all"
                           />
                           <div className="min-w-0">
-                            <h4 className="font-extrabold text-slate-900 dark:text-[#F5F7FA] truncate">
+                            <h4 className="font-extrabold text-slate-900 dark:text-[#F5F7FA] group-hover/user:text-blue-600 dark:group-hover/user:text-[#6B93FF] transition-colors truncate">
                               {m.name}
                             </h4>
                             <p className="text-xs text-slate-500 dark:text-[#858D99] truncate">
@@ -525,6 +531,14 @@ export function SuperAdminMemberManagement() {
                       {/* Action Dropdown / Action Buttons */}
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          {/* View Full History & Profits */}
+                          <button
+                            onClick={() => router.push(`/admin/members/${m.id}`)}
+                            title="View Detailed IPO History, Lots & Profits"
+                            className="p-2 rounded-xl text-slate-500 dark:text-[#AEB5C0] hover:text-blue-600 dark:hover:text-[#6B93FF] hover:bg-slate-100 dark:hover:bg-[#1D2026] transition-colors cursor-pointer"
+                          >
+                            <Eye size={16} />
+                          </button>
                           {/* Manage Permissions */}
                           <button
                             onClick={() => handleOpenPermissions(m)}
