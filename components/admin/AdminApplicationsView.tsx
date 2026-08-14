@@ -452,22 +452,11 @@ export function AdminApplicationsView() {
 
                       {/* PAN Card(s) */}
                       <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-2">
-                          <CopyButton
-                            text={pansList.join(", ")}
-                            label={isRevealed
-                              ? pansList.join(", ")
-                              : pansList.map((p) => p.slice(0, 3) + "****" + p.slice(-1)).join(", ")}
-                            className="font-mono text-xs font-bold"
-                          />
-                          <button
-                            onClick={() => togglePanReveal(app.id)}
-                            className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 p-1 cursor-pointer"
-                            title={isRevealed ? "Hide PAN" : "Reveal PAN"}
-                          >
-                            {isRevealed ? <EyeSlash size={14} /> : <Eye size={14} />}
-                          </button>
-                        </div>
+                        <CopyButton
+                          text={pansList.join(", ")}
+                          label={pansList.join(", ")}
+                          className="font-mono text-xs font-bold"
+                        />
                       </td>
 
                       {/* Contribution */}
