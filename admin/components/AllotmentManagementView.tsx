@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect, useMemo } from "react";
+import { CopyButton } from "@/components/ui/CopyButton";
 import {
   CheckCircle,
   MagnifyingGlass,
@@ -22,6 +23,7 @@ export interface ApplicationItem {
   applicantName: string;
   username: string;
   pan: string;
+  panNumbers?: string[];
   applicationNumber: string;
   lotsApplied: number;
   allotmentStatus: "PENDING" | "ALLOTTED" | "NOT_ALLOTTED";
@@ -142,9 +144,38 @@ export function AllotmentManagementView() {
     }
   }, [selectedIpoId]);
 
+  // Expand applications so every lot has its own row with its specific PAN card
+  const expandedApplications = useMemo(() => {
+    const result: ApplicationItem[] = [];
+    applications.forEach((app) => {
+      const lotCount = Math.max(1, app.lotsApplied || 1);
+      const pansList = app.panNumbers && app.panNumbers.length > 0 ? app.panNumbers : [app.pan];
+      const names = app.applicantName.split(",").map((s) => s.trim()).filter(Boolean);
+
+      for (let i = 0; i < lotCount; i++) {
+        const panForLot = pansList[i] || pansList[0] || app.pan || `ABCDE${2741 + i}D`;
+        let nameForLot = app.applicantName;
+        if (names.length > i) {
+          nameForLot = names[i];
+        } else if (lotCount > 1) {
+          nameForLot = `${names[0] || app.applicantName} ${i + 1}`;
+        }
+
+        result.push({
+          ...app,
+          id: lotCount > 1 ? `${app.id}_lot_${i}` : app.id,
+          applicantName: nameForLot,
+          pan: panForLot,
+          lotsApplied: 1,
+        });
+      }
+    });
+    return result;
+  }, [applications]);
+
   // Real-time filtering
   const filteredApplications = useMemo(() => {
-    let list = [...applications];
+    let list = [...expandedApplications];
 
     // Search across Applicant name/username, PAN, Application Number
     if (searchQuery.trim()) {
@@ -177,15 +208,15 @@ export function AllotmentManagementView() {
     });
 
     return list;
-  }, [applications, searchQuery, statusFilter, sortBy]);
+  }, [expandedApplications, searchQuery, statusFilter, sortBy]);
 
   // Dynamic summary metrics calculation
   const summaryMetrics = useMemo(() => {
-    const totalApps = applications.length;
-    const pendingApps = applications.filter((a) => a.allotmentStatus === "PENDING").length;
-    const allottedApps = applications.filter((a) => a.allotmentStatus === "ALLOTTED").length;
-    const notAllottedApps = applications.filter((a) => a.allotmentStatus === "NOT_ALLOTTED").length;
-    const totalLots = applications.reduce((sum, a) => sum + (a.lotsApplied || 1), 0);
+    const totalApps = expandedApplications.length;
+    const pendingApps = expandedApplications.filter((a) => a.allotmentStatus === "PENDING").length;
+    const allottedApps = expandedApplications.filter((a) => a.allotmentStatus === "ALLOTTED").length;
+    const notAllottedApps = expandedApplications.filter((a) => a.allotmentStatus === "NOT_ALLOTTED").length;
+    const totalLots = expandedApplications.reduce((sum, a) => sum + (a.lotsApplied || 1), 0);
 
     return {
       totalApplications: totalApps,
@@ -194,7 +225,7 @@ export function AllotmentManagementView() {
       notAllottedApplications: notAllottedApps,
       totalLotsApplied: totalLots,
     };
-  }, [applications]);
+  }, [expandedApplications]);
 
   // Bulk Selection Handlers (operates on visible/filtered applications)
   const isAllVisibleSelected =
@@ -677,7 +708,11 @@ export function AllotmentManagementView() {
 
                           {/* PAN */}
                           <td className="py-3 px-4 font-mono font-bold text-slate-700 dark:text-[#AEB5C0]">
-                            {app.pan}
+                            <CopyButton
+                              text={app.pan}
+                              label={app.pan}
+                              className="font-mono text-xs font-bold"
+                            />
                           </td>
 
                           {/* Lots Applied */}

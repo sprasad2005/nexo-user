@@ -181,11 +181,16 @@ export async function GET(req: Request) {
           cleanUsername = cleanUsername.toLowerCase().replace(/[^a-z0-9_]/g, "");
           if (!cleanUsername) cleanUsername = "user";
 
+          const panNumbersList = Array.isArray(app.panNumbers) && app.panNumbers.length > 0
+            ? app.panNumbers
+            : [pan];
+
           appMap.set(appId, {
             id: appId,
             applicantName: cleanApplicant,
             username: cleanUsername,
             pan: pan,
+            panNumbers: panNumbersList,
             applicationNumber: appNo,
             lotsApplied: Number(lots) || 1,
             allotmentStatus: normalizedStatus,
