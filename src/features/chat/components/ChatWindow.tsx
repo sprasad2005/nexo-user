@@ -1,7 +1,8 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
-import { Conversation, Message, UserPresenceStatus } from "@/types/nexo";
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { Conversation, Message, UserPresenceStatus, TypingUser, MessageAttachment } from "@/types/nexo";
+import { useNexo } from "@/context/NexoContext";
 import { ChatHeader } from "./ChatHeader";
 import { MessageList } from "./MessageList";
 import { MessageComposer } from "./MessageComposer";
@@ -12,87 +13,23 @@ interface ChatWindowProps {
   currentMemberId: string;
   onBackMobile?: () => void;
   onOpenIpoPage?: (ipoId: string) => void;
+  onConversationUpdated?: () => void;
 }
-
-const STATIC_FALLBACK_MESSAGES: Record<string, Message[]> = {
-  conv_ipo_ipo_abc: [
-    {
-      id: "msg_1",
-      conversationId: "conv_ipo_ipo_abc",
-      senderId: "mem_1",
-      senderName: "Ankit",
-      senderUsername: "ankit",
-      senderAvatar: "/oggy.png",
-      text: "I think we should apply for 2 lots.",
-      type: "TEXT",
-      createdAt: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
-      status: "READ",
-    },
-    {
-      id: "msg_2",
-      conversationId: "conv_ipo_ipo_abc",
-      senderId: "mem_2",
-      senderName: "Ashay",
-      senderUsername: "ashay",
-      senderAvatar: "/jack.png",
-      text: "Agreed. I'll contribute ₹40,000.",
-      type: "TEXT",
-      createdAt: new Date(Date.now() - 6 * 60 * 1000).toISOString(),
-      status: "READ",
-    },
-    {
-      id: "msg_3",
-      conversationId: "conv_ipo_ipo_abc",
-      senderId: "mem_3",
-      senderName: "Ranveer",
-      senderUsername: "ranveer",
-      senderAvatar: "/sinchan.png",
-      text: "Application submitted ✓",
-      type: "TEXT",
-      createdAt: new Date(Date.now() - 3 * 60 * 1000).toISOString(),
-      status: "READ",
-    },
-  ],
-  conv_dir_mem_1_mem_2: [
-    {
-      id: "msg_dir_1",
-      conversationId: "conv_dir_mem_1_mem_2",
-      senderId: "mem_2",
-      senderName: "Ashay",
-      senderUsername: "ashay",
-      senderAvatar: "/jack.png",
-      text: "Let's discuss the lot size.",
-      type: "TEXT",
-      createdAt: new Date(Date.now() - 16 * 60 * 1000).toISOString(),
-      status: "READ",
-    },
-  ],
-  conv_dir_mem_1_mem_3: [
-    {
-      id: "msg_dir_2",
-      conversationId: "conv_dir_mem_1_mem_3",
-      senderId: "mem_3",
-      senderName: "Ranveer",
-      senderUsername: "ranveer",
-      senderAvatar: "/sinchan.png",
-      text: "Allotment results are out.",
-      type: "TEXT",
-      createdAt: new Date(Date.now() - 60 * 60 * 1000).toISOString(),
-      status: "READ",
-    },
-  ],
-};
 
 export function ChatWindow({
   conversation,
   currentMemberId,
   onBackMobile,
   onOpenIpoPage,
+  onConversationUpdated,
 }: ChatWindowProps) {
-  const initialMsgs = STATIC_FALLBACK_MESSAGES[conversation.id] || [];
-  const [messages, setMessages] = useState<Message[]>(initialMsgs);
-  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+  const { currentMember, currentUser, members } = useNexo();
+  const activeMember = currentMember || currentUser;
+
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
   const [presenceStatus, setPresenceStatus] = useState<UserPresenceStatus>("ONLINE");
+  const typingTimerRef = useRef<Record<string, any>>({});
 
   // Fetch messages from API
   const fetchMessages = useCallback(async () => {
@@ -101,8 +38,12 @@ export function ChatWindow({
         `/api/conversations/${conversation.id}/messages?memberId=${currentMemberId}`
       );
       const data = await res.json();
-      if (data?.success && Array.isArray(data.messages) && data.messages.length > 0) {
+      if (data?.success && Array.isArray(data.messages)) {
         setMessages(data.messages);
+        // Track latest sequence for real-time recovery
+        for (const m of data.messages) {
+          if (m.seq) chatRealtime.updateLastSequence(m.seq);
+        }
       }
     } catch (err) {
       console.error("Failed to fetch messages:", err);
@@ -123,7 +64,6 @@ export function ChatWindow({
   }, [conversation.id, currentMemberId]);
 
   useEffect(() => {
-    setMessages(STATIC_FALLBACK_MESSAGES[conversation.id] || []);
     fetchMessages();
     markAsRead();
   }, [conversation.id, fetchMessages, markAsRead]);
@@ -132,6 +72,8 @@ export function ChatWindow({
   useEffect(() => {
     const unsubNewMsg = chatRealtime.on("message:new", (msg: Message) => {
       if (msg.conversationId === conversation.id) {
+        if (msg.seq) chatRealtime.updateLastSequence(msg.seq);
+
         setMessages((prev) => {
           if (prev.some((m) => m.id === msg.id)) return prev;
           const tempIndex = prev.findIndex(
@@ -150,17 +92,58 @@ export function ChatWindow({
 
     const unsubTyping = chatRealtime.on(
       "message:typing",
-      ({ conversationId: cId, memberId: mId, isTyping }: any) => {
+      ({ conversationId: cId, memberId: mId, memberName, memberAvatar, username, isTyping }: any) => {
         if (cId === conversation.id && mId !== currentMemberId) {
-          const otherName = conversation.otherMember?.name || "Someone";
+          const found = members.find((m) => m.id === mId);
+          const name = memberName || found?.name || conversation.otherMember?.name || "Someone";
+          const avatar = memberAvatar || found?.avatar || conversation.otherMember?.avatar || "/oggy.png";
+          const handle = username || found?.username || conversation.otherMember?.username;
+
+          const typingUserObj: TypingUser = {
+            id: mId,
+            name,
+            username: handle,
+            avatar,
+          };
+
           if (isTyping) {
-            setTypingUsers((prev) => Array.from(new Set([...prev, otherName])));
+            setTypingUsers((prev) => {
+              const filtered = prev.filter((u) => u.id !== mId);
+              return [...filtered, typingUserObj];
+            });
+
+            // Auto-clear typing status after 3.5 seconds if stop-typing event missed
+            if (typingTimerRef.current[mId]) {
+              clearTimeout(typingTimerRef.current[mId]);
+            }
+            typingTimerRef.current[mId] = setTimeout(() => {
+              setTypingUsers((prev) => prev.filter((u) => u.id !== mId));
+            }, 3500);
           } else {
-            setTypingUsers((prev) => prev.filter((name) => name !== otherName));
+            if (typingTimerRef.current[mId]) {
+              clearTimeout(typingTimerRef.current[mId]);
+            }
+            setTypingUsers((prev) => prev.filter((u) => u.id !== mId));
           }
         }
       }
     );
+
+    const unsubRead = chatRealtime.on("message:read", ({ conversationId: cId, memberId: mId }: any) => {
+      if (cId === conversation.id && mId !== currentMemberId) {
+        setMessages((prev) =>
+          prev.map((m) => (m.senderId === currentMemberId ? { ...m, status: "READ" } : m))
+        );
+      }
+    });
+
+    const unsubUpdate = chatRealtime.on("message:update", (updatedMsg: any) => {
+      if (updatedMsg?.conversationId === conversation.id) {
+        setMessages((prev) =>
+          prev.map((m) => (m.id === updatedMsg.id ? { ...m, ...updatedMsg } : m))
+        );
+      }
+    });
 
     const unsubPresence = chatRealtime.on("presence:update", ({ memberId, status }: any) => {
       if (conversation.otherMember && memberId === conversation.otherMember.id) {
@@ -171,11 +154,13 @@ export function ChatWindow({
     return () => {
       unsubNewMsg();
       unsubTyping();
+      unsubRead();
+      unsubUpdate();
       unsubPresence();
     };
   }, [conversation.id, conversation.otherMember, currentMemberId, markAsRead]);
 
-  const handleSendMessage = async (text: string) => {
+  const handleSendMessage = async (text: string, attachment?: MessageAttachment) => {
     const tempId = `msg_temp_${Date.now()}`;
     const tempMsg: Message = {
       id: tempId,
@@ -183,7 +168,8 @@ export function ChatWindow({
       senderId: currentMemberId,
       senderName: "Me",
       text,
-      type: "TEXT",
+      type: attachment ? (attachment.type as any) : "TEXT",
+      attachment,
       createdAt: new Date().toISOString(),
       status: "SENT",
     };
@@ -194,10 +180,11 @@ export function ChatWindow({
       const res = await fetch(`/api/conversations/${conversation.id}/messages`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ senderId: currentMemberId, text }),
+        body: JSON.stringify({ senderId: currentMemberId, text, attachment }),
       });
       const data = await res.json();
       if (data?.success && data.message) {
+        if (data.message.seq) chatRealtime.updateLastSequence(data.message.seq);
         setMessages((prev) => {
           if (prev.some((m) => m.id === data.message.id)) {
             return prev.filter((m) => m.id !== tempId);
@@ -215,7 +202,13 @@ export function ChatWindow({
     fetch(`/api/conversations/${conversation.id}/typing`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ memberId: currentMemberId, isTyping }),
+      body: JSON.stringify({
+        memberId: currentMemberId,
+        memberName: activeMember?.name,
+        memberAvatar: activeMember?.avatar,
+        username: activeMember?.username,
+        isTyping,
+      }),
     }).catch(() => {});
   };
 
@@ -238,6 +231,17 @@ export function ChatWindow({
   };
 
   const handleDeleteMessage = async (messageId: string) => {
+    const isAdminUser = activeMember?.role === "ADMIN" || activeMember?.role === "SUPER_ADMIN";
+    
+    // Optimistically update message state locally for instant UI response
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === messageId
+          ? { ...m, isDeleted: true, isDeletedByAdmin: isAdminUser }
+          : m
+      )
+    );
+
     try {
       const res = await fetch(`/api/conversations/${conversation.id}/messages`, {
         method: "PUT",
@@ -245,10 +249,11 @@ export function ChatWindow({
         body: JSON.stringify({ messageId, senderId: currentMemberId, action: "delete" }),
       });
       const data = await res.json();
-      if (data?.success) {
+      if (data?.success && data.message) {
         setMessages((prev) =>
-          prev.map((m) => (m.id === messageId ? { ...m, isDeleted: true } : m))
+          prev.map((m) => (m.id === messageId ? { ...m, ...data.message } : m))
         );
+        if (onConversationUpdated) onConversationUpdated();
       }
     } catch (err) {
       console.error("Failed to delete message:", err);

@@ -91,7 +91,11 @@ export function ConversationListItem({
             {title}
           </h4>
 
-          <span className="text-[11px] font-sans text-ink-tertiary shrink-0 font-medium">
+          <span
+            className={`text-[11px] font-sans shrink-0 ${
+              isUnread ? "text-emerald-500 dark:text-emerald-400 font-extrabold" : "text-ink-tertiary font-medium"
+            }`}
+          >
             {formattedTime}
           </span>
         </div>
@@ -99,15 +103,15 @@ export function ConversationListItem({
         <div className="flex items-center justify-between gap-2">
           <p
             className={`text-xs truncate leading-snug font-sans ${
-              isUnread ? "font-bold text-ink" : "text-ink-tertiary font-normal"
+              isUnread ? "font-bold text-ink dark:text-white" : "text-ink-tertiary font-normal"
             }`}
           >
             {conversation.lastMessage || "Start a conversation"}
           </p>
 
-          {/* Unread Counter Badge */}
+          {/* WhatsApp-Style Unread Counter Badge */}
           {isUnread && (
-            <span className="shrink-0 min-w-[18px] h-4.5 px-1.5 rounded-full bg-accent text-white text-[10px] font-extrabold font-sans flex items-center justify-center shadow-xs">
+            <span className="shrink-0 min-w-[20px] h-5 px-1.5 rounded-full bg-emerald-500 text-white text-[10px] font-extrabold font-sans flex items-center justify-center shadow-xs animate-in zoom-in-75 duration-150">
               {conversation.unreadCount}
             </span>
           )}

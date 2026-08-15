@@ -9,11 +9,17 @@ export async function POST(
     const { id: conversationId } = await params;
     const body = await req.json();
     const memberId = body.memberId || "mem_1";
+    const memberName = body.memberName;
+    const memberAvatar = body.memberAvatar;
+    const username = body.username;
     const isTyping = Boolean(body.isTyping);
 
     broadcastRealtimeEvent("message:typing", {
       conversationId,
       memberId,
+      memberName,
+      memberAvatar,
+      username,
       isTyping,
     });
 

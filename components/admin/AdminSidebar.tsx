@@ -4,6 +4,7 @@ import React from "react";
 import { useNexo } from "@/context/NexoContext";
 import { useRouter } from "next/navigation";
 import {
+  ChatCircleDots,
   ShieldCheck,
   Buildings,
   Files,
@@ -18,7 +19,7 @@ import {
   CaretRight,
 } from "@phosphor-icons/react";
 
-export type AdminTab = "ipos" | "applications" | "allotments" | "members" | "transactions";
+export type AdminTab = "ipos" | "applications" | "allotments" | "members" | "transactions" | "messages";
 
 interface AdminSidebarProps {
   activeTab: AdminTab;
@@ -79,6 +80,11 @@ export function AdminSidebar({
           label: "Members & Permissions",
           icon: Users,
           badge: members.length,
+        },
+        {
+          id: "messages" as AdminTab,
+          label: "Messages",
+          icon: ChatCircleDots,
         },
         {
           id: "transactions" as AdminTab,
@@ -217,7 +223,7 @@ export function AdminSidebar({
               />
               <div className="min-w-0">
                 <h4 className="text-xs font-extrabold text-ink truncate">
-                  {activeUser?.name || "Shivam Prasad"}
+                  {activeUser?.name || "Ankit"}
                 </h4>
                 <span className="text-[9px] font-mono text-blue-600 dark:text-[#6B93FF] bg-blue-50 dark:bg-blue-950/40 px-1 rounded uppercase border border-blue-200 dark:border-blue-800">
                   {activeUser?.role === "SUPER_ADMIN" ? "SUPER ADMIN" : "ADMIN"}

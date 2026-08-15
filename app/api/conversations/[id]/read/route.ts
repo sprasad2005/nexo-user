@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { ConversationMemberDocument } from "@/src/models/ConversationMember";
 import { broadcastRealtimeEvent } from "@/app/api/realtime/route";
+import { getAuthenticatedUser } from "@/src/lib/auth/authorization";
 
 const DB = "nexo";
 const COL_MEMBERS = "conversationMembers";
@@ -12,8 +13,9 @@ export async function PUT(
 ) {
   try {
     const { id: conversationId } = await params;
+    const auth = await getAuthenticatedUser();
     const body = await req.json().catch(() => ({}));
-    const memberId = body.memberId || body.currentMemberId || "mem_1";
+    const memberId = auth?.memberId || body.memberId || body.currentMemberId || "mem_1";
 
     const client = await clientPromise;
     const db = client.db(DB);
@@ -21,9 +23,10 @@ export async function PUT(
 
     const now = new Date();
 
-    const result = await memberCol.updateOne(
+    await memberCol.updateOne(
       { conversationId, memberId },
-      { $set: { lastReadAt: now } }
+      { $set: { lastReadAt: now } },
+      { upsert: true }
     );
 
     broadcastRealtimeEvent("message:read", { conversationId, memberId, lastReadAt: now });

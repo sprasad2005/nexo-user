@@ -123,7 +123,19 @@ function MembersPageContent() {
 
   const handleTabChange = (tab: string) => {
     if (tab === "members") return;
-    router.push(`/admin?tab=${tab}`);
+    if (tab === "messages") {
+      router.push("/admin/messages");
+    } else if (tab === "applications") {
+      router.push("/admin/applications");
+    } else if (tab === "allotment" || tab === "allotments") {
+      router.push("/admin/allotment");
+    } else if (tab === "activity") {
+      router.push("/admin/activity");
+    } else if (tab === "security") {
+      router.push("/admin/security");
+    } else {
+      router.push(`/admin?tab=${tab}`);
+    }
   };
 
   // Check auth

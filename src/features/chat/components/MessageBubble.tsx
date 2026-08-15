@@ -1,8 +1,22 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Message } from "@/types/nexo";
-import { Check, Checks, Pencil, Trash, DotsThree } from "@phosphor-icons/react";
+import { useNexo } from "@/context/NexoContext";
+import {
+  Check,
+  Checks,
+  Pencil,
+  Trash,
+  FileText,
+  DownloadSimple,
+  MusicNotes,
+  ShieldWarning,
+  Smiley,
+  Copy,
+  Plus,
+  X,
+} from "@phosphor-icons/react";
 
 interface MessageBubbleProps {
   message: Message;
@@ -12,6 +26,8 @@ interface MessageBubbleProps {
   onDeleteMessage?: (messageId: string) => void;
 }
 
+const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+
 export function MessageBubble({
   message,
   isSelf,
@@ -19,14 +35,52 @@ export function MessageBubble({
   onEditMessage,
   onDeleteMessage,
 }: MessageBubbleProps) {
+  const { currentMember, currentUser } = useNexo();
+  const activeUser = currentMember || currentUser;
+  const currentMemberId = activeUser?.id || "mem_1";
+  const activeRole = currentMember?.role || currentUser?.role;
+  const isAdmin = activeRole === "ADMIN" || activeRole === "SUPER_ADMIN";
+
   const [isEditing, setIsEditing] = useState(false);
   const [editText, setEditText] = useState(message.text);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [showReactionPicker, setShowReactionPicker] = useState(false);
+  const [showReactionDetails, setShowReactionDetails] = useState(false);
+  const [selectedEmojiFilter, setSelectedEmojiFilter] = useState<string | null>(null);
+  const [contextMenuPos, setContextMenuPos] = useState<{ x: number; y: number } | null>(null);
+
+  const bubbleRef = useRef<HTMLDivElement>(null);
+  const contextMenuRef = useRef<HTMLDivElement>(null);
 
   const formattedTime = new Date(message.createdAt).toLocaleTimeString([], {
     hour: "2-digit",
     minute: "2-digit",
   });
+
+  // Deletion logic:
+  // 1) If user deleted a message for self: hide completely on self screen (unless admin).
+  // 2) If regular member deleted message: show "Message deleted" to other members, but show full content to Admin in Audit View.
+  // 3) If Admin deleted message: show "Message deleted" to members, but show full content with "Deleted by Admin" to Admin in Audit View.
+  const isDeleted = Boolean(message.isDeleted || message.isDeletedByAdmin);
+  const isDeletedBySelf = isDeleted && (message.deletedByUserId === currentMemberId || isSelf);
+
+  const canDelete = !isEditing && !isDeleted;
+
+  // Auto-close Reaction Picker, Reaction Details, and Context Menu on Outside Click
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (bubbleRef.current && !bubbleRef.current.contains(e.target as Node)) {
+        setShowReactionPicker(false);
+        setShowReactionDetails(false);
+      }
+      if (contextMenuRef.current && !contextMenuRef.current.contains(e.target as Node)) {
+        setContextMenuPos(null);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   const handleSaveEdit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,8 +90,66 @@ export function MessageBubble({
     }
   };
 
+  const handleToggleReaction = async (emoji: string) => {
+    setShowReactionPicker(false);
+    setShowReactionDetails(false);
+    try {
+      await fetch(`/api/conversations/${message.conversationId}/messages/reactions`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          messageId: message.id,
+          emoji,
+          memberId: currentMemberId,
+        }),
+      });
+    } catch (err) {
+      console.error("Failed to toggle reaction:", err);
+    }
+  };
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    if (isDeleted && !isAdmin) return;
+    e.preventDefault();
+    setContextMenuPos({ x: e.clientX, y: e.clientY });
+  };
+
+  const handleCopyText = () => {
+    if (message.text) {
+      navigator.clipboard.writeText(message.text);
+    }
+    setContextMenuPos(null);
+  };
+
+  // Group reactions by emoji
+  const reactionGroups = (message.reactions || []).reduce<
+    Record<string, { count: number; users: string[]; hasReacted: boolean }>
+  >((acc, r) => {
+    if (!acc[r.emoji]) {
+      acc[r.emoji] = { count: 0, users: [], hasReacted: false };
+    }
+    acc[r.emoji].count += 1;
+    acc[r.emoji].users.push(r.memberName || "Member");
+    if (r.memberId === currentMemberId) {
+      acc[r.emoji].hasReacted = true;
+    }
+    return acc;
+  }, {});
+
+  const allReactions = message.reactions || [];
+  const filteredReactions = selectedEmojiFilter
+    ? allReactions.filter((r) => r.emoji === selectedEmojiFilter)
+    : allReactions;
+
+  // Self deletion hides the bubble completely for self (non-admin)
+  if (isDeletedBySelf && !isAdmin) {
+    return null;
+  }
+
   return (
     <div
+      ref={bubbleRef}
+      onContextMenu={handleContextMenu}
       className={`group relative flex gap-2.5 max-w-[85%] md:max-w-[72%] ${
         isSelf ? "ml-auto flex-row-reverse" : "mr-auto flex-row"
       } ${showSenderHeader ? "mt-3.5" : "mt-1"}`}
@@ -57,7 +169,7 @@ export function MessageBubble({
         </div>
       )}
 
-      <div className="flex flex-col min-w-0">
+      <div className="flex flex-col min-w-0 relative">
         {/* Sender Header */}
         {!isSelf && showSenderHeader && (
           <div className="flex items-center gap-1.5 mb-1 px-0.5">
@@ -80,7 +192,77 @@ export function MessageBubble({
               : "bg-surface-alt text-ink border border-line/80 rounded-tl-xs"
           }`}
         >
-          {message.isDeleted ? (
+          {/* Admin Audit Badge for Deleted Messages */}
+          {isDeleted && isAdmin && (
+            <div className="px-2 py-0.5 mb-1.5 rounded-md bg-rose-500/10 border border-rose-500/20 text-rose-600 dark:text-rose-400 text-[10px] font-extrabold flex items-center gap-1">
+              <ShieldWarning size={12} weight="bold" />
+              <span>
+                {message.isDeletedByAdmin
+                  ? "Deleted by Admin (Admin Audit View)"
+                  : "Deleted by user (Admin Audit View)"}
+              </span>
+            </div>
+          )}
+
+          {/* Attachment Rendering */}
+          {message.attachment && (!isDeleted || isAdmin) && (
+            <div className="mb-2 space-y-1">
+              {message.attachment.type === "IMAGE" && (
+                <div className="rounded-xl overflow-hidden border border-line/80 max-w-sm">
+                  <img
+                    src={message.attachment.url}
+                    alt={message.attachment.name}
+                    className="w-full max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
+                    onClick={() => window.open(message.attachment?.url, "_blank")}
+                  />
+                </div>
+              )}
+
+              {message.attachment.type === "DOCUMENT" && (
+                <a
+                  href={message.attachment.url}
+                  download={message.attachment.name}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="flex items-center justify-between p-2.5 rounded-xl bg-surface border border-line hover:border-accent/40 transition-colors gap-3 group max-w-xs cursor-pointer"
+                >
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <div className="w-8 h-8 rounded-lg bg-blue-500/10 text-blue-500 flex items-center justify-center shrink-0">
+                      <FileText size={18} weight="bold" />
+                    </div>
+                    <div className="min-w-0">
+                      <span className="text-xs font-bold text-ink truncate block group-hover:text-accent">
+                        {message.attachment.name}
+                      </span>
+                      {message.attachment.size && (
+                        <span className="text-[10px] text-ink-tertiary font-mono block">
+                          {(message.attachment.size / 1024).toFixed(1)} KB
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                  <DownloadSimple size={16} className="text-ink-tertiary group-hover:text-accent shrink-0" />
+                </a>
+              )}
+
+              {message.attachment.type === "AUDIO" && (
+                <div className="p-2 rounded-xl bg-surface border border-line max-w-xs space-y-1">
+                  <div className="flex items-center gap-2 text-xs font-bold text-ink">
+                    <MusicNotes size={16} className="text-purple-500" />
+                    <span className="truncate">{message.attachment.name}</span>
+                  </div>
+                  <audio
+                    src={message.attachment.url}
+                    controls
+                    className="w-full h-8 rounded-lg outline-none"
+                  />
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Message Text / Status */}
+          {isDeleted && !isAdmin ? (
             <span className="italic text-ink-tertiary">Message deleted</span>
           ) : isEditing ? (
             <form onSubmit={handleSaveEdit} className="space-y-2 min-w-[220px]">
@@ -109,7 +291,7 @@ export function MessageBubble({
             </form>
           ) : (
             <>
-              <span className="font-sans text-[13px]">{message.text}</span>
+              {message.text && <span className="font-sans text-[13px]">{message.text}</span>}
               {message.isEdited && (
                 <span className="text-[10px] text-ink-tertiary ml-1.5 italic font-sans">
                   (edited)
@@ -126,49 +308,225 @@ export function MessageBubble({
           >
             <span className="font-sans font-medium">{formattedTime}</span>
             {isSelf && !message.isDeleted && (
-              <span>
+              <span title={message.status === "READ" ? "Read by recipient(s)" : message.status === "DELIVERED" ? "Delivered" : "Sent"}>
                 {message.status === "READ" ? (
-                  <Checks size={13} className="text-accent" />
+                  <Checks size={15} className="text-[#53bdeb] dark:text-[#53bdeb] font-bold" />
+                ) : message.status === "DELIVERED" ? (
+                  <Checks size={15} className="text-slate-400 opacity-80" />
                 ) : (
-                  <Check size={12} className="text-ink-tertiary" />
+                  <Check size={13} className="text-slate-400 opacity-80" />
                 )}
               </span>
             )}
           </div>
         </div>
-      </div>
 
-      {/* Context Menu for Author */}
-      {isSelf && !message.isDeleted && !isEditing && (
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity self-center relative shrink-0">
-          <button
-            onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-1 rounded-lg hover:bg-surface-alt text-ink-tertiary hover:text-ink cursor-pointer"
-          >
-            <DotsThree size={16} />
-          </button>
-
-          {isMenuOpen && (
-            <div className="absolute right-0 top-6 z-20 bg-surface border border-line rounded-xl shadow-xl py-1 w-28 text-xs font-medium">
+        {/* WhatsApp-Style Reaction Pills */}
+        {Object.entries(reactionGroups).length > 0 && (!isDeleted || isAdmin) && (
+          <div className={`flex flex-wrap gap-1 mt-1 ${isSelf ? "justify-end" : "justify-start"}`}>
+            {Object.entries(reactionGroups).map(([emoji, group]) => (
               <button
+                key={emoji}
+                type="button"
                 onClick={() => {
-                  setIsEditing(true);
-                  setIsMenuOpen(false);
+                  setSelectedEmojiFilter(emoji);
+                  setShowReactionDetails(!showReactionDetails);
                 }}
-                className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-surface-hover text-ink cursor-pointer"
+                className={`px-2 py-0.5 rounded-full text-[11px] font-bold flex items-center gap-1 border cursor-pointer transition-all select-none ${
+                  group.hasReacted
+                    ? "bg-accent/15 border-accent/40 text-accent shadow-2xs scale-105 hover:bg-accent/25"
+                    : "bg-surface-alt hover:bg-surface border-line text-ink-secondary"
+                }`}
+                title="Click to view reaction details or remove"
               >
-                <Pencil size={13} /> Edit
+                <span>{emoji}</span>
+                <span className="text-[10px]">{group.count}</span>
               </button>
+            ))}
+          </div>
+        )}
+
+        {/* Local Anchored Popover Window for Reaction Details (WhatsApp Web Style - Anchored Beside Bubble) */}
+        {showReactionDetails && (
+          <div
+            className={`absolute bottom-6 z-40 w-64 sm:w-72 bg-[#181B22] border border-line/80 rounded-2xl shadow-2xl overflow-hidden space-y-0 text-white animate-in fade-in zoom-in-95 duration-150 select-none ${
+              isSelf ? "right-0" : "left-0"
+            }`}
+          >
+            {/* Header Bar */}
+            <div className="p-3 border-b border-line/60 flex items-center justify-between bg-[#14161C]">
+              <h3 className="text-xs font-extrabold text-white font-sans">
+                {allReactions.length} {allReactions.length === 1 ? "reaction" : "reactions"}
+              </h3>
               <button
-                onClick={() => {
-                  if (onDeleteMessage) onDeleteMessage(message.id);
-                  setIsMenuOpen(false);
-                }}
-                className="w-full px-3 py-1.5 flex items-center gap-2 hover:bg-surface-hover text-danger cursor-pointer"
+                type="button"
+                onClick={() => setShowReactionDetails(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors cursor-pointer"
               >
-                <Trash size={13} /> Delete
+                <X size={14} />
               </button>
             </div>
+
+            {/* Filter Tabs Bar */}
+            <div className="px-3 py-2 border-b border-line/60 flex items-center gap-1.5 overflow-x-auto bg-[#14161C]/50">
+              <button
+                type="button"
+                onClick={() => setSelectedEmojiFilter(null)}
+                className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1 ${
+                  selectedEmojiFilter === null
+                    ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                    : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
+                }`}
+              >
+                <Smiley size={14} />
+                <span>All</span>
+              </button>
+
+              {Object.entries(reactionGroups).map(([emoji, group]) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => setSelectedEmojiFilter(emoji)}
+                  className={`px-2.5 py-1 rounded-full text-[11px] font-bold transition-all cursor-pointer flex items-center gap-1.5 ${
+                    selectedEmojiFilter === emoji
+                      ? "bg-emerald-500/20 text-emerald-400 border border-emerald-500/40"
+                      : "text-slate-400 hover:text-white hover:bg-white/5 border border-transparent"
+                  }`}
+                >
+                  <span>{emoji}</span>
+                  <span className="text-[10px]">{group.count}</span>
+                </button>
+              ))}
+            </div>
+
+            {/* User Reaction List */}
+            <div className="p-1.5 max-h-56 overflow-y-auto space-y-0.5 divide-y divide-line/30">
+              {filteredReactions.map((r, idx) => {
+                const isSelfReaction = r.memberId === currentMemberId;
+                return (
+                  <div
+                    key={`${r.memberId}_${r.emoji}_${idx}`}
+                    onClick={() => {
+                      if (isSelfReaction) {
+                        handleToggleReaction(r.emoji);
+                        setShowReactionDetails(false);
+                      }
+                    }}
+                    className={`flex items-center justify-between p-2 rounded-xl transition-all cursor-pointer ${
+                      isSelfReaction
+                        ? "hover:bg-rose-500/10 group/row"
+                        : "hover:bg-white/5"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <img
+                        src={r.memberAvatar || "/oggy.png"}
+                        alt={r.memberName}
+                        className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0"
+                      />
+                      <div className="min-w-0">
+                        <span className="text-xs font-extrabold text-white block truncate">
+                          {isSelfReaction ? "You" : r.memberName}
+                        </span>
+                        <span
+                          className={`text-[10px] block truncate font-medium ${
+                            isSelfReaction
+                              ? "text-slate-400 group-hover/row:text-rose-400 group-hover/row:underline"
+                              : "text-slate-400"
+                          }`}
+                        >
+                          {isSelfReaction ? "Click to remove" : `@${r.memberName.toLowerCase()}`}
+                        </span>
+                      </div>
+                    </div>
+
+                    <span className="text-base shrink-0">{r.emoji}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Smiley Trigger Icon Button (Revealed on Hover like WhatsApp, remains 100% visible when picker open) */}
+      {(!isDeleted || isAdmin) && (
+        <div className={`transition-opacity self-center relative shrink-0 ${
+          showReactionPicker ? "opacity-100 z-40" : "opacity-0 group-hover:opacity-100"
+        }`}>
+          <button
+            type="button"
+            onClick={() => setShowReactionPicker(!showReactionPicker)}
+            className="w-7 h-7 rounded-full bg-[#20232B] hover:bg-[#2A2E39] border border-line/60 text-ink-tertiary hover:text-ink flex items-center justify-center transition-all cursor-pointer shadow-md"
+            title="React to message"
+          >
+            <Smiley size={16} />
+          </button>
+
+          {/* Reaction Popover Window (Opens ONLY when clicking Smiley icon) */}
+          {showReactionPicker && (
+            <div className="absolute bottom-9 left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full bg-[#181B22] border border-line/80 shadow-2xl flex items-center gap-2 animate-in fade-in zoom-in-95 duration-150">
+              {REACTION_EMOJIS.map((emoji) => (
+                <button
+                  key={emoji}
+                  type="button"
+                  onClick={() => handleToggleReaction(emoji)}
+                  className="w-7 h-7 rounded-full hover:bg-surface-hover text-base flex items-center justify-center transition-transform hover:scale-130 cursor-pointer active:scale-95"
+                >
+                  {emoji}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Right-Click Context Menu (WhatsApp Style with instant onMouseDown handlers) */}
+      {contextMenuPos && (
+        <div
+          ref={contextMenuRef}
+          style={{ top: contextMenuPos.y, left: contextMenuPos.x }}
+          className="fixed z-50 bg-[#181A20] border border-line/80 rounded-2xl shadow-2xl py-1.5 w-36 text-xs font-sans animate-in fade-in zoom-in-95 duration-150 select-none"
+        >
+          {message.text && (
+            <button
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                handleCopyText();
+              }}
+              className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-surface-hover text-ink cursor-pointer text-xs font-medium"
+            >
+              <Copy size={14} className="text-ink-tertiary" />
+              <span>Copy</span>
+            </button>
+          )}
+
+          {isSelf && !message.isDeleted && message.text && (
+            <button
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                setIsEditing(true);
+                setContextMenuPos(null);
+              }}
+              className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-surface-hover text-ink cursor-pointer text-xs font-medium"
+            >
+              <Pencil size={14} className="text-accent" />
+              <span>Edit</span>
+            </button>
+          )}
+
+          {canDelete && (
+            <button
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                if (onDeleteMessage) onDeleteMessage(message.id);
+                setContextMenuPos(null);
+              }}
+              className="w-full px-3 py-2 flex items-center gap-2.5 hover:bg-rose-500/10 text-rose-500 cursor-pointer text-xs font-medium border-t border-line/40 mt-1"
+            >
+              <Trash size={14} />
+              <span>{isAdmin && !isSelf ? "Delete (Admin)" : "Delete"}</span>
+            </button>
           )}
         </div>
       )}

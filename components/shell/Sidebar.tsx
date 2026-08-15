@@ -205,8 +205,16 @@ export function Sidebar() {
                           <Icon size={16} className={`shrink-0 ${isActive ? "text-accent" : "text-ink-secondary group-hover:text-ink"}`} />
                           <span className="truncate whitespace-nowrap">{item.label}</span>
                         </div>
-                        {item.badge !== undefined && (
-                          <span className={`text-[11px] px-1.5 py-0.2 rounded-full font-mono ${isActive ? "bg-accent/15 text-accent" : "bg-surface-alt text-ink-secondary"}`}>
+                        {item.badge !== undefined && (item.badge as number) > 0 && (
+                          <span
+                            className={`text-[10px] px-2 py-0.5 rounded-full font-bold shadow-2xs ${
+                              item.id === "messages"
+                                ? "bg-emerald-500 text-white font-extrabold"
+                                : isActive
+                                ? "bg-accent/15 text-accent font-semibold"
+                                : "bg-surface-alt text-ink-secondary"
+                            }`}
+                          >
                             {item.badge}
                           </span>
                         )}
@@ -248,11 +256,13 @@ export function Sidebar() {
                 </div>
 
                 {/* ADMIN MANAGEMENT */}
-                {(adminMember?.role === "ADMIN" || activeUser?.role === "ADMIN") && (
+                {(adminMember?.role === "ADMIN" || adminMember?.role === "SUPER_ADMIN" || activeUser?.role === "ADMIN" || activeUser?.role === "SUPER_ADMIN") && (
                   <div className="space-y-1 pt-2 border-t border-line">
                     <div className="px-2 py-1 text-[11px] font-medium text-ink-secondary uppercase tracking-wider flex items-center justify-between">
                       <span>ADMINISTRATION</span>
-                      <span className="text-[9px] font-mono text-blue-600 bg-blue-50 px-1 rounded border border-blue-200">ADMIN</span>
+                      <span className="text-[9px] font-mono text-blue-600 bg-blue-50 px-1 rounded border border-blue-200 uppercase">
+                        {activeUser?.role === "SUPER_ADMIN" ? "SUPER ADMIN" : "ADMIN"}
+                      </span>
                     </div>
                     <button
                       onClick={() => setActiveTab("admin" as any)}
@@ -264,7 +274,9 @@ export function Sidebar() {
                     >
                       <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
                         <ShieldCheck size={16} className={`shrink-0 ${activeTab === "admin" ? "text-accent" : "text-blue-600 group-hover:text-blue-700"}`} />
-                        <span className="truncate whitespace-nowrap">IPO Management</span>
+                        <span className="truncate whitespace-nowrap">
+                          {activeUser?.role === "SUPER_ADMIN" ? "Super Admin Console" : "Admin Console"}
+                        </span>
                       </div>
                     </button>
                   </div>

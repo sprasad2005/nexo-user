@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   CheckCircle,
   Files,
+  ChatCircleDots,
 } from "@phosphor-icons/react";
 import { useAdmin } from "../context/AdminContext";
 
@@ -37,6 +38,7 @@ export function AdminSidebar({
     { id: "allotment", label: "Allotment", icon: CheckCircle },
     { id: "distribute-profit", label: "Distribute Profit", icon: Coins },
     { id: "members", label: "Members", icon: Users },
+    { id: "messages", label: "Messages", icon: ChatCircleDots },
   ];
 
   const secondaryNav = [

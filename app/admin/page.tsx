@@ -20,7 +20,8 @@ export default function AdminPage() {
           data.authenticated &&
           (data.user?.role === "ADMIN" ||
             data.user?.role === "SUPER_ADMIN" ||
-            data.member?.role === "ADMIN");
+            data.member?.role === "ADMIN" ||
+            data.member?.role === "SUPER_ADMIN");
 
         if (isAdmin) {
           try {

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAdmin } from "../context/AdminContext";
 import { IPOOpportunity } from "../types/nexo";
 import { Plus, Trash, CheckCircle, Buildings, PencilSimple, Clock, CalendarBlank, ShieldCheck } from "@phosphor-icons/react";
@@ -10,6 +10,9 @@ import { GMPBadge } from "../../components/ui/Badge";
 
 export function AdminIPOManagement() {
   const { ipos, removeIPO } = useAdmin();
+
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => setIsMounted(true), []);
 
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [editingIpo, setEditingIpo] = useState<IPOOpportunity | null>(null);
@@ -92,12 +95,16 @@ export function AdminIPOManagement() {
       {/* ACTIVE IPO LISTING */}
       <div className="space-y-4 font-sans">
         <div className="flex items-center justify-between pb-1">
-          <h3 className="text-xs font-extrabold text-slate-400 dark:text-[#858D99] uppercase tracking-wider">
-            Active User Website IPOs ({visibleIpos.length})
+          <h3 suppressHydrationWarning className="text-xs font-extrabold text-slate-400 dark:text-[#858D99] uppercase tracking-wider">
+            Active User Website IPOs ({isMounted ? visibleIpos.length : 0})
           </h3>
         </div>
 
-        {visibleIpos.length === 0 ? (
+        {!isMounted ? (
+          <div className="space-y-4 animate-pulse">
+            <div className="p-6 bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931]/80 rounded-2xl h-44" />
+          </div>
+        ) : visibleIpos.length === 0 ? (
           <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931]/80 rounded-2xl shadow-2xs p-12 text-center space-y-2">
             <Buildings size={36} className="text-slate-300 dark:text-[#626A75] mx-auto" />
             <h4 className="text-sm font-bold text-slate-700 dark:text-[#F5F7FA]">No Active IPOs</h4>

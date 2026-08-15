@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNexo } from "@/context/NexoContext";
 import { IPOOpportunity, AllotmentStatus, IPOLifecycleStage, MemberRole } from "@/types/nexo";
 import {
@@ -55,6 +55,11 @@ export function AdminIPOManagement({
     currentUser,
     currentUserRole,
   } = useNexo();
+
+  const [isMounted, setIsMounted] = useState(false);
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const [internalTab, setInternalTab] = useState<AdminTab>("ipos");
   const activeAdminTab = externalTab || internalTab;
@@ -376,7 +381,11 @@ export function AdminIPOManagement({
             </div>
           </div>
 
-          {((ipoFilterTab === "ACTIVE" ? activeIpos : completedIpos).length === 0) ? (
+          {!isMounted ? (
+            <div className="p-8 space-y-4 animate-pulse">
+              <div className="h-44 bg-surface-alt rounded-2xl" />
+            </div>
+          ) : (ipoFilterTab === "ACTIVE" ? activeIpos : completedIpos).length === 0 ? (
             <div className="p-12 text-center space-y-2">
               <Buildings size={36} className="text-ink-tertiary mx-auto" />
               <h4 className="text-sm font-bold text-ink">

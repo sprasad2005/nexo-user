@@ -4,12 +4,15 @@ import React from "react";
 import { Conversation, Member, UserPresenceStatus } from "@/types/nexo";
 import { ArrowLeft, TrendUp, Users, ArrowUpRight } from "@phosphor-icons/react";
 
+import { GroupInfoModal } from "./GroupInfoModal";
+
 interface ChatHeaderProps {
   conversation: Conversation;
   currentMemberId: string;
   presenceStatus?: UserPresenceStatus;
   onBackMobile?: () => void;
   onOpenIpoPage?: (ipoId: string) => void;
+  onMemberUpdated?: () => void;
 }
 
 export function ChatHeader({
@@ -18,9 +21,12 @@ export function ChatHeader({
   presenceStatus = "ONLINE",
   onBackMobile,
   onOpenIpoPage,
+  onMemberUpdated,
 }: ChatHeaderProps) {
+  const [isGroupInfoOpen, setIsGroupInfoOpen] = React.useState(false);
   const isDirect = conversation.type === "DIRECT";
   const isIpo = conversation.type === "IPO";
+  const isGroup = conversation.type === "GROUP";
 
   let title = conversation.title;
   let avatar = conversation.avatar || "/oggy.png";
@@ -122,6 +128,17 @@ export function ChatHeader({
           </div>
         )}
 
+        {isGroup && (
+          <button
+            onClick={() => setIsGroupInfoOpen(true)}
+            className="px-3 py-1.5 rounded-xl bg-surface-alt hover:bg-surface-hover border border-line text-xs font-bold text-ink transition-all flex items-center gap-1.5 cursor-pointer shadow-2xs active:scale-95"
+            title="View or manage group members"
+          >
+            <Users size={14} weight="bold" />
+            <span>Group Members</span>
+          </button>
+        )}
+
         {isIpo && conversation.ipoId && onOpenIpoPage && (
           <button
             onClick={() => onOpenIpoPage(conversation.ipoId!)}
@@ -131,6 +148,13 @@ export function ChatHeader({
             <ArrowUpRight size={13} weight="bold" />
           </button>
         )}
+
+        <GroupInfoModal
+          isOpen={isGroupInfoOpen}
+          onClose={() => setIsGroupInfoOpen(false)}
+          conversation={conversation}
+          onMemberUpdated={onMemberUpdated}
+        />
       </div>
     </div>
   );

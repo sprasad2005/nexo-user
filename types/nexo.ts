@@ -52,6 +52,13 @@ export interface Member {
   lastLoginAt?: string;
 }
 
+export interface TypingUser {
+  id: string;
+  name: string;
+  username?: string;
+  avatar?: string;
+}
+
 export interface ApplicationParticipant {
   memberId: string;
   memberName: string;
@@ -278,8 +285,26 @@ export interface ConversationMember {
   isArchived?: boolean;
 }
 
+export type MessageAttachmentType = "IMAGE" | "DOCUMENT" | "AUDIO";
+
+export interface MessageAttachment {
+  type: MessageAttachmentType;
+  url: string;
+  name: string;
+  size?: number;
+}
+
+export interface MessageReaction {
+  emoji: string;
+  memberId: string;
+  memberName: string;
+  memberAvatar?: string;
+  createdAt: string;
+}
+
 export interface Message {
   id: string;
+  seq?: number;
   conversationId: string;
   senderId: string;
   senderName?: string;
@@ -287,11 +312,15 @@ export interface Message {
   senderAvatar?: string;
   text: string;
   type: MessageType;
+  attachment?: MessageAttachment;
+  reactions?: MessageReaction[];
   replyToMessageId?: string;
   createdAt: string;
   updatedAt?: string;
   isEdited?: boolean;
   isDeleted?: boolean;
+  isDeletedByAdmin?: boolean;
+  deletedByUserId?: string;
   status?: "SENT" | "DELIVERED" | "READ";
 }
 

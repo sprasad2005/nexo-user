@@ -156,7 +156,8 @@
       "allottedLots": 1,
       "oneLotProfit": 333,
       "publishedAt": "2026-08-15T07:24:54.908Z"
-    }
+    },
+    "registrarUrl": "https://ipostatus.kfintech.com"
   },
   {
     "id": "ipo_1786720662450",

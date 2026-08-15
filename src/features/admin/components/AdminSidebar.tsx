@@ -115,7 +115,7 @@ export function AdminSidebar({
           id: "messages" as AdminTab,
           label: "Messages",
           icon: ChatCircleText,
-          badge: 3,
+          badge: (nexoContext?.unreadMessageCount && nexoContext.unreadMessageCount > 0) ? nexoContext.unreadMessageCount : undefined,
         },
         {
           id: "activity" as AdminTab,
@@ -230,8 +230,10 @@ export function AdminSidebar({
 
                   {!isCollapsed && item.badge !== undefined && (
                     <span
-                      className={`text-[10px] font-mono px-1.5 py-0.2 rounded font-semibold transition-colors ${
-                        isActive
+                      className={`text-[10px] font-sans px-2 py-0.5 rounded-full font-extrabold transition-colors ${
+                        item.id === "messages"
+                          ? "bg-emerald-500 text-white"
+                          : isActive
                           ? "bg-[#5B8CFF]/15 text-[#5B8CFF]"
                           : "bg-surface-alt text-ink-tertiary"
                       }`}

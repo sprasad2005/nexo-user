@@ -6,6 +6,8 @@ import { useNexo } from "@/context/NexoContext";
 import { ConversationListItem } from "./ConversationListItem";
 import { MagnifyingGlass, Plus, X, ChatCircleDots, UserPlus, ChatCircle, Users, TrendUp } from "@phosphor-icons/react";
 
+import { CreateGroupModal } from "./CreateGroupModal";
+
 interface ConversationListProps {
   conversations: Conversation[];
   activeConversationId: string | null;
@@ -21,14 +23,19 @@ export function ConversationList({
   onSelectConversation,
   onOpenNewMessageModal,
 }: ConversationListProps) {
-  const { members, openDirectChatWithUser } = useNexo();
+  const { members, currentMember, currentUser, openDirectChatWithUser } = useNexo();
   const [searchQuery, setSearchQuery] = useState("");
   const [activeTab, setActiveTab] = useState<"ALL" | "DIRECT" | "IPO">("ALL");
+  const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
+
+  const activeRole = currentMember?.role || currentUser?.role;
+  const isAdmin = activeRole === "ADMIN" || activeRole === "SUPER_ADMIN";
 
   const filteredConversations = useMemo(() => {
+    const validConvs = conversations.filter((c) => c && c.type !== "IPO" && !c.id?.startsWith("conv_ipo_"));
     const list = !searchQuery.trim()
-      ? conversations
-      : conversations.filter((c) => {
+      ? validConvs
+      : validConvs.filter((c) => {
           const q = searchQuery.toLowerCase().trim();
           const titleMatch = c.title?.toLowerCase().includes(q);
           const otherMatch = c.otherMember?.name?.toLowerCase().includes(q) || c.otherMember?.username?.toLowerCase().includes(q);
@@ -44,7 +51,7 @@ export function ConversationList({
     });
 
     if (activeTab === "DIRECT") return unique.filter((c) => c.type === "DIRECT");
-    if (activeTab === "IPO") return unique.filter((c) => c.type === "IPO");
+    if (activeTab === "IPO") return unique.filter((c) => c.type === "GROUP");
     return unique;
   }, [conversations, searchQuery, activeTab]);
 
@@ -77,14 +84,35 @@ export function ConversationList({
           </p>
         </div>
 
-        <button
-          onClick={onOpenNewMessageModal}
-          className="h-8 px-3 rounded-xl bg-accent text-white hover:bg-accent-hover font-extrabold text-xs transition-all flex items-center gap-1.5 shadow-sm shadow-accent/25 cursor-pointer active:scale-95 shrink-0"
-        >
-          <Plus size={14} weight="bold" />
-          <span>New</span>
-        </button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {isAdmin && (
+            <button
+              onClick={() => setIsCreateGroupOpen(true)}
+              className="h-8 px-2.5 rounded-xl bg-accent-soft text-accent border border-accent/20 hover:bg-accent/15 font-extrabold text-xs transition-all flex items-center gap-1 cursor-pointer active:scale-95 shrink-0"
+              title="Create new private group chat"
+            >
+              <Users size={14} weight="bold" />
+              <span>+ Group</span>
+            </button>
+          )}
+
+          <button
+            onClick={onOpenNewMessageModal}
+            className="h-8 px-3 rounded-xl bg-accent text-white hover:bg-accent-hover font-extrabold text-xs transition-all flex items-center gap-1.5 shadow-sm shadow-accent/25 cursor-pointer active:scale-95 shrink-0"
+          >
+            <Plus size={14} weight="bold" />
+            <span>New</span>
+          </button>
+        </div>
       </div>
+
+      <CreateGroupModal
+        isOpen={isCreateGroupOpen}
+        onClose={() => setIsCreateGroupOpen(false)}
+        onGroupCreated={(newConv) => {
+          onSelectConversation(newConv.id);
+        }}
+      />
 
       {/* Filter Tabs & Search Container */}
       <div className="p-2.5 border-b border-line/70 shrink-0 space-y-2 bg-surface-alt/30">
@@ -119,8 +147,8 @@ export function ConversationList({
                 : "text-ink-tertiary hover:text-ink hover:bg-surface-hover"
             }`}
           >
-            <TrendUp size={12} weight="bold" />
-            <span>IPOs</span>
+            <Users size={12} weight="bold" />
+            <span>Groups</span>
           </button>
         </div>
 

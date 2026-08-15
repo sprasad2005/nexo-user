@@ -47,10 +47,11 @@ interface AdminContextType {
 
 const defaultAdmin: Member = {
   id: "mem_admin",
-  name: "Shivam Prasad",
-  email: "shivam@nexo.os",
-  avatar: "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80",
-  role: "ADMIN",
+  name: "Ankit",
+  username: "ankitgod",
+  email: "ankitgod@nexo.private",
+  avatar: "/oggy.png",
+  role: "SUPER_ADMIN",
   panMasked: "ABCDE1234F",
   panFull: "ABCDE1234F",
 };

@@ -12,32 +12,23 @@ export function DistributeProfitView() {
   // Show all IPOs (active + historical/hidden) for profit distribution
   const activeIpos = ipos;
 
-  const [selectedIpoId, setSelectedIpoId] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("nexo_distribute_selected_ipo_id");
-      if (stored) return stored;
-    }
-    return activeIpos[0]?.id || "";
-  });
+  const [selectedIpoId, setSelectedIpoId] = useState<string>("");
   const [allottedLots, setAllottedLots] = useState<number | "">(1);
   const [totalProfit, setTotalProfit] = useState<number | "">("");
   const [isSuccessToast, setIsSuccessToast] = useState(false);
-  const [realApplications, setRealApplications] = useState<any[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const storedIpoId = localStorage.getItem("nexo_distribute_selected_ipo_id") || activeIpos[0]?.id;
-        if (storedIpoId) {
-          const cached = localStorage.getItem(`nexo_admin_apps_${storedIpoId}`);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-          }
-        }
-      } catch {}
-    }
-    return [];
-  });
+  const [realApplications, setRealApplications] = useState<any[]>([]);
   const [isFetchingApps, setIsFetchingApps] = useState(false);
+
+  React.useEffect(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("nexo_distribute_selected_ipo_id");
+      if (stored && activeIpos.some((i) => i.id === stored)) {
+        setSelectedIpoId(stored);
+      } else if (activeIpos[0]?.id && !selectedIpoId) {
+        setSelectedIpoId(activeIpos[0].id);
+      }
+    }
+  }, [activeIpos]);
 
   const selectedIpo = activeIpos.find((ipo) => ipo.id === selectedIpoId) || activeIpos[0];
 

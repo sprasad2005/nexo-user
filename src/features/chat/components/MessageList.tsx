@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useRef, useEffect } from "react";
-import { Message } from "@/types/nexo";
+import { Message, TypingUser } from "@/types/nexo";
 import { MessageBubble } from "./MessageBubble";
 import { TypingIndicator } from "./TypingIndicator";
 import { ChatCircleDots } from "@phosphor-icons/react";
@@ -9,7 +9,7 @@ import { ChatCircleDots } from "@phosphor-icons/react";
 interface MessageListProps {
   messages: Message[];
   currentMemberId: string;
-  typingUsers?: string[];
+  typingUsers?: (TypingUser | string)[];
   onEditMessage?: (messageId: string, text: string) => void;
   onDeleteMessage?: (messageId: string) => void;
   onLoadOlderMessages?: () => void;

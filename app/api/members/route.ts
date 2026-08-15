@@ -10,13 +10,12 @@ const COL = "members";
 
 function getDefaultPermissions(role: string): MemberPermissions {
   const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
-  const isSuper = role === "SUPER_ADMIN";
   return {
     canSubmitApplications: true,
     canDistributeProfit: isAdmin,
     canEditIpos: isAdmin,
     canAccessAdminConsole: isAdmin,
-    canManageMembers: isSuper,
+    canManageMembers: isAdmin,
   };
 }
 
@@ -127,6 +126,43 @@ export async function POST(req: Request) {
             updatedAt: new Date(),
           },
           $setOnInsert: { createdAt: new Date() },
+        },
+        { upsert: true }
+      );
+
+      // Automatically join newly created member to IPO Investor Group chat
+      const convCol = client.db(DB).collection("conversations");
+      const convMemberCol = client.db(DB).collection("conversationMembers");
+      const now = new Date();
+
+      const ipoGroupId = "conv_grp_main";
+      let ipoGroup = await convCol.findOne({ title: "IPO Investor" });
+      if (!ipoGroup) {
+        const newGroupDoc = {
+          id: ipoGroupId,
+          type: "GROUP",
+          title: "IPO Investor",
+          avatar: "/oggy.png",
+          createdBy: "mem_admin",
+          lastMessage: "Welcome to the IPO Investor Group Chat!",
+          lastMessageAt: now,
+          createdAt: now,
+          updatedAt: now,
+        };
+        await convCol.insertOne(newGroupDoc);
+      }
+
+      await convMemberCol.updateOne(
+        { conversationId: ipoGroupId, memberId: newMember.id },
+        {
+          $set: {
+            id: `cm_${ipoGroupId}_${newMember.id}`,
+            conversationId: ipoGroupId,
+            memberId: newMember.id,
+            role: "MEMBER",
+            joinedAt: now,
+            lastReadAt: now,
+          },
         },
         { upsert: true }
       );

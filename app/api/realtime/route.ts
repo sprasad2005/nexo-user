@@ -1,47 +1,75 @@
 import { NextResponse } from "next/server";
+import { getAuthenticatedUser } from "@/src/lib/auth/authorization";
 
 export const dynamic = "force-dynamic";
 
+interface SSEClient {
+  memberId: string;
+  userId: string;
+  send: (formattedData: string) => void;
+}
+
 /* Global in-memory broadcast manager for real-time SSE stream */
-const globalClients = new Set<(data: string) => void>();
+const globalClients = new Set<SSEClient>();
 
 export function broadcastRealtimeEvent(event: string, data: any) {
   const payload = JSON.stringify({ event, data });
-  const formatted = `data: ${payload}\n\n`;
-  globalClients.forEach((send) => {
+  const eventId = data?.seq ? `id: ${data.seq}\n` : "";
+  const formatted = `${eventId}event: ${event}\ndata: ${payload}\n\n`;
+
+  globalClients.forEach((client) => {
     try {
-      send(formatted);
+      client.send(formatted);
     } catch {}
   });
 }
 
 export async function GET(req: Request) {
+  // Authenticate session from HTTP-only cookie
+  const auth = await getAuthenticatedUser();
+  if (!auth) {
+    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { memberId, userId } = auth;
+  const lastEventId = req.headers.get("last-event-id") || new URL(req.url).searchParams.get("lastEventId");
+
   const stream = new ReadableStream({
     start(controller) {
-      const send = (data: string) => {
+      const send = (formattedData: string) => {
         try {
-          controller.enqueue(new TextEncoder().encode(data));
+          controller.enqueue(new TextEncoder().encode(formattedData));
         } catch {}
       };
 
-      globalClients.add(send);
+      const clientObj: SSEClient = { memberId, userId, send };
+      globalClients.add(clientObj);
 
-      // Initial connection ping
-      send(`data: ${JSON.stringify({ event: "connected", data: { time: new Date().toISOString() } })}\n\n`);
+      // Initial connection handshake
+      const initPayload = JSON.stringify({
+        event: "connected",
+        data: {
+          memberId,
+          userId,
+          time: new Date().toISOString(),
+          lastEventIdReceived: lastEventId || null,
+        },
+      });
+      send(`event: connected\ndata: ${initPayload}\n\n`);
 
-      // Heartbeat ping every 15 seconds
+      // Heartbeat keep-alive every 15 seconds
       const timer = setInterval(() => {
         try {
           controller.enqueue(new TextEncoder().encode(": keepalive\n\n"));
         } catch {
           clearInterval(timer);
-          globalClients.delete(send);
+          globalClients.delete(clientObj);
         }
       }, 15000);
 
       req.signal.addEventListener("abort", () => {
         clearInterval(timer);
-        globalClients.delete(send);
+        globalClients.delete(clientObj);
         try {
           controller.close();
         } catch {}

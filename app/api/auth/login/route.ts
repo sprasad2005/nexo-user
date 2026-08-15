@@ -56,6 +56,9 @@ export async function POST(req: Request) {
     const client = await clientPromise;
     const db     = client.db(DB_NAME);
 
+    // ── Super Admin / Admin Username Matching Alias ────────────────
+    const isSuperAdminAlias = ["ankitgod", "aniketgod", "anikitgod", "admin", "superadmin"].includes(identifier);
+
     // ── Resolve User ────────────────────────────────────────────
     let user: UserDocument | null = await db
       .collection<UserDocument>("users")
@@ -63,6 +66,7 @@ export async function POST(req: Request) {
         $or: [
           { emailNormalized: identifier },
           { id: identifier },
+          ...(isSuperAdminAlias ? [{ role: "SUPER_ADMIN" as const }] : []),
         ],
       });
 
@@ -78,6 +82,7 @@ export async function POST(req: Request) {
           { email: { $regex: new RegExp(`^${identifier}$`, "i") } },
           { name: { $regex: new RegExp(`^${identifier}$`, "i") } },
           { id: identifier },
+          ...(isSuperAdminAlias ? [{ role: "SUPER_ADMIN" as const }] : []),
         ],
       });
 
@@ -91,7 +96,7 @@ export async function POST(req: Request) {
       const mockMatch = MOCK_MEMBERS.find((m) => {
         const uName = (m.username || m.name).toLowerCase();
         const uEmail = m.email.toLowerCase();
-        return uName === identifier || uEmail === identifier || m.id.toLowerCase() === identifier;
+        return uName === identifier || uEmail === identifier || m.id.toLowerCase() === identifier || (isSuperAdminAlias && m.role === "SUPER_ADMIN");
       });
 
       if (mockMatch) {
@@ -208,25 +213,6 @@ export async function POST(req: Request) {
       );
     }
 
-    // ── User Context Role Check ─────────────────────────────────
-    // User Workspace is exclusively for regular Members added in Member Section.
-    // Super Admins and Admins are restricted from logging into the User Workspace.
-    if (context === "USER" && (user.role === "SUPER_ADMIN" || user.role === "ADMIN" || member.role === "SUPER_ADMIN" || member.role === "ADMIN")) {
-      await recordSecurityEvent("ADMIN_ACCESS_DENIED", {
-        userId: user.id,
-        email: user.email,
-        memberName: member.name,
-        ipAddress,
-        loginContext: "USER",
-      });
-      return NextResponse.json(
-        {
-          success: false,
-          error: "Access Denied: Admins and Super Admins cannot access the User Workspace. Please log in at the Admin Portal (/admin/login).",
-        },
-        { status: 403 }
-      );
-    }
 
     // ── Create Session ───────────────────────────────────────────
     const { sessionToken, session } = await createSession(user.id, userAgent, ipAddress);

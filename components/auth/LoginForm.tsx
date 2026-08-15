@@ -73,23 +73,25 @@ export function LoginForm() {
     try {
       const res = await login(usernameInput, password);
       if (res.success) {
-        let target = "/";
+        const loggedInMember = res.member || currentUser;
+        const isAdminUser = loggedInMember?.role === "SUPER_ADMIN" || loggedInMember?.role === "ADMIN" || res.role === "SUPER_ADMIN" || res.role === "ADMIN";
+
+        let target = isAdminUser ? "/admin" : "/";
         if (typeof window !== "undefined") {
           const params = new URLSearchParams(window.location.search);
-          target = safeNextPath(params.get("next"));
+          const customNext = safeNextPath(params.get("next"));
+          if (customNext !== "/") target = customNext;
         }
         setTargetPath(target);
 
         // Check if member already has a registered phone number
-        const loggedInMember = res.member || currentUser;
         const phone = loggedInMember?.phone;
-        const hasPhone = Boolean(phone && typeof phone === "string" && phone.trim().length > 0);
+        const hasPhone = Boolean(phone && typeof phone === "string" && phone.trim().length > 0) || isAdminUser;
 
         if (!hasPhone) {
           // First time login without a registered phone number -> prompt for phone number & profile setup
           setStep("PROFILE_SETUP");
         } else {
-          // Member already registered phone number previously -> skip setup screen & redirect immediately
           try {
             sessionStorage.setItem("nexo_just_logged_in", "true");
           } catch {}

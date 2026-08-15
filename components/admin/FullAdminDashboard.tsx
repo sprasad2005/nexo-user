@@ -15,6 +15,7 @@ import { SuperAdminMemberManagement } from "./SuperAdminMemberManagement";
 import { ActivityPage } from "./activity/ActivityPage";
 import { AllotmentManagementView } from "../../admin/components/AllotmentManagementView";
 import { AdminApplicationsView } from "./AdminApplicationsView";
+import { MessagesTab } from "@/src/features/admin/components/MessagesTab";
 import { UserCircle, Gear, SignOut } from "@phosphor-icons/react";
 
 function AdminOverview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
@@ -152,13 +153,15 @@ function AdminDashboardContent() {
   }, []);
 
   useEffect(() => {
-    if (tabParam && ["ipos", "applications", "allotment", "allotments", "distribute-profit", "members", "activity", "security", "profile", "settings"].includes(tabParam)) {
+    if (tabParam && ["ipos", "applications", "allotment", "allotments", "distribute-profit", "members", "messages", "activity", "security", "profile", "settings"].includes(tabParam)) {
       if (tabParam === "allotment" || tabParam === "allotments") {
         router.push("/admin/allotment");
       } else if (tabParam === "applications") {
         router.push("/admin/applications");
       } else if (tabParam === "members") {
         router.push("/admin/members");
+      } else if (tabParam === "messages") {
+        router.push("/admin/messages");
       } else if (tabParam === "activity") {
         router.push("/admin/activity");
       } else if (tabParam === "security") {
@@ -176,6 +179,8 @@ function AdminDashboardContent() {
       router.push("/admin/applications");
     } else if (tab === "members") {
       router.push("/admin/members");
+    } else if (tab === "messages") {
+      router.push("/admin/messages");
     } else if (tab === "activity") {
       router.push("/admin/activity");
     } else if (tab === "security") {
@@ -205,6 +210,8 @@ function AdminDashboardContent() {
         return "Distribute Profit";
       case "members":
         return "Member Management";
+      case "messages":
+        return "Messages";
       case "audit":
         return "Audit Logs";
       case "activity":
@@ -259,12 +266,19 @@ function AdminDashboardContent() {
         )}
 
         {/* Page Content */}
-        <main className="p-4 sm:p-6 md:p-8 flex-1 max-w-6xl w-full mx-auto">
+        <main
+          className={`flex-1 w-full mx-auto ${
+            activeTab === "messages"
+              ? "h-[calc(100vh-56px)] overflow-hidden p-2 sm:p-4 max-w-full flex flex-col"
+              : "p-4 sm:p-6 md:p-8 max-w-6xl"
+          }`}
+        >
           {activeTab === "ipos" && <AdminIPOManagement />}
           {activeTab === "applications" && <AdminApplicationsView />}
           {(activeTab === "allotment" || activeTab === "allotments") && <AllotmentManagementView />}
           {activeTab === "distribute-profit" && <DistributeProfitView />}
           {activeTab === "members" && <SuperAdminMemberManagement />}
+          {activeTab === "messages" && <MessagesTab />}
           {activeTab === "activity" && <ActivityPage />}
           {activeTab === "profile" && (
             <AdminProfileView onSignOutClick={() => setIsLogoutModalOpen(true)} />
@@ -276,6 +290,7 @@ function AdminDashboardContent() {
             activeTab !== "allotments" &&
             activeTab !== "distribute-profit" &&
             activeTab !== "members" &&
+            activeTab !== "messages" &&
             activeTab !== "activity" &&
             activeTab !== "profile" &&
             activeTab !== "settings" && (

@@ -205,6 +205,7 @@ export function MessagesView() {
             currentMemberId={currentMemberId}
             onBackMobile={() => setActiveConversationId(null)}
             onOpenIpoPage={handleOpenIpoPage}
+            onConversationUpdated={fetchConversations}
           />
         ) : (
           <div className="h-full flex flex-col items-center justify-center p-8 text-center bg-[#0C0E12] text-ink-tertiary space-y-3 select-none">

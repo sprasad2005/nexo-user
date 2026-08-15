@@ -5,6 +5,7 @@ import { ConversationMemberDocument } from "@/src/models/ConversationMember";
 import { MessageDocument } from "@/src/models/Message";
 import { MemberDocument } from "@/src/models/Member";
 import { broadcastRealtimeEvent } from "@/app/api/realtime/route";
+import { getAuthenticatedUser } from "@/src/lib/auth/authorization";
 
 const DB = "nexo";
 const COL_CONV = "conversations";
@@ -30,11 +31,9 @@ export async function GET(req: Request) {
 
     let myMemberships = await memberCol.find({ memberId: currentMemberId }).toArray();
 
-    /* Seed initial mock conversations if database is empty */
-    if (myMemberships.length === 0) {
-      await seedDefaultConversations(db);
-      myMemberships = await memberCol.find({ memberId: currentMemberId }).toArray();
-    }
+    /* Automatically sync group memberships for newly added members */
+    await ensureGroupMemberships(db, currentMemberId);
+    myMemberships = await memberCol.find({ memberId: currentMemberId }).toArray();
 
     const convIds = myMemberships.map((m) => m.conversationId);
     const conversations = await convCol
@@ -53,11 +52,18 @@ export async function GET(req: Request) {
           ? new Date(myMembership.lastReadAt)
           : new Date(0);
 
+        // Fetch latest message from MongoDB for accurate WhatsApp-style snippet
+        const latestMsg = await msgCol.findOne(
+          { conversationId: c.id, isDeletedByAdmin: { $ne: true } },
+          { sort: { seq: -1, createdAt: -1 } }
+        );
+
         // Count unread messages created after lastReadAt (excluding own messages)
         const unreadCount = await msgCol.countDocuments({
           conversationId: c.id,
           senderId: { $ne: currentMemberId },
           createdAt: { $gt: lastReadAt },
+          isDeletedByAdmin: { $ne: true },
         });
 
         // Get all members of this conversation
@@ -79,10 +85,41 @@ export async function GET(req: Request) {
           }
         }
 
+        // Format last message text snippet like WhatsApp
+        let lastMessageText = c.lastMessage || "Start a conversation";
+        let lastMessageAt = c.lastMessageAt || c.createdAt;
+
+        if (latestMsg) {
+          lastMessageAt = latestMsg.createdAt;
+          const senderObj = userMap.get(latestMsg.senderId);
+          const senderPrefix =
+            c.type === "GROUP" && senderObj
+              ? `${senderObj.id === currentMemberId ? "You" : senderObj.name.split(" ")[0]}: `
+              : "";
+
+          if (latestMsg.isDeleted && latestMsg.isDeletedByAdmin) {
+            lastMessageText = `${senderPrefix}Message deleted`;
+          } else if (latestMsg.attachment) {
+            if (latestMsg.attachment.type === "IMAGE") {
+              lastMessageText = `${senderPrefix}📷 Photo`;
+            } else if (latestMsg.attachment.type === "DOCUMENT") {
+              lastMessageText = `${senderPrefix}📄 Document`;
+            } else if (latestMsg.attachment.type === "AUDIO") {
+              lastMessageText = `${senderPrefix}🎙️ Voice note`;
+            } else {
+              lastMessageText = `${senderPrefix}📎 Attachment`;
+            }
+          } else if (latestMsg.text) {
+            lastMessageText = `${senderPrefix}${latestMsg.text}`;
+          }
+        }
+
         return {
           ...c,
           title,
           avatar,
+          lastMessage: lastMessageText,
+          lastMessageAt: lastMessageAt,
           unreadCount,
           otherMember,
           participants: participantMembers,
@@ -188,75 +225,59 @@ export async function POST(req: Request) {
       });
     }
 
-    /* 2. Check existing IPO Group conversation */
-    if (type === "IPO" && ipoId) {
-      const existingIpoConv = await convCol.findOne({ type: "IPO", ipoId });
-      if (existingIpoConv) {
-        // Ensure current member is in membership
-        const inGroup = await memberCol.findOne({
-          conversationId: existingIpoConv.id,
-          memberId: currentMemberId,
-        });
-
-        if (!inGroup) {
-          await memberCol.insertOne({
-            id: `cm_${existingIpoConv.id}_${currentMemberId}`,
-            conversationId: existingIpoConv.id,
-            memberId: currentMemberId,
-            role: "MEMBER",
-            joinedAt: new Date(),
-            lastReadAt: new Date(),
-          } as any);
-        }
-
-        return NextResponse.json({
-          success: true,
-          isExisting: true,
-          conversation: existingIpoConv,
-        });
+    /* 2. Check existing IPO / Group request: return main IPO Investor group */
+    if (type === "IPO") {
+      let mainGroup = await convCol.findOne({ id: "conv_grp_main" });
+      if (!mainGroup) {
+        const now = new Date();
+        mainGroup = {
+          id: "conv_grp_main",
+          type: "GROUP",
+          title: "IPO Investor",
+          avatar: "/oggy.png",
+          createdBy: "mem_admin",
+          lastMessage: "Welcome to the IPO Investor Group Chat!",
+          lastMessageAt: now,
+          createdAt: now,
+          updatedAt: now,
+        } as any;
+        await convCol.insertOne(mainGroup as any);
       }
-
-      const convId = `conv_ipo_${ipoId}`;
-      const now = new Date();
-      const allUsers = await userCol.find({}).toArray();
-
-      const newConv: ConversationDocument = {
-        id: convId,
-        type: "IPO",
-        title: title || "IPO Discussion",
-        avatar: "/oggy.png",
-        ipoId,
-        createdBy: currentMemberId,
-        lastMessage: "Group chat started",
-        lastMessageAt: now,
-        createdAt: now,
-        updatedAt: now,
-      };
-
-      await convCol.insertOne(newConv as any);
-
-      // Add all group members to IPO group chat
-      const memberships: ConversationMemberDocument[] = allUsers.map((u) => ({
-        id: `cm_${convId}_${u.id}`,
-        conversationId: convId,
-        memberId: u.id,
-        role: u.id === currentMemberId ? "OWNER" : "MEMBER",
-        joinedAt: now,
-        lastReadAt: u.id === currentMemberId ? now : new Date(0),
-      }));
-
-      await memberCol.insertMany(memberships as any);
-
-      broadcastRealtimeEvent("conversation:update", newConv);
 
       return NextResponse.json({
         success: true,
-        isExisting: false,
-        conversation: newConv,
+        isExisting: true,
+        conversation: mainGroup,
       });
     }
 
-    /* 3. Create Custom GROUP Conversation */
+    /* 3. Create Custom GROUP Conversation (Restricted to ADMIN & SUPER_ADMIN) */
+    const authUser = await getAuthenticatedUser();
+    let isCallerAdmin = authUser?.role === "ADMIN" || authUser?.role === "SUPER_ADMIN";
+
+    if (!isCallerAdmin) {
+      const memberDoc = await db.collection(COL_MEMBERS).findOne({
+        $or: [{ id: currentMemberId }, { username: String(currentMemberId).toLowerCase() }]
+      });
+      if (memberDoc?.role === "ADMIN" || memberDoc?.role === "SUPER_ADMIN") {
+        isCallerAdmin = true;
+      } else {
+        const userDoc = await db.collection(COL_USERS).findOne({
+          $or: [{ id: currentMemberId }, { memberId: currentMemberId }]
+        });
+        if (userDoc?.role === "ADMIN" || userDoc?.role === "SUPER_ADMIN") {
+          isCallerAdmin = true;
+        }
+      }
+    }
+
+    if (!isCallerAdmin) {
+      return NextResponse.json(
+        { success: false, error: "Only Admins and Super Admins can create new group chats." },
+        { status: 403 }
+      );
+    }
+
     const convId = `conv_grp_${Date.now()}`;
     const now = new Date();
     const participantIds: string[] = Array.isArray(body.participantIds)
@@ -266,7 +287,7 @@ export async function POST(req: Request) {
     const newConv: ConversationDocument = {
       id: convId,
       type: "GROUP",
-      title: title || "Group Conversation",
+      title: title || "New Group",
       avatar: body.avatar || "/oggy.png",
       createdBy: currentMemberId,
       lastMessage: "Group created",
@@ -304,42 +325,78 @@ export async function POST(req: Request) {
   }
 }
 
-/* Helper to seed initial default conversations for registered workspace members */
-async function seedDefaultConversations(db: any) {
+/* Helper to automatically join all members to the primary IPO Investor group chat and pair direct chats */
+async function ensureGroupMemberships(db: any, memberId: string) {
   const convCol = db.collection(COL_CONV);
   const memberCol = db.collection(COL_MEMBERS);
   const userCol = db.collection(COL_USERS);
 
-  const registeredMembers = await userCol.find({}).toArray();
-  if (!registeredMembers || registeredMembers.length === 0) return;
-
   const now = new Date();
-  const owner = registeredMembers[0];
 
-  for (let i = 1; i < registeredMembers.length; i++) {
-    const target = registeredMembers[i];
-    const pair = [owner.id, target.id].sort();
+  // Purge any old IPO-specific group chats from MongoDB
+  await convCol.deleteMany({ $or: [{ type: "IPO" }, { id: { $regex: "^conv_ipo_" } }] });
+
+  // 1. Ensure primary IPO Investor Group Chat exists
+  let ipoGroup = await convCol.findOne({ id: "conv_grp_main" });
+  if (!ipoGroup) {
+    ipoGroup = {
+      id: "conv_grp_main",
+      type: "GROUP",
+      title: "IPO Investor",
+      avatar: "/oggy.png",
+      createdBy: "mem_admin",
+      lastMessage: "Welcome to the IPO Investor Group Chat!",
+      lastMessageAt: now,
+      createdAt: now,
+      updatedAt: now,
+    };
+    await convCol.insertOne(ipoGroup);
+  } else if (ipoGroup.title !== "IPO Investor") {
+    await convCol.updateOne({ id: "conv_grp_main" }, { $set: { title: "IPO Investor" } });
+  }
+
+  // 2. Ensure ALL registered users/members belong to the primary IPO Investor group chat
+  const allRegisteredUsers = await userCol.find({}).toArray();
+  for (const u of allRegisteredUsers) {
+    const targetId = u.memberId || u.id;
+    const inGroup = await memberCol.findOne({ conversationId: "conv_grp_main", memberId: targetId });
+    if (!inGroup) {
+      await memberCol.insertOne({
+        id: `cm_conv_grp_main_${targetId}`,
+        conversationId: "conv_grp_main",
+        memberId: targetId,
+        role: "MEMBER",
+        joinedAt: now,
+        lastReadAt: now,
+      });
+    }
+  }
+
+  // 3. Ensure direct 1-on-1 chats exist between memberId and all registered members
+  const allUsers = await userCol.find({}).toArray();
+  for (const otherUser of allUsers) {
+    if (otherUser.id === memberId) continue;
+    const pair = [memberId, otherUser.id].sort();
     const directKey = `${pair[0]}_${pair[1]}`;
-    const convId = `conv_dir_${directKey}`;
-
-    const existing = await convCol.findOne({ directKey });
-    if (!existing) {
-      const uName = (target.username || target.name).toLowerCase();
+    const existingDirect = await convCol.findOne({ directKey });
+    if (!existingDirect) {
+      const convId = `conv_dir_${directKey}`;
+      const otherName = (otherUser.username || otherUser.name).toLowerCase();
       await convCol.insertOne({
         id: convId,
         type: "DIRECT",
-        title: `@${uName}`,
-        createdBy: owner.id,
+        title: `@${otherName}`,
+        createdBy: memberId,
         directKey,
-        lastMessage: `Start chatting with @${uName}`,
+        lastMessage: `Start chatting with @${otherName}`,
         lastMessageAt: now,
         createdAt: now,
         updatedAt: now,
       });
 
       await memberCol.insertMany([
-        { id: `cm_${convId}_${owner.id}`, conversationId: convId, memberId: owner.id, role: "OWNER", joinedAt: now, lastReadAt: now },
-        { id: `cm_${convId}_${target.id}`, conversationId: convId, memberId: target.id, role: "MEMBER", joinedAt: now, lastReadAt: now },
+        { id: `cm_${convId}_${memberId}`, conversationId: convId, memberId, role: "MEMBER", joinedAt: now, lastReadAt: now },
+        { id: `cm_${convId}_${otherUser.id}`, conversationId: convId, memberId: otherUser.id, role: "MEMBER", joinedAt: now, lastReadAt: now },
       ]);
     }
   }

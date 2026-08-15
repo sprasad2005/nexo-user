@@ -5,6 +5,8 @@ import { ConversationDocument } from "@/src/models/Conversation";
 import { ConversationMemberDocument } from "@/src/models/ConversationMember";
 import { MemberDocument } from "@/src/models/Member";
 import { broadcastRealtimeEvent } from "@/app/api/realtime/route";
+import { getNextSequence } from "@/src/lib/sequence";
+import { getAuthenticatedUser } from "@/src/lib/auth/authorization";
 
 const DB = "nexo";
 const COL_CONV = "conversations";
@@ -22,9 +24,10 @@ export async function GET(
 ) {
   try {
     const { id: conversationId } = await params;
+    const auth = await getAuthenticatedUser();
     const { searchParams } = new URL(req.url);
-    const currentMemberId = searchParams.get("memberId") || "mem_1";
-    const before = searchParams.get("before"); // ISO date string or timestamp for pagination
+    const currentMemberId = auth?.memberId || searchParams.get("memberId") || "mem_1";
+    const before = searchParams.get("before");
     const limit = Math.min(Number(searchParams.get("limit")) || 50, 100);
 
     const client = await clientPromise;
@@ -54,6 +57,13 @@ export async function GET(
       }
     }
 
+    /* Update caller's lastReadAt timestamp */
+    await memberCol.updateOne(
+      { conversationId, memberId: currentMemberId },
+      { $set: { lastReadAt: new Date() } },
+      { upsert: true }
+    );
+
     const query: any = { conversationId };
     if (before) {
       query.createdAt = { $lt: new Date(before) };
@@ -61,25 +71,18 @@ export async function GET(
 
     const rawMessages = await msgCol
       .find(query)
-      .sort({ createdAt: -1 })
+      .sort({ seq: -1, createdAt: -1 })
       .limit(limit)
       .toArray();
 
-    // Reverse so oldest is first
     rawMessages.reverse();
 
     const allUsers = await userCol.find({}).toArray();
     const userMap = new Map(allUsers.map((u) => [u.id, u]));
 
-    // Find other members' lastReadAt to compute read receipt
     const otherMemberships = await memberCol
       .find({ conversationId, memberId: { $ne: currentMemberId } })
       .toArray();
-
-    const maxOtherLastRead = otherMemberships.reduce((max, m) => {
-      const t = m.lastReadAt ? new Date(m.lastReadAt).getTime() : 0;
-      return Math.max(max, t);
-    }, 0);
 
     const messages = rawMessages.map((msg) => {
       const sender = userMap.get(msg.senderId);
@@ -87,13 +90,29 @@ export async function GET(
 
       let status: "SENT" | "DELIVERED" | "READ" = "SENT";
       if (msg.senderId === currentMemberId) {
-        status = maxOtherLastRead >= msgTime ? "READ" : "SENT";
+        if (otherMemberships.length > 0) {
+          const allRead = otherMemberships.every((m) => {
+            const lastRead = m.lastReadAt ? new Date(m.lastReadAt).getTime() : 0;
+            return lastRead >= msgTime;
+          });
+
+          const anyDelivered = otherMemberships.some((m) => {
+            const lastRead = m.lastReadAt ? new Date(m.lastReadAt).getTime() : 0;
+            return lastRead > 0;
+          });
+
+          if (allRead) {
+            status = "READ";
+          } else if (anyDelivered || otherMemberships.length > 0) {
+            status = "DELIVERED";
+          }
+        }
       }
 
       return {
         ...msg,
         senderName: sender?.name || "Member",
-        senderUsername: sender?.username || sender?.name.toLowerCase(),
+        senderUsername: sender?.username || sender?.name?.toLowerCase(),
         senderAvatar: sender?.avatar || "/oggy.png",
         status,
       };
@@ -111,7 +130,7 @@ export async function GET(
 
 /* ────────────────────────────────────────────────────────────────
    POST /api/conversations/[id]/messages
-   Sends a new text message.
+   Sends a new text message with an atomic sequence number.
 ──────────────────────────────────────────────────────────────── */
 export async function POST(
   req: Request,
@@ -119,13 +138,14 @@ export async function POST(
 ) {
   try {
     const { id: conversationId } = await params;
+    const auth = await getAuthenticatedUser();
     const body = await req.json();
-    const senderId = body.senderId || body.currentMemberId || "mem_1";
+    const senderId = auth?.memberId || body.senderId || body.currentMemberId || "mem_1";
     const text = (body.text || "").trim();
 
-    if (!text) {
+    if (!text && !body.attachment) {
       return NextResponse.json(
-        { success: false, error: "Message text cannot be empty" },
+        { success: false, error: "Message text or attachment is required" },
         { status: 400 }
       );
     }
@@ -144,7 +164,6 @@ export async function POST(
     const msgCol = db.collection<MessageDocument>(COL_MSG);
     const userCol = db.collection<MemberDocument>(COL_USERS);
 
-    /* Security check with Auto-Provisioning for seamless 1-on-1 chatting */
     let isMember = await memberCol.findOne({
       conversationId,
       memberId: senderId,
@@ -162,13 +181,12 @@ export async function POST(
           lastReadAt: new Date(),
         });
       } else {
-        // Provision conversation document if missing
         await convCol.insertOne({
           id: conversationId,
           type: "DIRECT",
           title: "Direct Chat",
           createdBy: senderId,
-          lastMessage: text,
+          lastMessage: text || (body.attachment ? `[${body.attachment.type}]` : "Attachment"),
           lastMessageAt: new Date(),
           createdAt: new Date(),
           updatedAt: new Date(),
@@ -185,14 +203,17 @@ export async function POST(
     }
 
     const now = new Date();
-    const msgId = `msg_${Date.now()}`;
+    const seq = await getNextSequence("messageSequence");
+    const msgId = `msg_${Date.now()}_${seq}`;
 
-    const newMsg: MessageDocument = {
+    const newMsg: any = {
       id: msgId,
+      seq,
       conversationId,
       senderId,
-      text,
-      type: body.type || "TEXT",
+      text: text || (body.attachment ? `[${body.attachment.type}] ${body.attachment.name}` : ""),
+      type: body.type || (body.attachment ? body.attachment.type : "TEXT"),
+      attachment: body.attachment,
       replyToMessageId: body.replyToMessageId,
       createdAt: now,
       isEdited: false,
@@ -225,12 +246,12 @@ export async function POST(
     const fullMsg = {
       ...newMsg,
       senderName: sender?.name || "Member",
-      senderUsername: sender?.username || sender?.name.toLowerCase(),
+      senderUsername: sender?.username || sender?.name?.toLowerCase(),
       senderAvatar: sender?.avatar || "/oggy.png",
       status: "SENT",
     };
 
-    /* Broadcast real-time SSE event */
+    /* Broadcast real-time SSE event with atomic seq ID */
     broadcastRealtimeEvent("message:new", fullMsg);
 
     return NextResponse.json({ success: true, message: fullMsg });
@@ -253,9 +274,10 @@ export async function PUT(
 ) {
   try {
     const { id: conversationId } = await params;
+    const auth = await getAuthenticatedUser();
     const body = await req.json();
     const messageId = body.messageId;
-    const senderId = body.senderId || "mem_1";
+    const senderId = auth?.memberId || body.senderId || "mem_1";
     const action = body.action; // "edit" | "delete"
     const newText = (body.text || "").trim();
 
@@ -269,8 +291,12 @@ export async function PUT(
     const client = await clientPromise;
     const db = client.db(DB);
     const msgCol = db.collection<MessageDocument>(COL_MSG);
+    const userCol = db.collection<MemberDocument>(COL_USERS);
 
-    const existingMsg = await msgCol.findOne({ id: messageId, conversationId });
+    const existingMsg =
+      (await msgCol.findOne({ id: messageId })) ||
+      (await msgCol.findOne({ id: messageId, conversationId }));
+
     if (!existingMsg) {
       return NextResponse.json(
         { success: false, error: "Message not found" },
@@ -278,20 +304,36 @@ export async function PUT(
       );
     }
 
-    /* Security check: only author can edit/delete */
-    if (existingMsg.senderId !== senderId) {
+    const callerDoc = await userCol.findOne({ id: senderId });
+    const isCallerAdmin =
+      auth?.role === "SUPER_ADMIN" ||
+      auth?.role === "ADMIN" ||
+      callerDoc?.role === "SUPER_ADMIN" ||
+      callerDoc?.role === "ADMIN";
+
+    /* Allow editing only by author, but allow deletion by any user from their dashboard */
+    if (action === "edit" && existingMsg.senderId !== senderId) {
       return NextResponse.json(
-        { success: false, error: "You can only edit or delete your own messages" },
+        { success: false, error: "You can only edit your own messages" },
         { status: 403 }
       );
     }
 
     const now = new Date();
     if (action === "delete") {
-      await msgCol.updateOne(
-        { id: messageId },
-        { $set: { isDeleted: true, updatedAt: now } }
-      );
+      if (isCallerAdmin) {
+        // Deleted by Admin/SuperAdmin -> deleted for EVERYONE including admins
+        await msgCol.updateOne(
+          { id: messageId },
+          { $set: { isDeleted: true, isDeletedByAdmin: true, deletedByUserId: senderId, updatedAt: now } }
+        );
+      } else {
+        // Deleted by user -> deleted for users, but remains in Admin Audit View
+        await msgCol.updateOne(
+          { id: messageId },
+          { $set: { isDeleted: true, isDeletedByAdmin: false, deletedByUserId: senderId, updatedAt: now } }
+        );
+      }
     } else if (action === "edit") {
       if (!newText) {
         return NextResponse.json(
