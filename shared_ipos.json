@@ -1,5 +1,164 @@
 [
   {
+    "id": "ipo_1786777779359",
+    "name": "Dhoot Transmission",
+    "company": "Dhoot Transmission",
+    "logo": "DH",
+    "category": "Mainboard",
+    "status": "ALLOTMENT_OUT",
+    "recommendation": "APPLY",
+    "thesis": "AFTER 2PM @",
+    "isHidden": false,
+    "metrics": {
+      "issueSize": "₹3,016 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 14924,
+      "gmpPercent": 32,
+      "openDate": "18 Aug 2026",
+      "closeDate": "28 Aug 2026",
+      "allotmentDate": "01 Sep 2026",
+      "listingDate": "04 Sep 2026",
+      "fundUnblockDate": "02 Sep 2026"
+    },
+    "createdBy": "Shivam Prasad",
+    "participantsCount": 0,
+    "combinedCapital": 44772,
+    "applications": [
+      {
+        "id": "app_1786778319357",
+        "ipoId": "ipo_1786777779359",
+        "type": "COMBINED",
+        "applicantName": "@krish & @user4",
+        "memberId": "mem_admin",
+        "panMasked": "PPONF8289F",
+        "panNumbers": [
+          "PPONF8289F"
+        ],
+        "totalContribution": 14924,
+        "lotCount": 1,
+        "verified": true,
+        "allotmentStatus": "NOT_ALLOTTED",
+        "status": "NOT_ALLOTTED",
+        "createdAt": "2026-08-15T07:18:39.357Z",
+        "applicationNumber": "NEXO-APP-2529",
+        "participants": [
+          {
+            "memberId": "mem_1786713174555",
+            "memberName": "krish",
+            "avatar": "/doremon.png",
+            "contribution": 1000,
+            "percentage": 6.7,
+            "panMasked": "PPONF8289F",
+            "panFull": "PPONF8289F",
+            "status": "SUBMITTED"
+          },
+          {
+            "memberId": "mem_1786684473400",
+            "memberName": "user4",
+            "avatar": "/oggy.png",
+            "contribution": 13924,
+            "percentage": 93.3,
+            "panMasked": "ABCDE1234F",
+            "panFull": "ABCDE1234F",
+            "status": "SUBMITTED"
+          }
+        ],
+        "allottedIndices": [],
+        "updatedAt": "2026-08-15T07:19:05.972Z"
+      },
+      {
+        "id": "app_1786777837300",
+        "ipoId": "ipo_1786777779359",
+        "type": "COMBINED",
+        "applicantName": "@krish, @user2",
+        "memberId": "mem_admin",
+        "panMasked": "POENF7379G",
+        "panNumbers": [
+          "POENF7379G"
+        ],
+        "totalContribution": 14924,
+        "lotCount": 1,
+        "verified": true,
+        "allotmentStatus": "NOT_ALLOTTED",
+        "status": "NOT_ALLOTTED",
+        "createdAt": "2026-08-15T07:10:37.300Z",
+        "applicationNumber": "NEXO-APP-9931",
+        "participants": [
+          {
+            "memberId": "mem_1786713174555",
+            "memberName": "@krish, @user2",
+            "avatar": "/doremon.png",
+            "contribution": 7462,
+            "percentage": 50,
+            "panMasked": "POENF7379G",
+            "panFull": "POENF7379G",
+            "status": "SUBMITTED"
+          },
+          {
+            "memberId": "mem_1786684116726",
+            "memberName": "user2",
+            "avatar": "/oggy.png",
+            "contribution": 7462,
+            "percentage": 50,
+            "panMasked": "ABCDE1234F",
+            "panFull": "ABCDE1234F",
+            "status": "SUBMITTED"
+          }
+        ],
+        "allottedIndices": [],
+        "updatedAt": "2026-08-15T07:19:05.972Z"
+      },
+      {
+        "id": "app_1786777803803",
+        "ipoId": "ipo_1786777779359",
+        "type": "INDIVIDUAL",
+        "applicantName": "krish",
+        "memberId": "mem_1786713174555",
+        "panMasked": "KPEUA2335S",
+        "panNumbers": [
+          "KPEUA2335S"
+        ],
+        "totalContribution": 14924,
+        "lotCount": 1,
+        "verified": true,
+        "allotmentStatus": "ALLOTTED",
+        "status": "ALLOTTED",
+        "createdAt": "2026-08-15T07:10:03.803Z",
+        "applicationNumber": "NEXO-APP-6157",
+        "participants": [
+          {
+            "memberId": "mem_1786713174555",
+            "memberName": "krish",
+            "avatar": "/doremon.png",
+            "contribution": 14924,
+            "percentage": 100,
+            "panMasked": "KPEUA2335S",
+            "panFull": "KPEUA2335S",
+            "status": "SUBMITTED"
+          }
+        ],
+        "allottedIndices": [
+          0
+        ],
+        "updatedAt": "2026-08-15T07:19:05.972Z"
+      }
+    ],
+    "allotmentFinalized": true,
+    "allotmentFinalizedAt": "2026-08-15T07:19:05.972Z",
+    "allotmentFinalizedBy": "Ankit",
+    "profitDistribution": {
+      "totalProfit": 15000,
+      "totalLots": 3,
+      "allottedLots": 1,
+      "oneLotProfit": 5000,
+      "publishedAt": "2026-08-15T07:19:25.976Z"
+    }
+  },
+  {
     "id": "ipo_1786720662450",
     "name": "NEW IPO",
     "company": "NEW IPO",
@@ -8,7 +167,7 @@
     "status": "ALLOTMENT_OUT",
     "recommendation": "APPLY",
     "thesis": "2pm",
-    "isHidden": false,
+    "isHidden": true,
     "metrics": {
       "issueSize": "₹1,500 Cr",
       "priceBand": {
@@ -41,8 +200,8 @@
         "totalContribution": 1234,
         "lotCount": 1,
         "verified": true,
-        "allotmentStatus": "NOT_ALLOTTED",
-        "status": "NOT_ALLOTTED",
+        "allotmentStatus": "ALLOTTED",
+        "status": "ALLOTTED",
         "createdAt": "2026-08-14T16:49:06.220Z",
         "applicationNumber": "NEXO-APP-4331",
         "participants": [
@@ -57,12 +216,14 @@
             "status": "SUBMITTED"
           }
         ],
-        "updatedAt": "2026-08-14T20:57:27.929Z",
-        "allottedIndices": []
+        "updatedAt": "2026-08-15T06:06:04.566Z",
+        "allottedIndices": [
+          0
+        ]
       }
     ],
     "allotmentFinalized": true,
-    "allotmentFinalizedAt": "2026-08-14T20:57:27.929Z",
+    "allotmentFinalizedAt": "2026-08-15T06:06:04.566Z",
     "allotmentFinalizedBy": "Ankit"
   },
   {
@@ -74,7 +235,7 @@
     "status": "ALLOTMENT_OUT",
     "recommendation": "APPLY",
     "thesis": "Apply after 2 pm",
-    "isHidden": false,
+    "isHidden": true,
     "metrics": {
       "issueSize": "₹1,600 Cr",
       "priceBand": {
@@ -290,7 +451,7 @@
     "status": "APPLICATION_OPEN",
     "recommendation": "APPLY",
     "thesis": "Leading NBFC subsidiary of HDFC Bank with strong retail lending and credit distribution network.",
-    "isHidden": false,
+    "isHidden": true,
     "metrics": {
       "issueSize": "₹2,400 Cr",
       "priceBand": {

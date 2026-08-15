@@ -55,15 +55,24 @@ export async function POST(req: Request) {
     const finalizedDate = new Date();
     const adminName = auth.displayName || auth.username || "Admin";
 
-    const getAllottedIndices = (appId: string): number[] => {
+    const getAllottedIndices = (app: any): number[] => {
+      const idsToCheck = [
+        typeof app === "string" ? app : "",
+        app.id ? String(app.id) : "",
+        app.applicationNumber ? String(app.applicationNumber) : "",
+        app._id ? String(app._id) : "",
+      ].filter(Boolean);
+
       const indices: number[] = [];
       for (const item of Array.from(allottedSet)) {
-        if (item === appId) {
-          indices.push(0);
-        } else if (item.startsWith(`${appId}_lot_`)) {
-          const idxStr = item.split("_lot_")[1];
-          const idx = parseInt(idxStr, 10);
-          if (!isNaN(idx)) indices.push(idx);
+        for (const targetId of idsToCheck) {
+          if (item === targetId) {
+            if (!indices.includes(0)) indices.push(0);
+          } else if (item.startsWith(`${targetId}_lot_`)) {
+            const idxStr = item.split("_lot_")[1];
+            const idx = parseInt(idxStr, 10);
+            if (!isNaN(idx) && !indices.includes(idx)) indices.push(idx);
+          }
         }
       }
       return indices;
@@ -82,8 +91,7 @@ export async function POST(req: Request) {
         targetIpoName = ipo.name;
 
         const updatedApps = (ipo.applications || []).map((app: any) => {
-          const appId = app.id || app.applicationNumber;
-          const allottedIndices = getAllottedIndices(appId);
+          const allottedIndices = getAllottedIndices(app);
           const isAllotted = allottedIndices.length > 0;
           if (isAllotted) allottedCount += allottedIndices.length;
           else notAllottedCount += Math.max(1, app.lotCount || app.numberOfPanCards || 1);
@@ -124,32 +132,34 @@ export async function POST(req: Request) {
 
       if (dbIpo) {
         targetIpoName = dbIpo.name || targetIpoName;
+      }
 
-        const dbApps = await db.collection("applications").find({
-          $or: [
-            { ipoId: dbIpo.id || ipoId },
-            { ipoName: { $regex: new RegExp(`^${targetIpoName}$`, "i") } }
-          ]
-        }).toArray();
+      // Always query applications by ipoId or targetIpoName
+      const dbApps = await db.collection("applications").find({
+        $or: [
+          { ipoId: ipoId },
+          { ipoName: { $regex: new RegExp(`^${targetIpoName}$`, "i") } }
+        ]
+      }).toArray();
 
-        for (const app of dbApps) {
-          const appId = app.id || app._id?.toString() || app.applicationNumber;
-          const allottedIndices = getAllottedIndices(appId);
-          const isAllotted = allottedIndices.length > 0;
+      for (const app of dbApps) {
+        const allottedIndices = getAllottedIndices(app);
+        const isAllotted = allottedIndices.length > 0;
 
-          await db.collection("applications").updateOne(
-            { _id: app._id },
-            {
-              $set: {
-                allotmentStatus: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
-                status: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
-                allottedIndices,
-                updatedAt: finalizedDate,
-              }
+        await db.collection("applications").updateOne(
+          { _id: app._id },
+          {
+            $set: {
+              allotmentStatus: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
+              status: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
+              allottedIndices,
+              updatedAt: finalizedDate,
             }
-          );
-        }
+          }
+        );
+      }
 
+      if (dbIpo) {
         await db.collection("ipos").updateOne(
           { _id: dbIpo._id },
           {

@@ -24,6 +24,7 @@ import {
   MOCK_ACTIVITIES,
   MOCK_PORTFOLIO_SUMMARY,
   MOCK_ACTION_ITEMS,
+  formatApplicantNames,
 } from "@/lib/mockData";
 import { getProfile, updateProfile } from "@/src/features/profile/api";
 import { mapIPOToOpportunity } from "@/src/features/ipo/mappers";
@@ -1059,7 +1060,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       ? members.find((m) => m.id === applicantMemberId)
       : members[0];
 
-    const finalApplicantName = applicantNameInput?.trim() || applicantMember?.name || "Member";
+    const rawApplicantName = applicantNameInput?.trim() || applicantMember?.name || "Member";
+    const finalApplicantName = formatApplicantNames(rawApplicantName);
     const primaryPan = (panNumbersInput && panNumbersInput[0]?.trim())
       ? panNumbersInput[0].trim()
       : applicantMember?.panMasked || "ABCDE2741D";
@@ -1070,10 +1072,11 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       const panForParticipant = (panNumbersInput && panNumbersInput[idx]?.trim())
         ? panNumbersInput[idx].trim()
         : member?.panMasked || primaryPan;
+      const pName = (p as any).memberName || member?.name || member?.username || "Member";
 
       return {
         memberId: p.memberId,
-        memberName: idx === 0 ? finalApplicantName : (member?.name || "Member"),
+        memberName: pName,
         avatar: member?.avatar || "/oggy.png",
         contribution: p.contribution,
         percentage: Number(percentage.toFixed(1)),

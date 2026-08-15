@@ -23,7 +23,7 @@ import {
 } from "@phosphor-icons/react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { AddIPODrawer } from "./AddIPODrawer";
-import { formatINR } from "@/lib/mockData";
+import { formatINR, formatApplicantNames } from "@/lib/mockData";
 
 import { AdminTab } from "./AdminSidebar";
 import { Receipt, CreditCard, Key } from "@phosphor-icons/react";
@@ -73,6 +73,11 @@ export function AdminIPOManagement({
   const setIsDrawerOpen = externalSetIsDrawerOpen || setInternalDrawerOpen;
   const [selectedIpoToRemove, setSelectedIpoToRemove] = useState<IPOOpportunity | null>(null);
 
+  // Completed IPO / History State
+  const [ipoFilterTab, setIpoFilterTab] = useState<"ACTIVE" | "COMPLETED">("ACTIVE");
+  const [selectedIpoToComplete, setSelectedIpoToComplete] = useState<IPOOpportunity | null>(null);
+  const [isCompleting, setIsCompleting] = useState(false);
+
   // Edit IPO Modal State
   const [editingIpo, setEditingIpo] = useState<IPOOpportunity | null>(null);
   const [editStatus, setEditStatus] = useState<IPOLifecycleStage>("APPLYING");
@@ -101,6 +106,8 @@ export function AdminIPOManagement({
 
   // Filter visible IPOs
   const visibleIpos = ipos.filter((ipo) => !ipo.isHidden);
+  const activeIpos = visibleIpos.filter((i) => i.status !== "COMPLETED" && !(i as any).isCompleted);
+  const completedIpos = visibleIpos.filter((i) => i.status === "COMPLETED" || (i as any).isCompleted);
 
   // All applications across visible IPOs
   const allApplications = visibleIpos.flatMap((ipo) =>
@@ -115,7 +122,7 @@ export function AdminIPOManagement({
   const totalGroupCapital = visibleIpos.reduce((sum, ipo) => sum + (ipo.combinedCapital || 0), 0);
   const totalAllottedApps = allApplications.filter((a) => a.allotmentStatus === "ALLOTTED").length;
   const totalRealizedProfit = visibleIpos.reduce((sum, ipo) => {
-    if (ipo.listingGainPercent && (ipo.status === "ALLOTTED" || ipo.status === "SOLD" || ipo.status === "LISTED")) {
+    if (ipo.listingGainPercent && (ipo.status === "ALLOTTED" || ipo.status === "SOLD" || ipo.status === "LISTED" || ipo.status === "COMPLETED")) {
       return sum + Math.round((ipo.combinedCapital * ipo.listingGainPercent) / 100);
     }
     return sum;
@@ -135,6 +142,32 @@ export function AdminIPOManagement({
       showToast(`❌ ${res.message || "Failed to remove IPO."}`);
     }
     setSelectedIpoToRemove(null);
+  };
+
+  const handleConfirmComplete = async () => {
+    if (!selectedIpoToComplete) return;
+    setIsCompleting(true);
+    try {
+      const res = await fetch("/api/admin/ipos/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ipoId: selectedIpoToComplete.id }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(data.message || `✓ ${selectedIpoToComplete.name} marked as Completed and moved to History!`);
+        if (typeof window !== "undefined") {
+          window.location.reload();
+        }
+      } else {
+        showToast(`❌ ${data.error || "Failed to mark IPO as completed."}`);
+      }
+    } catch (_e) {
+      showToast("❌ Network error while completing IPO.");
+    } finally {
+      setIsCompleting(false);
+      setSelectedIpoToComplete(null);
+    }
   };
 
   const handleSaveEditIpo = (e: React.FormEvent) => {
@@ -313,25 +346,53 @@ export function AdminIPOManagement({
       {/* TAB 1: IPO CATALOG & LIFECYCLE MANAGER */}
       {activeAdminTab === "ipos" && (
         <div className="bg-surface border border-line rounded-2xl shadow-2xs overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-line bg-surface-alt/50 flex items-center justify-between">
+          <div className="p-4 sm:p-5 border-b border-line bg-surface-alt/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
             <h3 className="text-xs font-extrabold text-ink uppercase tracking-wider">
               Published IPO Opportunities ({visibleIpos.length})
             </h3>
+
+            {/* Filter Tabs: Active vs Completed (History) */}
+            <div className="flex items-center gap-1 bg-surface border border-line p-1 rounded-xl text-xs">
+              <button
+                onClick={() => setIpoFilterTab("ACTIVE")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                  ipoFilterTab === "ACTIVE"
+                    ? "bg-accent text-white shadow-xs"
+                    : "text-ink-secondary hover:text-ink"
+                }`}
+              >
+                Active IPOs ({activeIpos.length})
+              </button>
+              <button
+                onClick={() => setIpoFilterTab("COMPLETED")}
+                className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
+                  ipoFilterTab === "COMPLETED"
+                    ? "bg-emerald-600 text-white shadow-xs"
+                    : "text-ink-secondary hover:text-ink"
+                }`}
+              >
+                History / Completed ({completedIpos.length})
+              </button>
+            </div>
           </div>
 
-          {visibleIpos.length === 0 ? (
+          {((ipoFilterTab === "ACTIVE" ? activeIpos : completedIpos).length === 0) ? (
             <div className="p-12 text-center space-y-2">
               <Buildings size={36} className="text-ink-tertiary mx-auto" />
-              <h4 className="text-sm font-bold text-ink">No Active IPOs</h4>
+              <h4 className="text-sm font-bold text-ink">
+                {ipoFilterTab === "ACTIVE" ? "No Active IPOs" : "No Completed IPOs in History"}
+              </h4>
               <p className="text-xs text-ink-tertiary">
-                Click "+ Add IPO" to publish an IPO to the user website.
+                {ipoFilterTab === "ACTIVE"
+                  ? 'Click "+ Add IPO" to publish an IPO to the user website.'
+                  : "Mark active IPOs as completed to store them in the History ledger."}
               </p>
             </div>
           ) : (
             <div className="divide-y divide-line/60">
-              {visibleIpos.map((ipo) => {
+              {(ipoFilterTab === "ACTIVE" ? activeIpos : completedIpos).map((ipo) => {
                 const isAllottedOrListed =
-                  ipo.status === "ALLOTTED" || ipo.status === "LISTED" || ipo.status === "SOLD";
+                  ipo.status === "ALLOTTED" || ipo.status === "LISTED" || ipo.status === "SOLD" || ipo.status === "COMPLETED";
 
                 return (
                   <div
@@ -350,12 +411,14 @@ export function AdminIPOManagement({
                         {/* Status Stage Badge */}
                         <span
                           className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
-                            isAllottedOrListed
+                            ipo.status === "COMPLETED" || (ipo as any).isCompleted
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-[#32C98B] border-emerald-500/30 font-extrabold"
+                              : isAllottedOrListed
                               ? "bg-positive-soft text-positive border-positive/30"
                               : "bg-accent-soft text-accent border-accent/30"
                           }`}
                         >
-                          Stage: {ipo.status}
+                          {ipo.status === "COMPLETED" || (ipo as any).isCompleted ? "Completed ✓" : `Stage: ${ipo.status}`}
                         </span>
 
                         {ipo.recommendation && (
@@ -377,10 +440,10 @@ export function AdminIPOManagement({
                         <div>
                           Min Inv:{" "}
                           <span className="font-semibold text-ink num-tabular">
-                            ₹{ipo.metrics.minInvestment.toLocaleString("en-IN")}
+                            ₹{ipo.metrics?.minInvestment ? ipo.metrics.minInvestment.toLocaleString("en-IN") : "15,000"}
                           </span>
                         </div>
-                        {ipo.metrics.gmp !== undefined && (
+                        {ipo.metrics?.gmp !== undefined && (
                           <div>
                             GMP:{" "}
                             <span className="font-semibold text-positive num-tabular">
@@ -405,13 +468,24 @@ export function AdminIPOManagement({
                       </div>
                     </div>
 
-                    <div className="flex items-center gap-2 shrink-0 self-start lg:self-auto">
+                    <div className="flex flex-wrap items-center gap-2 shrink-0 self-start lg:self-auto">
+                      {/* Mark as Completed Button */}
+                      {ipo.status !== "COMPLETED" && !(ipo as any).isCompleted && (
+                        <button
+                          onClick={() => setSelectedIpoToComplete(ipo)}
+                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-emerald-600 dark:text-[#32C98B] bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all shadow-2xs cursor-pointer active:scale-98"
+                        >
+                          <CheckCircle size={15} weight="bold" />
+                          <span>Mark as Completed</span>
+                        </button>
+                      )}
+
                       {/* Edit Details Button */}
                       <button
                         onClick={() => {
                           setEditingIpo(ipo);
                           setEditStatus(ipo.status);
-                          setEditGmp(ipo.metrics.gmp ?? 0);
+                          setEditGmp(ipo.metrics?.gmp ?? 0);
                           setEditListingGain(ipo.listingGainPercent ?? 0);
                           setEditRegistrarUrl(ipo.registrarUrl || "");
                           setEditThesis(ipo.thesis || "");
@@ -420,7 +494,7 @@ export function AdminIPOManagement({
                         className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-accent bg-accent-soft hover:bg-accent/15 border border-accent/25 transition-all shadow-2xs cursor-pointer active:scale-98"
                       >
                         <PencilSimple size={14} weight="bold" />
-                        <span>Edit Status &amp; Gains</span>
+                        <span>Edit Details</span>
                       </button>
 
                       {/* Remove Button */}
@@ -486,7 +560,7 @@ export function AdminIPOManagement({
                 <tbody className="divide-y divide-line/60">
                   {filteredAppsForIpo.map((app) => (
                     <tr key={app.id} className="hover:bg-surface-alt/50 transition-colors">
-                      <td className="py-3 px-3 font-extrabold text-ink">{app.applicantName || "Member"}</td>
+                      <td className="py-3 px-3 font-extrabold text-ink">{formatApplicantNames(app)}</td>
                       <td className="py-3 px-3 font-mono text-ink-secondary text-[11px]">
                         {app.panMasked || "ABCDE1234F"}
                       </td>
@@ -925,6 +999,44 @@ export function AdminIPOManagement({
                 className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer"
               >
                 Remove IPO
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MARK AS COMPLETED MODAL */}
+      {selectedIpoToComplete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-surface rounded-3xl p-6 max-w-md w-full border border-line shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-[#32C98B] flex items-center justify-center">
+              <CheckCircle size={26} weight="bold" />
+            </div>
+
+            <div>
+              <h3 className="text-base font-extrabold text-ink">Mark IPO as Completed?</h3>
+              <p className="text-xs text-ink-secondary font-medium mt-1 leading-relaxed">
+                You are about to mark <span className="font-bold text-ink">{selectedIpoToComplete.name}</span> as <strong>Completed</strong> and move it to the <strong>History</strong> section.
+              </p>
+              <p className="text-[11px] text-ink-tertiary mt-2">
+                This will archive the IPO lifecycle stage to Completed and display it in the History ledger.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setSelectedIpoToComplete(null)}
+                disabled={isCompleting}
+                className="px-4 py-2.5 rounded-xl border border-line text-xs font-bold text-ink-secondary hover:bg-surface-alt transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmComplete}
+                disabled={isCompleting}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer disabled:opacity-50"
+              >
+                {isCompleting ? "Completing..." : "Confirm & Move to History"}
               </button>
             </div>
           </div>

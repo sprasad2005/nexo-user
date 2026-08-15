@@ -166,3 +166,70 @@ export function formatDate(d?: string | null): string {
 
   return s;
 }
+
+/**
+ * Formats applicant / contributor names.
+ * If 2 users combined applied: "@user1 & @user2"
+ * If 3+ users combined applied: "@user1, @user2 & @user3"
+ * If 1 user: "@user1"
+ */
+export function formatApplicantNames(input: any): string {
+  if (!input) return "@Member";
+
+  let rawNames: string[] = [];
+
+  if (typeof input === "string") {
+    rawNames = input
+      .split(/,|\band\b|&|\+/i)
+      .map((s) => s.trim())
+      .filter(Boolean);
+  } else if (Array.isArray(input)) {
+    rawNames = input
+      .map((item) => {
+        if (typeof item === "string") return item.trim();
+        if (item && typeof item === "object") {
+          return item.memberName || item.username || item.name || "";
+        }
+        return "";
+      })
+      .filter(Boolean);
+  } else if (typeof input === "object") {
+    const pool = input.participants || input.contributors;
+    if (Array.isArray(pool) && pool.length > 0) {
+      rawNames = pool
+        .map((p: any) => p.memberName || p.username || p.name || "")
+        .filter(Boolean);
+    }
+    if (rawNames.length === 0 && input.applicantName) {
+      rawNames = String(input.applicantName)
+        .split(/,|\band\b|&|\+/i)
+        .map((s) => s.trim())
+        .filter(Boolean);
+    }
+  }
+
+  // Sanitize and deduplicate usernames
+  const cleanedList: string[] = [];
+  const seen = new Set<string>();
+
+  for (const item of rawNames) {
+    const parts = String(item).split(/,|\band\b|&|\+/i).map((s) => s.trim()).filter(Boolean);
+    for (const part of parts) {
+      const clean = part.replace(/^@+/, "").trim();
+      if (clean) {
+        const lower = clean.toLowerCase();
+        if (!seen.has(lower)) {
+          seen.add(lower);
+          cleanedList.push(`@${clean}`);
+        }
+      }
+    }
+  }
+
+  if (cleanedList.length === 0) return "@Member";
+  if (cleanedList.length === 1) return cleanedList[0];
+  if (cleanedList.length === 2) return `${cleanedList[0]} & ${cleanedList[1]}`;
+  return `${cleanedList.slice(0, -1).join(", ")} & ${cleanedList[cleanedList.length - 1]}`;
+}
+
+

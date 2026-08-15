@@ -8,23 +8,74 @@ import { logActivity } from "@/src/features/activity/activityService";
 const DB = "nexo";
 const COL = "applications";
 
+import fs from "fs";
+import path from "path";
+
+const SHARED_FILE_PATH_PARENT = path.join(process.cwd(), "..", "shared_ipos.json");
+const SHARED_FILE_PATH_LOCAL = path.join(process.cwd(), "shared_ipos.json");
+
+function readSharedIpos(): any[] {
+  try {
+    if (fs.existsSync(SHARED_FILE_PATH_LOCAL)) {
+      const data = fs.readFileSync(SHARED_FILE_PATH_LOCAL, "utf-8");
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+    }
+    if (fs.existsSync(SHARED_FILE_PATH_PARENT)) {
+      const data = fs.readFileSync(SHARED_FILE_PATH_PARENT, "utf-8");
+      const parsed = JSON.parse(data);
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err) {
+    console.error("Error reading shared_ipos.json:", err);
+  }
+  return [];
+}
+
 /* ────────────────────────────────────────────────────────────────
    GET /api/applications
-   Fetches all saved IPO application responses from MongoDB.
+   Fetches all saved IPO application responses from MongoDB & shared_ipos.json.
  * ──────────────────────────────────────────────────────────────── */
 export async function GET() {
   try {
-    const client = await clientPromise;
-    const col = client.db(DB).collection<IPOApplicationDocument>(COL);
+    let dbApps: any[] = [];
+    try {
+      const client = await clientPromise;
+      const col = client.db(DB).collection<IPOApplicationDocument>(COL);
+      dbApps = await col.find({}).sort({ createdAt: -1 }).toArray();
+    } catch (_e) {
+      console.warn("GET /api/applications MongoDB fetch optional.");
+    }
 
-    const applications = await col
-      .find({})
-      .sort({ createdAt: -1 })
-      .toArray();
+    const sharedIpos = readSharedIpos();
+    const appMap = new Map<string, any>();
+
+    // Process MongoDB apps first
+    dbApps.forEach((app) => {
+      const id = app.id || app._id?.toString();
+      if (id) appMap.set(id, app);
+    });
+
+    // Process embedded apps from shared_ipos.json
+    sharedIpos.forEach((ipo) => {
+      if (Array.isArray(ipo.applications)) {
+        ipo.applications.forEach((app: any) => {
+          const id = app.id;
+          if (id && !appMap.has(id)) {
+            appMap.set(id, {
+              ...app,
+              ipoName: ipo.name,
+            });
+          }
+        });
+      }
+    });
+
+    const applications = Array.from(appMap.values());
 
     return NextResponse.json({ success: true, applications });
   } catch (err: any) {
-    console.warn("GET /api/applications MongoDB unavailable, returning empty array fallback.");
+    console.warn("GET /api/applications error, returning fallback.");
     return NextResponse.json({ success: true, applications: [] });
   }
 }

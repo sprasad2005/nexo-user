@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CopyButton } from "@/components/ui/CopyButton";
 import {
@@ -16,8 +16,12 @@ import {
   LockOpen,
   Check,
   X,
+  PencilSimple,
+  Link,
+  ArrowSquareOut,
   Files,
 } from "@phosphor-icons/react";
+import { formatApplicantNames } from "@/lib/mockData";
 
 export interface ApplicationItem {
   id: string;
@@ -31,6 +35,7 @@ export interface ApplicationItem {
   rawStatus?: string;
   totalContribution?: number;
   createdAt?: string;
+  allottedIndices?: number[];
 }
 
 export interface IPOItem {
@@ -39,6 +44,7 @@ export interface IPOItem {
   company: string;
   category: string;
   status: string;
+  registrarUrl?: string;
   allotmentFinalized: boolean;
   allotmentFinalizedAt: string | null;
   allotmentFinalizedBy: string | null;
@@ -64,16 +70,18 @@ export function AllotmentManagementView() {
   // Search & Filter
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "PENDING" | "ALLOTTED" | "NOT_ALLOTTED">("ALL");
-  const [sortBy, setSortBy] = useState<"name" | "lots" | "app_no" | "status">("name");
+  const [sortBy, setSortBy] = useState<"default" | "name_asc" | "name_desc" | "lots" | "app_no" | "status">("default");
 
-  // Selection states (working draft of selected applicant IDs intended for allotment)
+  // Single Source of Selection Truth: IDs of applications/lots checked for allotment
   const [selectedAppIds, setSelectedAppIds] = useState<string[]>([]);
-  const [workingAllottedIds, setWorkingAllottedIds] = useState<Set<string>>(new Set());
 
   // Toast & Modals
   const [toast, setToast] = useState<{ type: "success" | "error" | "info"; message: string } | null>(null);
   const [isFinalizeModalOpen, setIsFinalizeModalOpen] = useState<boolean>(false);
   const [isReopenModalOpen, setIsReopenModalOpen] = useState<boolean>(false);
+
+  // Header checkbox ref for indeterminate state
+  const headerCheckboxRef = useRef<HTMLInputElement | null>(null);
 
   const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
     setToast({ type, message });
@@ -116,22 +124,21 @@ export function AllotmentManagementView() {
         const apps: ApplicationItem[] = data.applications || [];
         setApplications(apps);
 
-        // Pre-populate workingAllottedIds with currently allotted applications
-        const allottedSet = new Set<string>();
+        // Pre-populate selectedAppIds with currently allotted applications/lots
+        const initialSelected: string[] = [];
         apps.forEach((a) => {
           const lotCount = Math.max(1, a.lotsApplied || 1);
-          if (Array.isArray((a as any).allottedIndices) && (a as any).allottedIndices.length > 0) {
-            (a as any).allottedIndices.forEach((idx: number) => {
-              allottedSet.add(lotCount > 1 ? `${a.id}_lot_${idx}` : a.id);
+          if (Array.isArray(a.allottedIndices) && a.allottedIndices.length > 0) {
+            a.allottedIndices.forEach((idx: number) => {
+              initialSelected.push(lotCount > 1 ? `${a.id}_lot_${idx}` : a.id);
             });
           } else if (a.allotmentStatus === "ALLOTTED") {
             for (let i = 0; i < lotCount; i++) {
-              allottedSet.add(lotCount > 1 ? `${a.id}_lot_${i}` : a.id);
+              initialSelected.push(lotCount > 1 ? `${a.id}_lot_${i}` : a.id);
             }
           }
         });
-        setWorkingAllottedIds(allottedSet);
-        setSelectedAppIds([]);
+        setSelectedAppIds(Array.from(new Set(initialSelected)));
       } else {
         showToast(data.error || "Failed to load applications for selected IPO.", "error");
       }
@@ -152,47 +159,43 @@ export function AllotmentManagementView() {
     }
   }, [selectedIpoId]);
 
-  // Expand applications so every lot has its own row with its specific PAN card
+  // Expand applications so every lot has its own row matching user-side sequence
   const expandedApplications = useMemo(() => {
     const result: ApplicationItem[] = [];
     applications.forEach((app) => {
       const lotCount = Math.max(1, app.lotsApplied || 1);
       const pansList = app.panNumbers && app.panNumbers.length > 0 ? app.panNumbers : [app.pan];
-      const names = app.applicantName.split(",").map((s) => s.trim()).filter(Boolean);
+      const displayName = formatApplicantNames(app.applicantName || app);
 
       for (let i = 0; i < lotCount; i++) {
         const panForLot = pansList[i] || pansList[0] || app.pan || `ABCDE${2741 + i}D`;
-        let nameForLot = app.applicantName;
-        if (names.length > i) {
-          nameForLot = names[i];
-        } else if (lotCount > 1) {
-          nameForLot = `${names[0] || app.applicantName} ${i + 1}`;
-        }
-
         const lotId = lotCount > 1 ? `${app.id}_lot_${i}` : app.id;
-        const isLotAllotted = workingAllottedIds.has(lotId);
+        const isSelected = selectedAppIds.includes(lotId);
 
-        let statusForLot: "PENDING" | "ALLOTTED" | "NOT_ALLOTTED" = "PENDING";
-        if (selectedIpo?.allotmentFinalized) {
-          statusForLot = isLotAllotted ? "ALLOTTED" : "NOT_ALLOTTED";
+        let effectiveStatus: "PENDING" | "ALLOTTED" | "NOT_ALLOTTED" = "PENDING";
+        if (isSelected) {
+          effectiveStatus = "ALLOTTED";
+        } else if (selectedIpo?.allotmentFinalized || selectedAppIds.length > 0) {
+          effectiveStatus = "NOT_ALLOTTED";
         } else {
-          statusForLot = isLotAllotted ? "ALLOTTED" : app.allotmentStatus;
+          effectiveStatus = app.allotmentStatus;
         }
 
         result.push({
           ...app,
           id: lotId,
-          applicantName: nameForLot,
+          applicantName: displayName,
           pan: panForLot,
           lotsApplied: 1,
-          allotmentStatus: statusForLot,
+          allotmentStatus: effectiveStatus,
         });
       }
     });
     return result;
-  }, [applications, workingAllottedIds, selectedIpo]);
+  }, [applications, selectedAppIds, selectedIpo]);
 
-  // Real-time filtering
+
+  // Real-time filtering & sorting
   const filteredApplications = useMemo(() => {
     let list = [...expandedApplications];
 
@@ -220,16 +223,22 @@ export function AllotmentManagementView() {
 
     // Sorting
     list.sort((a, b) => {
+      if (sortBy === "name_asc") return a.applicantName.localeCompare(b.applicantName);
+      if (sortBy === "name_desc") return b.applicantName.localeCompare(a.applicantName);
       if (sortBy === "lots") return b.lotsApplied - a.lotsApplied;
       if (sortBy === "app_no") return a.applicationNumber.localeCompare(b.applicationNumber);
       if (sortBy === "status") return a.allotmentStatus.localeCompare(b.allotmentStatus);
-      return a.applicantName.localeCompare(b.applicantName);
+
+      // Default: Sort by createdAt ASC (Oldest first) for exact sequence alignment
+      const timeA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const timeB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return timeA - timeB;
     });
 
     return list;
   }, [expandedApplications, searchQuery, statusFilter, sortBy]);
 
-  // Dynamic summary metrics calculation
+  // Summary statistics calculated from authoritative dataset for the selected IPO
   const summaryMetrics = useMemo(() => {
     const totalApps = expandedApplications.length;
     const pendingApps = expandedApplications.filter((a) => a.allotmentStatus === "PENDING").length;
@@ -246,23 +255,37 @@ export function AllotmentManagementView() {
     };
   }, [expandedApplications]);
 
-  // Bulk Selection Handlers (operates on visible/filtered applications)
+  // Filter-aware selection calculation
+  const visibleSelectedCount = useMemo(() => {
+    return filteredApplications.filter((app) => selectedAppIds.includes(app.id)).length;
+  }, [filteredApplications, selectedAppIds]);
+
   const isAllVisibleSelected =
-    filteredApplications.length > 0 &&
-    filteredApplications.every((app) => selectedAppIds.includes(app.id));
+    filteredApplications.length > 0 && visibleSelectedCount === filteredApplications.length;
+
+  const isIndeterminate =
+    visibleSelectedCount > 0 && visibleSelectedCount < filteredApplications.length;
+
+  // Set DOM indeterminate state on header checkbox
+  useEffect(() => {
+    if (headerCheckboxRef.current) {
+      headerCheckboxRef.current.indeterminate = isIndeterminate;
+    }
+  }, [isIndeterminate]);
 
   const handleSelectAllVisible = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const visibleIds = filteredApplications.map((a) => a.id);
     if (e.target.checked) {
-      const visibleIds = filteredApplications.map((a) => a.id);
       const union = Array.from(new Set([...selectedAppIds, ...visibleIds]));
       setSelectedAppIds(union);
     } else {
-      const visibleIds = new Set(filteredApplications.map((a) => a.id));
-      setSelectedAppIds(selectedAppIds.filter((id) => !visibleIds.has(id)));
+      const visibleSet = new Set(visibleIds);
+      setSelectedAppIds(selectedAppIds.filter((id) => !visibleSet.has(id)));
     }
   };
 
   const handleToggleRowSelection = (id: string) => {
+    if (isMemberRole) return;
     if (selectedAppIds.includes(id)) {
       setSelectedAppIds(selectedAppIds.filter((item) => item !== id));
     } else {
@@ -270,43 +293,16 @@ export function AllotmentManagementView() {
     }
   };
 
-  // Toggle intended allotment working state for individual or selected apps
-  const handleMarkSelectedAsAllotted = () => {
-    if (selectedAppIds.length === 0) return;
-    const nextSet = new Set(workingAllottedIds);
-    selectedAppIds.forEach((id) => nextSet.add(id));
-    setWorkingAllottedIds(nextSet);
-    showToast(`Marked ${selectedAppIds.length} application(s) for allotment.`);
-  };
-
-  const handleUnmarkSelected = () => {
-    if (selectedAppIds.length === 0) return;
-    const nextSet = new Set(workingAllottedIds);
-    selectedAppIds.forEach((id) => nextSet.delete(id));
-    setWorkingAllottedIds(nextSet);
-    showToast(`Removed ${selectedAppIds.length} application(s) from allotment selection.`);
-  };
-
-  const handleToggleWorkingAllotment = (appId: string) => {
-    if (isMemberRole) return;
-    const nextSet = new Set(workingAllottedIds);
-    if (nextSet.has(appId)) {
-      nextSet.delete(appId);
-    } else {
-      nextSet.add(appId);
-    }
-    setWorkingAllottedIds(nextSet);
-  };
-
-  // Finalize Allotment Submit
+  // Open Update Allotment Confirmation Modal
   const handleOpenFinalizeModal = () => {
-    if (applications.length > 0 && workingAllottedIds.size === 0) {
-      showToast("Select at least one applicant before finalizing allotment.", "error");
+    if (selectedAppIds.length === 0) {
+      showToast("Select at least one application to continue.", "error");
       return;
     }
     setIsFinalizeModalOpen(true);
   };
 
+  // Confirm and save allotment to database
   const handleConfirmFinalize = async () => {
     if (!selectedIpoId) return;
     setIsSubmitting(true);
@@ -316,27 +312,29 @@ export function AllotmentManagementView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           ipoId: selectedIpoId,
-          allottedApplicationIds: Array.from(workingAllottedIds),
+          allottedApplicationIds: selectedAppIds,
         }),
       });
 
       const data = await res.json();
       if (res.ok && data.success) {
         setIsFinalizeModalOpen(false);
-        showToast(data.message || "Allotment finalized successfully!");
+        showToast(
+          data.message || `Allotment updated successfully! ${selectedAppIds.length} allotted.`
+        );
         fetchApplicationsForIpo(selectedIpoId);
         fetchIpos();
       } else {
-        showToast(data.error || "Failed to finalize allotment.", "error");
+        showToast(data.error || "Failed to update allotment in database.", "error");
       }
     } catch {
-      showToast("Network error while finalizing allotment.", "error");
+      showToast("Unable to update allotment. No changes were applied.", "error");
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  // Reopen Allotment Submit (Super Admin Only)
+  // Reopen Allotment Submit
   const handleConfirmReopen = async () => {
     if (!selectedIpoId) return;
     setIsSubmitting(true);
@@ -363,20 +361,83 @@ export function AllotmentManagementView() {
     }
   };
 
+  // Complete IPO Submit
+  const [isCompleteModalOpen, setIsCompleteModalOpen] = useState<boolean>(false);
+
+  const handleConfirmComplete = async () => {
+    if (!selectedIpoId) return;
+    setIsSubmitting(true);
+    try {
+      const res = await fetch("/api/admin/ipos/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ipoId: selectedIpoId }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setIsCompleteModalOpen(false);
+        showToast(data.message || "IPO marked as Completed and moved to History.");
+        fetchApplicationsForIpo(selectedIpoId);
+        fetchIpos();
+      } else {
+        showToast(data.error || "Failed to mark IPO as completed.", "error");
+      }
+    } catch {
+      showToast("Network error while completing IPO.", "error");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  // Edit Check Allotment Link Handler
+  const [editingRegistrarUrl, setEditingRegistrarUrl] = useState<string>("");
+  const [isSavingRegistrarUrl, setIsSavingRegistrarUrl] = useState<boolean>(false);
+  const [isUrlModalOpen, setIsUrlModalOpen] = useState<boolean>(false);
+
+  const handleSaveRegistrarUrl = async () => {
+    if (!selectedIpoId) return;
+    setIsSavingRegistrarUrl(true);
+    try {
+      const res = await fetch("/api/ipos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "updateRegistrarUrl",
+          ipoId: selectedIpoId,
+          registrarUrl: editingRegistrarUrl.trim(),
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast("✓ Check Allotment link updated successfully!");
+        setIsUrlModalOpen(false);
+        fetchIpos();
+      } else {
+        showToast(data.error || "Failed to update link.", "error");
+      }
+    } catch {
+      showToast("Network error while saving allotment link.", "error");
+    } finally {
+      setIsSavingRegistrarUrl(false);
+    }
+  };
+
   const isMemberRole = currentUserRole === "MEMBER";
-  const isSuperAdmin = currentUserRole === "SUPER_ADMIN";
 
   return (
     <div className="space-y-6 font-sans select-none pb-20">
       {/* Toast Notification */}
       {toast && (
-        <div className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-lg flex items-center gap-2 text-xs font-semibold backdrop-blur-md transition-all border animate-in fade-in slide-in-from-top-4 duration-300 ${
-          toast.type === "error"
-            ? "bg-rose-950/90 border-rose-800 text-rose-200"
-            : toast.type === "info"
-            ? "bg-blue-950/90 border-blue-800 text-blue-200"
-            : "bg-emerald-950/90 border-emerald-800 text-emerald-200"
-        }`}>
+        <div
+          className={`fixed top-4 right-4 z-50 p-4 rounded-xl shadow-lg flex items-center gap-2 text-xs font-semibold backdrop-blur-md transition-all border animate-in fade-in slide-in-from-top-4 duration-300 ${
+            toast.type === "error"
+              ? "bg-rose-950/90 border-rose-800 text-rose-200"
+              : toast.type === "info"
+              ? "bg-blue-950/90 border-blue-800 text-blue-200"
+              : "bg-emerald-950/90 border-emerald-800 text-emerald-200"
+          }`}
+        >
           <span>{toast.type === "error" ? "⚠️" : "✓"}</span>
           <span>{toast.message}</span>
         </div>
@@ -417,7 +478,7 @@ export function AllotmentManagementView() {
         </div>
       </div>
 
-      {/* NO IPO SELECTED EDGE STATE */}
+      {/* NO IPO SELECTED STATE */}
       {!selectedIpoId && !isLoading && (
         <div className="p-12 text-center bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl shadow-2xs space-y-3">
           <Files size={40} className="mx-auto text-slate-400 dark:text-slate-600" />
@@ -432,7 +493,7 @@ export function AllotmentManagementView() {
 
       {selectedIpoId && (
         <>
-          {/* FINALIZATION BANNER / STATUS */}
+          {/* FINALIZATION BANNER */}
           {selectedIpo?.allotmentFinalized && (
             <div className="p-4 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs font-semibold select-none">
               <div className="flex items-center gap-3 text-emerald-700 dark:text-[#32C98B]">
@@ -453,34 +514,80 @@ export function AllotmentManagementView() {
                           hour: "2-digit",
                           minute: "2-digit",
                         })
-                      : "14 Aug 2026"}{" "}
+                      : "Recently"}{" "}
                     by <strong>{selectedIpo.allotmentFinalizedBy || "Admin"}</strong>
                   </p>
                 </div>
               </div>
 
               {!isMemberRole && (
-                <button
-                  onClick={() => setIsReopenModalOpen(true)}
-                  disabled={isSubmitting}
-                  className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-[#1A1D24] dark:hover:bg-[#252931] border border-slate-700 text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-                >
-                  <LockOpen size={15} />
-                  <span>Reopen / Edit Allotment</span>
-                </button>
+                <div className="flex items-center gap-2">
+                  {selectedIpo.status !== "COMPLETED" && (
+                    <button
+                      onClick={() => setIsCompleteModalOpen(true)}
+                      disabled={isSubmitting}
+                      className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-extrabold transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0 shadow-xs"
+                    >
+                      <CheckCircle size={16} weight="bold" />
+                      <span>Mark as Completed</span>
+                    </button>
+                  )}
+                  {selectedIpo.status === "COMPLETED" && (
+                    <span className="px-3 py-1.5 rounded-xl bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-[#32C98B] font-extrabold text-xs flex items-center gap-1.5">
+                      <Check size={14} weight="bold" /> Completed &amp; Stored in History
+                    </span>
+                  )}
+                  <button
+                    onClick={() => setIsReopenModalOpen(true)}
+                    disabled={isSubmitting}
+                    className="px-3.5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 dark:bg-[#1A1D24] dark:hover:bg-[#252931] border border-slate-700 text-slate-200 text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
+                  >
+                    <LockOpen size={15} />
+                    <span>Reopen / Edit Allotment</span>
+                  </button>
+                </div>
               )}
             </div>
           )}
 
-          {/* COMPACT IPO SUMMARY CARDS */}
+          {/* COMPACT IPO SUMMARY COUNTER CARDS */}
           <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl p-5 shadow-2xs space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#252931]/60 pb-3">
-              <h2 className="text-sm font-extrabold text-slate-900 dark:text-[#F5F7FA]">
-                {selectedIpo?.name || "Selected IPO Summary"}
-              </h2>
-              <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-[#1A1D24] text-slate-600 dark:text-[#AEB5C0] font-bold border border-slate-200 dark:border-[#252931]">
-                {selectedIpo?.category || "Mainboard"}
-              </span>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-slate-100 dark:border-[#252931]/60 pb-3">
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-extrabold text-slate-900 dark:text-[#F5F7FA]">
+                  {selectedIpo?.name || "Selected IPO Summary"}
+                </h2>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-slate-100 dark:bg-[#1A1D24] text-slate-600 dark:text-[#AEB5C0] font-bold border border-slate-200 dark:border-[#252931]">
+                  {selectedIpo?.category || "Mainboard"}
+                </span>
+              </div>
+
+              {/* Allotment Link Actions */}
+              <div className="flex items-center gap-2">
+                <a
+                  href={selectedIpo?.registrarUrl || "https://ipostatus.kfintech.com"}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 dark:bg-[#6B93FF] hover:bg-blue-700 text-white dark:text-[#101114] font-extrabold text-xs transition-all shadow-xs cursor-pointer"
+                >
+                  <span>Check Allotment</span>
+                  <ArrowSquareOut size={14} weight="bold" />
+                </a>
+
+                {!isMemberRole && (
+                  <button
+                    onClick={() => {
+                      setEditingRegistrarUrl(selectedIpo?.registrarUrl || "");
+                      setIsUrlModalOpen(true);
+                    }}
+                    className="p-1.5 rounded-xl bg-slate-100 dark:bg-[#1A1D24] hover:bg-slate-200 dark:hover:bg-[#252931] border border-slate-200 dark:border-[#252931] text-slate-600 dark:text-[#AEB5C0] font-bold text-xs flex items-center gap-1 transition-all cursor-pointer"
+                    title="Edit Allotment Check Link"
+                  >
+                    <PencilSimple size={15} />
+                    <span className="hidden sm:inline">Edit Link</span>
+                  </button>
+                )}
+              </div>
             </div>
 
             <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 select-none">
@@ -540,7 +647,7 @@ export function AllotmentManagementView() {
                 placeholder="Search by name, PAN or application number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs text-slate-900 dark:text-[#F5F7FA] focus:outline-none focus:border-blue-500 transition-all"
+                className="w-full pl-10 pr-8 py-2.5 rounded-xl bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs text-slate-900 dark:text-[#F5F7FA] focus:outline-none focus:border-blue-500 transition-all"
               />
               <MagnifyingGlass className="absolute left-3.5 text-slate-400 dark:text-[#858D99] w-4 h-4" />
               {searchQuery && (
@@ -589,54 +696,48 @@ export function AllotmentManagementView() {
                   onChange={(e: any) => setSortBy(e.target.value)}
                   className="bg-transparent border-none text-slate-800 dark:text-slate-200 font-bold focus:outline-none cursor-pointer"
                 >
-                  <option value="name">Applicant Name</option>
+                  <option value="default">Default (Application Order)</option>
+                  <option value="name_asc">Applicant Name A → Z</option>
+                  <option value="name_desc">Applicant Name Z → A</option>
                   <option value="lots">Lots Applied</option>
                   <option value="app_no">Application No.</option>
                   <option value="status">Status</option>
                 </select>
               </div>
 
-              {/* Primary Finalize / Update Allotment Action */}
+              {/* Primary Update Allotment Action Button */}
               <button
                 onClick={handleOpenFinalizeModal}
-                disabled={isMemberRole || isSubmitting}
-                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-[#6B93FF] dark:hover:bg-[#527DFF] text-white dark:text-[#101114] font-extrabold text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] disabled:opacity-50 shrink-0"
+                disabled={isMemberRole || isSubmitting || selectedAppIds.length === 0}
+                title={
+                  selectedAppIds.length === 0
+                    ? "Select at least one application to continue"
+                    : "Update Allotment for this IPO"
+                }
+                className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-[#6B93FF] dark:hover:bg-[#527DFF] text-white dark:text-[#101114] font-extrabold text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
               >
                 <CheckCircle size={17} weight="bold" />
-                <span>{selectedIpo?.allotmentFinalized ? "Update Allotment" : "Finalize Allotment"}</span>
+                <span>Update Allotment</span>
               </button>
             </div>
           </div>
 
-          {/* BULK ACTION SELECTION BAR */}
+          {/* BULK ACTION BAR */}
           {selectedAppIds.length > 0 && !isMemberRole && (
             <div className="p-3 bg-blue-50/80 border border-blue-200 dark:bg-[#142340] dark:border-[#2C4880] rounded-xl flex items-center justify-between text-xs font-semibold select-none animate-in fade-in slide-in-from-bottom-2">
               <div className="flex items-center gap-2 text-blue-700 dark:text-[#6B93FF]">
                 <Info size={16} />
                 <span>
-                  <strong>{selectedAppIds.length}</strong> applications selected
+                  <strong>{selectedAppIds.length}</strong> application(s) selected for allotment
                 </span>
               </div>
 
               <div className="flex items-center gap-2">
                 <button
-                  onClick={handleMarkSelectedAsAllotted}
-                  className="px-3.5 py-1.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-bold text-xs transition-all shadow-2xs cursor-pointer flex items-center gap-1"
-                >
-                  <Check size={14} weight="bold" />
-                  <span>Mark as Allotted</span>
-                </button>
-                <button
-                  onClick={handleUnmarkSelected}
-                  className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 text-rose-600 dark:text-rose-400 border border-rose-500/20 font-bold text-xs cursor-pointer"
-                >
-                  Unmark
-                </button>
-                <button
                   onClick={() => setSelectedAppIds([])}
                   className="px-2.5 py-1.5 rounded-lg text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs cursor-pointer"
                 >
-                  Clear Selection
+                  Deselect All
                 </button>
               </div>
             </div>
@@ -653,11 +754,13 @@ export function AllotmentManagementView() {
               <div className="p-12 text-center space-y-3">
                 <WarningCircle size={36} className="mx-auto text-slate-400" />
                 <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">
-                  {searchQuery ? "No applications match your search." : "No applications found for this IPO."}
+                  {searchQuery
+                    ? "No applications match your search."
+                    : "No applications found for this IPO."}
                 </h3>
                 <p className="text-xs text-slate-400">
                   {searchQuery
-                    ? "Try adjusting your search criteria or clearing filters."
+                    ? "Try adjusting your search criteria or clearing status filters."
                     : "No user applications have been submitted for this IPO yet."}
                 </p>
               </div>
@@ -666,8 +769,9 @@ export function AllotmentManagementView() {
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50/70 dark:bg-[#14161A]/80 border-b border-slate-200 dark:border-[#252931] text-[10px] font-extrabold text-slate-400 dark:text-[#858D99] uppercase tracking-wider">
-                      <th className="py-3 px-4 w-10 text-center">
+                      <th className="py-3 px-3 w-8 text-center">
                         <input
+                          ref={headerCheckboxRef}
                           type="checkbox"
                           checked={isAllVisibleSelected}
                           onChange={handleSelectAllVisible}
@@ -675,17 +779,18 @@ export function AllotmentManagementView() {
                           title="Select All Visible"
                         />
                       </th>
+                      <th className="py-3 px-2 w-10 text-center">#</th>
                       <th className="py-3 px-4">Applicant</th>
                       <th className="py-3 px-4">PAN</th>
                       <th className="py-3 px-4 text-center">Lots Applied</th>
-                      <th className="py-3 px-4 text-center">Intended</th>
+                      <th className="py-3 px-4 text-center">Selection</th>
                       <th className="py-3 px-4 text-right">Status</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-[#252931]/60">
-                    {filteredApplications.map((app) => {
+                    {filteredApplications.map((app, index) => {
                       const isSelected = selectedAppIds.includes(app.id);
-                      const isWorkingAllotted = workingAllottedIds.has(app.id);
+                      const srNo = String(index + 1).padStart(2, "0");
 
                       return (
                         <tr
@@ -695,13 +800,19 @@ export function AllotmentManagementView() {
                           }`}
                         >
                           {/* Checkbox */}
-                          <td className="py-3 px-4 text-center">
+                          <td className="py-3 px-3 text-center">
                             <input
                               type="checkbox"
                               checked={isSelected}
+                              disabled={isMemberRole}
                               onChange={() => handleToggleRowSelection(app.id)}
                               className="rounded border-slate-300 dark:border-slate-700 cursor-pointer"
                             />
+                          </td>
+
+                          {/* Sr No */}
+                          <td className="py-3 px-2 text-center font-mono font-extrabold text-slate-400 dark:text-[#858D99] text-[11px]">
+                            {srNo}
                           </td>
 
                           {/* Applicant Name & Username */}
@@ -712,7 +823,7 @@ export function AllotmentManagementView() {
                               </div>
                               <div className="min-w-0">
                                 <p className="font-extrabold text-slate-800 dark:text-[#F5F7FA] truncate">
-                                  {app.applicantName.replace(/^@+/, "").replace(/,\s*@+/g, ", ")}
+                                  {formatApplicantNames(app.applicantName)}
                                 </p>
                                 <p className="text-[10px] text-slate-400 dark:text-[#858D99] font-mono">
                                   @{app.username.replace(/^@+/, "")}
@@ -735,22 +846,21 @@ export function AllotmentManagementView() {
                             {app.lotsApplied}
                           </td>
 
-                          {/* Intended Toggle */}
+                          {/* SELECTION COLUMN */}
                           <td className="py-3 px-4 text-center">
-                            <button
-                              onClick={() => handleToggleWorkingAllotment(app.id)}
-                              disabled={isMemberRole}
-                              className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer ${
-                                isWorkingAllotted
-                                  ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-600 dark:text-[#32C98B]"
-                                  : "bg-slate-100 dark:bg-[#1A1D24] border-slate-200 dark:border-[#252931] text-slate-400"
-                              }`}
-                            >
-                              {isWorkingAllotted ? "✓ Marked Allotted" : "Not Marked"}
-                            </button>
+                            {isSelected ? (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-extrabold bg-emerald-500/15 border border-emerald-500/30 text-emerald-600 dark:text-[#32C98B]">
+                                <Check size={12} weight="bold" />
+                                Selected
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-[#1A1D24] border border-slate-200 dark:border-[#252931] text-slate-400">
+                                Not Selected
+                              </span>
+                            )}
                           </td>
 
-                          {/* Status Badge */}
+                          {/* PERSISTED / DRAFT STATUS BADGE */}
                           <td className="py-3 px-4 text-right">
                             {app.allotmentStatus === "ALLOTTED" && (
                               <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold bg-emerald-500/10 text-emerald-600 dark:text-[#32C98B] border border-emerald-500/25">
@@ -786,13 +896,13 @@ export function AllotmentManagementView() {
       {isFinalizeModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs select-none animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
-            <div className="flex items-center gap-3 text-rose-600 dark:text-rose-400">
-              <div className="w-10 h-10 rounded-2xl bg-rose-500/15 border border-rose-500/30 flex items-center justify-center shrink-0">
-                <WarningCircle size={22} weight="bold" />
+            <div className="flex items-center gap-3 text-blue-600 dark:text-[#6B93FF]">
+              <div className="w-10 h-10 rounded-2xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-center shrink-0">
+                <CheckCircle size={22} weight="bold" />
               </div>
               <div>
                 <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
-                  Finalize Allotment?
+                  Update Allotment?
                 </h3>
                 <p className="text-xs text-slate-500 dark:text-[#858D99]">
                   {selectedIpo?.name}
@@ -801,27 +911,25 @@ export function AllotmentManagementView() {
             </div>
 
             <div className="space-y-3 bg-slate-50 dark:bg-[#14161A] p-4 rounded-xl border border-slate-200 dark:border-[#252931] text-xs text-slate-700 dark:text-[#AEB5C0]">
-              <p className="font-semibold">
-                You have selected <strong>{workingAllottedIds.size}</strong> applications for allotment.
+              <p className="font-semibold text-slate-900 dark:text-slate-200">
+                You are about to mark:
               </p>
-              <div className="space-y-1.5 pt-1 font-medium">
+              <div className="space-y-2 pt-1 font-medium">
                 <p className="flex items-center gap-2 text-emerald-600 dark:text-[#32C98B]">
-                  <span>•</span>
+                  <span className="font-bold">•</span>
                   <span>
-                    <strong>{workingAllottedIds.size}</strong> applications will be marked as{" "}
-                    <strong>Allotted</strong>.
+                    <strong>{selectedAppIds.length}</strong> application(s) as <strong>Allotted</strong>
                   </span>
                 </p>
                 <p className="flex items-center gap-2 text-rose-600 dark:text-[#FF6B6B]">
-                  <span>•</span>
+                  <span className="font-bold">•</span>
                   <span>
-                    <strong>{applications.length - workingAllottedIds.size}</strong> remaining
-                    applications will be marked as <strong>Not Allotted</strong>.
+                    <strong>{expandedApplications.length - selectedAppIds.length}</strong> remaining application(s) as <strong>Not Allotted</strong>
                   </span>
                 </p>
               </div>
               <p className="text-[11px] text-slate-400 pt-2 border-t border-slate-200 dark:border-[#252931]">
-                This action will update the allotment status for this IPO and persist the results.
+                This action will update the allotment status for this IPO and persist changes to the database.
               </p>
             </div>
 
@@ -836,14 +944,14 @@ export function AllotmentManagementView() {
               <button
                 onClick={handleConfirmFinalize}
                 disabled={isSubmitting}
-                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-[#6B93FF] dark:hover:bg-[#527DFF] text-white dark:text-[#101114] text-xs font-extrabold shadow-md cursor-pointer transition-all flex items-center gap-2"
+                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-[#6B93FF] dark:hover:bg-[#527DFF] text-white dark:text-[#101114] text-xs font-extrabold shadow-md cursor-pointer transition-all flex items-center gap-2 disabled:opacity-50"
               >
                 {isSubmitting ? (
-                  <span>Processing...</span>
+                  <span>Updating...</span>
                 ) : (
                   <>
                     <CheckCircle size={16} weight="bold" />
-                    <span>Confirm & Finalize</span>
+                    <span>Confirm Allotment</span>
                   </>
                 )}
               </button>
@@ -852,7 +960,7 @@ export function AllotmentManagementView() {
         </div>
       )}
 
-      {/* ── 2. REOPEN CONFIRMATION MODAL (Super Admin) ── */}
+      {/* ── 2. REOPEN CONFIRMATION MODAL ── */}
       {isReopenModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs select-none animate-in fade-in duration-200">
           <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
@@ -871,8 +979,7 @@ export function AllotmentManagementView() {
             </div>
 
             <p className="text-xs text-slate-600 dark:text-[#AEB5C0] leading-relaxed">
-              This will allow the allotment results for <strong>{selectedIpo?.name}</strong> to be
-              modified and re-finalized again.
+              This will allow the allotment declarations for <strong>{selectedIpo?.name}</strong> to be edited and re-saved.
             </p>
 
             <div className="flex items-center justify-end gap-3 pt-2">
@@ -886,9 +993,113 @@ export function AllotmentManagementView() {
               <button
                 onClick={handleConfirmReopen}
                 disabled={isSubmitting}
-                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-md cursor-pointer transition-all"
+                className="px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-extrabold text-xs shadow-md cursor-pointer transition-all disabled:opacity-50"
               >
-                {isSubmitting ? "Reopening..." : "Reopen"}
+                {isSubmitting ? "Reopening..." : "Reopen Allotment"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 3. COMPLETE IPO CONFIRMATION MODAL ── */}
+      {isCompleteModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs select-none animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+            <div className="flex items-center gap-3 text-emerald-500">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center shrink-0">
+                <CheckCircle size={22} weight="bold" />
+              </div>
+              <div>
+                <h3 className="text-base font-extrabold text-slate-900 dark:text-white">
+                  Mark IPO as Completed?
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-[#858D99]">
+                  {selectedIpo?.name}
+                </p>
+              </div>
+            </div>
+
+            <p className="text-xs text-slate-600 dark:text-[#AEB5C0] leading-relaxed">
+              This will transition <strong>{selectedIpo?.name}</strong> to <strong>COMPLETED</strong> status and store it in the <strong>History</strong> section.
+            </p>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setIsCompleteModalOpen(false)}
+                disabled={isSubmitting}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-600 dark:text-[#AEB5C0] hover:bg-slate-100 dark:hover:bg-[#1A1D24] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleConfirmComplete}
+                disabled={isSubmitting}
+                className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs shadow-md cursor-pointer transition-all disabled:opacity-50"
+              >
+                {isSubmitting ? "Completing..." : "Confirm & Move to History"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── 4. EDIT ALLOTMENT LINK MODAL ── */}
+      {isUrlModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs select-none animate-in fade-in duration-200">
+          <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl max-w-md w-full p-6 shadow-2xl space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#252931]/60 pb-3">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/15 text-blue-500 flex items-center justify-center">
+                  <Link size={18} weight="bold" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-extrabold text-slate-900 dark:text-white">
+                    Edit Allotment Check Link
+                  </h3>
+                  <p className="text-[11px] text-slate-400">
+                    {selectedIpo?.name}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsUrlModalOpen(false)}
+                className="text-slate-400 hover:text-slate-200 text-sm font-bold p-1 cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-2">
+              <label className="block text-xs font-bold text-slate-700 dark:text-slate-300">
+                Registrar Allotment Check URL
+              </label>
+              <input
+                type="url"
+                placeholder="https://ipostatus.kfintech.com or https://linkintime.co.in"
+                value={editingRegistrarUrl}
+                onChange={(e) => setEditingRegistrarUrl(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] rounded-xl px-3.5 py-2.5 text-xs font-mono font-semibold text-slate-900 dark:text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-all"
+              />
+              <p className="text-[11px] text-slate-400">
+                Users clicking the "Check Allotment" button on this IPO will be directed to this URL.
+              </p>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                onClick={() => setIsUrlModalOpen(false)}
+                disabled={isSavingRegistrarUrl}
+                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-600 dark:text-[#AEB5C0] hover:bg-slate-100 dark:hover:bg-[#1A1D24] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveRegistrarUrl}
+                disabled={isSavingRegistrarUrl}
+                className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs shadow-md cursor-pointer transition-all disabled:opacity-50"
+              >
+                {isSavingRegistrarUrl ? "Saving Link..." : "Save Link"}
               </button>
             </div>
           </div>

@@ -1,8 +1,9 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
-import { Coins, CheckCircle, ArrowRight, User, Users, Calculator, Package, Wallet } from "@phosphor-icons/react";
+import { Coins, CheckCircle, ArrowRight, User, Users, Calculator, Package, Wallet, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import { CopyButton } from "@/components/ui/CopyButton";
 import { useAdmin } from "../context/AdminContext";
 
 export function DistributeProfitView() {
@@ -132,6 +133,8 @@ export function DistributeProfitView() {
   const numProfit = typeof totalProfit === "number" ? totalProfit : 0;
   const numAllottedLots = typeof allottedLots === "number" ? allottedLots : 0;
 
+  const [searchQuery, setSearchQuery] = useState("");
+
   // ── Auto-fetch individual member contributions & lots ──
   const memberApplications = useMemo(() => {
     const rawApps = realApplications.length > 0 ? realApplications : selectedIpo?.applications || [];
@@ -141,85 +144,95 @@ export function DistributeProfitView() {
 
     const minInv = selectedIpo.metrics?.minInvestment || 15000;
     const formatHandle = (str: string) => {
-      const trimmed = str.trim();
+      const trimmed = str.replace(/^@+/, "").trim();
       if (!trimmed) return "@member";
-      return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
+      return `@${trimmed}`;
+    };
+
+    const splitMultiNames = (str: string): string[] => {
+      if (!str) return [];
+      return str
+        .split(/,|\band\b|&|\+/i)
+        .map((s) => s.replace(/^@+/, "").trim())
+        .filter(Boolean);
     };
 
     const membersMap = new Map<string, { id: string; name: string; lots: number; contribution: number; pan: string }>();
 
-    rawApps.forEach((app: any) => {
-      // Combined pool application with multiple participants
-      if (Array.isArray(app.participants) && app.participants.length > 0) {
-        app.participants.forEach((p: any) => {
-          let pName = p.memberName || p.name || app.applicantName || "Member";
-          if (pName.includes(",")) {
-            pName = pName.split(",")[0].trim();
-          }
-          const formattedName = formatHandle(pName);
-          const pKey = (p.memberId || formattedName.replace(/^@/, "")).toLowerCase().trim();
-          const pPan = app.pan || app.panMasked || p.panMasked || p.panFull || "ABCDE1234F";
-          const pContrib = p.contribution || (app.totalContribution ? app.totalContribution / app.participants.length : minInv);
-          const lotVal = pContrib / minInv;
+    const addMemberEntry = (memberId: string | undefined, nameStr: string, lots: number, contribution: number, panStr: string) => {
+      const cleanName = formatHandle(nameStr);
+      const key = (memberId || cleanName.replace(/^@/, "")).toLowerCase().trim();
+      const cleanPan = panStr && !panStr.includes("X") && panStr.length === 10 ? panStr.toUpperCase() : (panStr || "ABCDE1234F").toUpperCase();
 
-          if (membersMap.has(pKey)) {
-            const existing = membersMap.get(pKey)!;
-            existing.lots += lotVal;
-            existing.contribution += pContrib;
-          } else {
-            membersMap.set(pKey, {
-              id: p.memberId || `mem_${Date.now()}_${Math.random()}`,
-              name: formattedName,
-              lots: lotVal,
-              contribution: pContrib,
-              pan: pPan,
+      if (membersMap.has(key)) {
+        const existing = membersMap.get(key)!;
+        existing.lots += lots;
+        existing.contribution += contribution;
+        if ((!existing.pan || existing.pan === "ABCDE1234F" || existing.pan.includes("X")) && cleanPan && cleanPan !== "ABCDE1234F") {
+          existing.pan = cleanPan;
+        }
+      } else {
+        membersMap.set(key, {
+          id: memberId || `mem_${key}`,
+          name: cleanName,
+          lots: lots,
+          contribution: contribution,
+          pan: cleanPan,
+        });
+      }
+    };
+
+    rawApps.forEach((app: any) => {
+      const pansList = Array.isArray(app.panNumbers) && app.panNumbers.length > 0
+        ? app.panNumbers
+        : [app.pan || app.panMasked || app.panFull || "ABCDE1234F"];
+      
+      const appLots = Number(app.lotsApplied || app.lotCount || pansList.length || 1) || 1;
+      const appContrib = Number(app.totalContribution) || (appLots * minInv);
+
+      // Check participants / contributors first
+      const pool = (Array.isArray(app.participants) && app.participants.length > 0)
+        ? app.participants
+        : (Array.isArray(app.contributors) && app.contributors.length > 0)
+        ? app.contributors
+        : null;
+
+      if (pool && pool.length > 0) {
+        pool.forEach((p: any, idx: number) => {
+          const rawPName = p.memberName || p.name || p.username || "";
+          const subNames = splitMultiNames(rawPName);
+          const pPan = p.panMasked || p.panFull || p.pan || pansList[idx] || pansList[0] || "ABCDE1234F";
+          const pContrib = Number(p.contribution || p.amount) || (appContrib / pool.length);
+          const pLots = Number(p.lots) || (pContrib / minInv) || (appLots / pool.length);
+
+          if (subNames.length > 1) {
+            const splitSubContrib = pContrib / subNames.length;
+            const splitSubLots = pLots / subNames.length;
+            subNames.forEach((sName, sIdx) => {
+              const subPan = pansList[idx + sIdx] || pPan;
+              addMemberEntry(undefined, sName, splitSubLots, splitSubContrib, subPan);
             });
+          } else {
+            const singleName = subNames[0] || rawPName || `member_${idx + 1}`;
+            addMemberEntry(p.memberId, singleName, pLots, pContrib, pPan);
           }
         });
       } else {
-        // Single applicant or comma-separated names
-        const rawName = app.applicantName || app.username || "Member";
-        const lotVal = app.lotsApplied || app.lotCount || 1;
-        const appContrib = app.totalContribution || (lotVal * minInv);
-        const aPan = app.pan || app.panMasked || (Array.isArray(app.panNumbers) && app.panNumbers[0]) || "ABCDE1234F";
+        // Parse applicantName / username
+        const rawApplicant = String(app.applicantName || app.username || "Member").trim();
+        const splitNames = splitMultiNames(rawApplicant);
 
-        if (rawName.includes(",")) {
-          const splitNames = rawName.split(",").map((s: string) => s.trim()).filter(Boolean);
-          const splitLot = lotVal / splitNames.length;
+        if (splitNames.length > 1) {
+          const splitLots = appLots / splitNames.length;
           const splitContrib = appContrib / splitNames.length;
-          splitNames.forEach((sName: string) => {
-            const formattedName = formatHandle(sName);
-            const sKey = formattedName.replace(/^@/, "").toLowerCase();
-            if (membersMap.has(sKey)) {
-              const existing = membersMap.get(sKey)!;
-              existing.lots += splitLot;
-              existing.contribution += splitContrib;
-            } else {
-              membersMap.set(sKey, {
-                id: `mem_${sKey}`,
-                name: formattedName,
-                lots: splitLot,
-                contribution: splitContrib,
-                pan: aPan,
-              });
-            }
+          splitNames.forEach((sName: string, sIdx: number) => {
+            const panForPerson = pansList[sIdx] || pansList[0] || "ABCDE1234F";
+            addMemberEntry(undefined, sName, splitLots, splitContrib, panForPerson);
           });
         } else {
-          const formattedName = formatHandle(rawName);
-          const aKey = (app.username || app.memberId || formattedName.replace(/^@/, "")).toLowerCase().trim();
-          if (membersMap.has(aKey)) {
-            const existing = membersMap.get(aKey)!;
-            existing.lots += lotVal;
-            existing.contribution += appContrib;
-          } else {
-            membersMap.set(aKey, {
-              id: app.memberId || app.id,
-              name: formattedName,
-              lots: lotVal,
-              contribution: appContrib,
-              pan: aPan,
-            });
-          }
+          const singleName = splitNames[0] || rawApplicant;
+          const panForPerson = pansList[0] || app.pan || app.panMasked || "ABCDE1234F";
+          addMemberEntry(app.memberId, singleName, appLots, appContrib, panForPerson);
         }
       }
     });
@@ -227,11 +240,23 @@ export function DistributeProfitView() {
     return Array.from(membersMap.values());
   }, [selectedIpo, realApplications]);
 
+  // Filtered members based on PAN or Name search
+  const filteredMemberApplications = useMemo(() => {
+    if (!searchQuery.trim()) return memberApplications;
+    const q = searchQuery.toLowerCase().trim();
+    return memberApplications.filter((m) => {
+      const nameMatch = m.name.toLowerCase().includes(q);
+      const panMatch = m.pan.toLowerCase().includes(q);
+      return nameMatch || panMatch;
+    });
+  }, [memberApplications, searchQuery]);
+
   // ── Auto-calculated values ──
   const totalApplicants = memberApplications.length;
   const totalAppliedLots = memberApplications.reduce((acc, m) => acc + m.lots, 0);
   const totalAppliedAmount = memberApplications.reduce((acc, m) => acc + m.contribution, 0);
   const perLotProfit = totalAppliedLots > 0 ? Math.round(numProfit / totalAppliedLots) : 0;
+
 
   const handlePublish = async () => {
     if (!selectedIpo || numProfit <= 0 || !hasApplicants) return;
@@ -439,7 +464,7 @@ export function DistributeProfitView() {
 
       {/* ═══ SECTION 2: Member Payout Table ═══ */}
       <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-3xl p-6 sm:p-8 shadow-2xs space-y-5">
-        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-100 dark:border-[#1B1E23] pb-3 gap-3">
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between border-b border-slate-100 dark:border-[#1B1E23] pb-4 gap-4">
           <div>
             <h3 className="text-base font-extrabold text-slate-900 dark:text-[#F5F7FA]">
               Individual Payout Breakdown
@@ -458,6 +483,38 @@ export function DistributeProfitView() {
           </div>
         </div>
 
+        {/* Search Bar for Member Name and PAN */}
+        {hasApplicants && (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3">
+            <div className="relative flex-1 max-w-md">
+              <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#626A75] pointer-events-none">
+                <MagnifyingGlass size={16} weight="bold" />
+              </span>
+              <input
+                type="text"
+                placeholder="Search by Member Name or PAN Card..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] rounded-xl pl-9 pr-9 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 dark:text-[#F5F7FA] placeholder:text-slate-400 dark:placeholder:text-[#626A75] focus:bg-white dark:focus:bg-[#101114] focus:border-blue-600 dark:focus:border-[#6B93FF] focus:outline-none transition-all"
+              />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 cursor-pointer p-0.5"
+                >
+                  <X size={14} weight="bold" />
+                </button>
+              )}
+            </div>
+            {searchQuery && (
+              <span className="text-xs font-bold text-slate-400 dark:text-[#858D99] self-center">
+                Showing {filteredMemberApplications.length} of {totalApplicants} members
+              </span>
+            )}
+          </div>
+        )}
+
         {!hasApplicants ? (
           <div className="p-10 text-center space-y-2">
             <Users size={36} className="text-slate-300 dark:text-[#626A75] mx-auto" />
@@ -466,20 +523,28 @@ export function DistributeProfitView() {
               No applications have been submitted for this IPO yet on the user-side website.
             </p>
           </div>
+        ) : filteredMemberApplications.length === 0 ? (
+          <div className="p-10 text-center space-y-2 border border-dashed border-slate-200 dark:border-[#252931] rounded-2xl">
+            <MagnifyingGlass size={32} className="text-slate-300 dark:text-[#626A75] mx-auto" />
+            <h4 className="text-sm font-bold text-slate-700 dark:text-[#F5F7FA]">No Matching Members Found</h4>
+            <p className="text-xs text-slate-500 dark:text-[#858D99]">
+              No applicants or PAN cards match &ldquo;{searchQuery}&rdquo;.
+            </p>
+          </div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm">
               <thead>
                 <tr className="border-b border-slate-200 dark:border-[#252931] bg-slate-50 dark:bg-[#14161A] text-slate-500 dark:text-[#626A75] uppercase text-[10px] font-extrabold tracking-wider">
                   <th className="p-3.5 rounded-l-xl">Member Name</th>
-                  <th className="p-3.5">PAN</th>
+                  <th className="p-3.5">PAN Card</th>
                   <th className="p-3.5 text-right">Money Applied (₹)</th>
                   <th className="p-3.5 text-center">Applied Lots</th>
                   <th className="p-3.5 text-right rounded-r-xl">Individual Profit (₹)</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-[#1B1E23] font-medium text-slate-800 dark:text-[#F5F7FA]">
-                {memberApplications.map((m, idx) => {
+                {filteredMemberApplications.map((m, idx) => {
                   const individualProfit = Math.round(m.lots * perLotProfit);
                   return (
                     <tr key={idx} className="hover:bg-slate-50/70 dark:hover:bg-[#14161A] transition-colors">
@@ -489,7 +554,13 @@ export function DistributeProfitView() {
                         </div>
                         <span>{m.name.startsWith("@") ? m.name : `@${m.name}`}</span>
                       </td>
-                      <td className="p-3.5 font-mono text-xs text-slate-500 dark:text-[#858D99]">{m.pan}</td>
+                      <td className="p-3.5">
+                        <CopyButton
+                          text={m.pan}
+                          label={m.pan}
+                          className="font-mono text-xs font-bold"
+                        />
+                      </td>
                       <td className="p-3.5 text-right font-mono font-bold text-slate-900 dark:text-[#F5F7FA]">
                         ₹{m.contribution.toLocaleString("en-IN")}
                       </td>
@@ -518,6 +589,7 @@ export function DistributeProfitView() {
                     {totalAppliedLots % 1 === 0 ? totalAppliedLots : totalAppliedLots.toFixed(1)} Lots
                   </td>
                   <td className="p-3.5 text-right font-mono text-emerald-700 dark:text-[#32C98B] text-sm sm:text-base">
+
                     ₹{numProfit.toLocaleString("en-IN")}
                   </td>
                 </tr>

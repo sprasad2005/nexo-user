@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useNexo } from "@/context/NexoContext";
 import { IPOOpportunity } from "@/types/nexo";
-import { formatINR } from "@/lib/mockData";
+import { formatINR, formatApplicantNames } from "@/lib/mockData";
 import {
   X,
   CheckCircle,
@@ -118,17 +118,13 @@ export function ApplyIPOModal({ ipo, isOpen, onClose }: ApplyIPOModalProps) {
   useEffect(() => {
     if (applicantMode === "JOINT") {
       const validNames = contributors
-        .map((c) => {
-          const trimmed = c.memberName.trim();
-          if (!trimmed) return "";
-          return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
-        })
+        .map((c) => c.memberName?.trim())
         .filter(Boolean);
       if (validNames.length > 0) {
-        setApplicantName(validNames.join(", "));
+        setApplicantName(formatApplicantNames(validNames));
       }
     } else {
-      if (!applicantName || applicantName.includes(",")) {
+      if (!applicantName || applicantName.includes(",") || applicantName.includes(" and ") || applicantName.includes(" & ")) {
         const rawUname = currentUser?.username || currentUser?.name || members[0]?.username || members[0]?.name || "Member";
         const formatted = rawUname.trim().startsWith("@") ? rawUname.trim() : `@${rawUname.trim()}`;
         setApplicantName(formatted);

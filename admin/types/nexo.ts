@@ -10,7 +10,8 @@ export type IPOLifecycleStage =
   | "LISTED"
   | "HOLDING"
   | "SOLD"
-  | "CLOSED";
+  | "CLOSED"
+  | "COMPLETED";
 
 export type AllotmentStatus = "AWAITING" | "ALLOTTED" | "NOT_ALLOTTED";
 

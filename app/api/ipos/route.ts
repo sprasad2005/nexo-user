@@ -191,6 +191,7 @@ export async function POST(req: NextRequest) {
             name: data.name ? data.name.trim() : ipo.name,
             company: data.name ? data.name.trim() : ipo.company,
             thesis: data.description ? data.description.trim() : ipo.thesis,
+            registrarUrl: data.registrarUrl !== undefined ? data.registrarUrl.trim() : ipo.registrarUrl,
             metrics: {
               ...currentMetrics,
               issueSize: formattedIssueSize,
@@ -224,6 +225,36 @@ export async function POST(req: NextRequest) {
       });
 
       return NextResponse.json({ success: true, message: "IPO updated successfully." }, { headers: corsHeaders });
+    }
+
+    // 3b. Action: Update Registrar Check Allotment URL
+    if (body.action === "updateRegistrarUrl") {
+      const { ipoId, registrarUrl } = body;
+      const urlToSave = String(registrarUrl || "").trim();
+
+      const updated = allIpos.map((ipo) => {
+        if (ipo.id === ipoId || ipo.name?.toLowerCase() === String(ipoId).toLowerCase()) {
+          return {
+            ...ipo,
+            registrarUrl: urlToSave,
+          };
+        }
+        return ipo;
+      });
+      writeSharedIpos(updated);
+
+      try {
+        const client = await clientPromise;
+        const db = client.db(DB_NAME);
+        await db.collection("ipos").updateOne(
+          { $or: [{ id: ipoId }, { name: { $regex: new RegExp(`^${ipoId}$`, "i") } }] },
+          { $set: { registrarUrl: urlToSave } }
+        );
+      } catch (err) {
+        console.warn("MongoDB update optional for registrarUrl:", err);
+      }
+
+      return NextResponse.json({ success: true, message: "Check Allotment link updated successfully.", registrarUrl: urlToSave }, { headers: corsHeaders });
     }
 
     // 4. Action: Create New IPO Opportunity

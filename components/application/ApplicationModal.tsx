@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useNexo } from "@/context/NexoContext";
-import { formatINR } from "@/lib/mockData";
+import { formatINR, formatApplicantNames } from "@/lib/mockData";
 import {
   X,
   CheckCircle,
@@ -124,13 +124,13 @@ export function ApplicationModal() {
   useEffect(() => {
     if (applicantMode === "JOINT") {
       const validNames = contributors
-        .map((c) => (c.memberName.startsWith("@") ? c.memberName : `@${c.memberName.trim()}`))
-        .filter((n) => n.length > 1);
+        .map((c) => c.memberName?.trim())
+        .filter(Boolean);
       if (validNames.length > 0) {
-        setApplicantName(validNames.join(", "));
+        setApplicantName(formatApplicantNames(validNames));
       }
     } else {
-      if (!applicantName || applicantName.includes(",")) {
+      if (!applicantName || applicantName.includes(",") || applicantName.includes(" and ") || applicantName.includes(" & ")) {
         const rawUname = selectableMembers[0]?.username || selectableMembers[0]?.name || "user";
         const formatted = rawUname.trim().startsWith("@") ? rawUname.trim() : `@${rawUname.trim()}`;
         setApplicantName(formatted);

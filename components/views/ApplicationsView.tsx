@@ -2,7 +2,7 @@
 
 import React, { useState, useMemo, useEffect } from "react";
 import { useNexo } from "@/context/NexoContext";
-import { formatINR } from "@/lib/mockData";
+import { formatINR, formatApplicantNames } from "@/lib/mockData";
 import { AllotmentStatus } from "@/types/nexo";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CopyButton } from "@/components/ui/CopyButton";
@@ -614,27 +614,9 @@ export function ApplicationsView() {
                   <div>No applications match your scope or filter criteria.</div>
                 </div>
               ) : (() => {
-                const formatApplicantHandles = (nameStr: string) => {
-                  if (!nameStr) return "Member";
-                  return nameStr
-                    .split(",")
-                    .map((part) => {
-                      const trimmed = part.trim();
-                      if (!trimmed) return "";
-                      return trimmed.startsWith("@") ? trimmed : `@${trimmed}`;
-                    })
-                    .filter(Boolean)
-                    .join(", ");
-                };
-
                 const nameTotalCounts: Record<string, number> = {};
                 filteredApps.forEach((app) => {
-                  const rawName =
-                    app.applicantName ||
-                    (app.participants && app.participants.length > 0
-                      ? app.participants.map((p) => p.memberName).join(", ")
-                      : "Member");
-                  const name = formatApplicantHandles(rawName);
+                  const name = formatApplicantNames(app);
                   const count = Math.max(1, app.lotCount || 1);
                   nameTotalCounts[name] = (nameTotalCounts[name] || 0) + count;
                 });
@@ -652,12 +634,7 @@ export function ApplicationsView() {
                   const minInvest = ipo.metrics?.minInvestment || 14964;
                   const perLotAmount = Math.round(app.totalContribution / lotCount) || minInvest;
 
-                  const rawDisplayNames =
-                    app.applicantName ||
-                    (app.participants && app.participants.length > 0
-                      ? app.participants.map((p) => p.memberName).join(", ")
-                      : "Member");
-                  const displayNames = formatApplicantHandles(rawDisplayNames);
+                  const displayNames = formatApplicantNames(app);
 
                   const currentUserName = (currentUser?.name || currentMember?.name || "").toLowerCase();
                   const currentUserId = currentUser?.id || currentMember?.id || "mem_1";
@@ -689,12 +666,7 @@ export function ApplicationsView() {
                       : `ABCDE${String(2741 + lotIdx).padStart(4, "0")}D`;
                     const panDisplay = panFromApp.toUpperCase();
 
-                    const baseName = displayNames;
-                    nameRunningIndex[baseName] = (nameRunningIndex[baseName] || 0) + 1;
-
-                    const lotDisplayName = (nameTotalCounts[baseName] || 0) > 1
-                      ? `${baseName} ${nameRunningIndex[baseName]}`
-                      : baseName;
+                    const lotDisplayName = displayNames;
 
                     return (
                       <React.Fragment key={`${app.id}_lot_${lotIdx}`}>

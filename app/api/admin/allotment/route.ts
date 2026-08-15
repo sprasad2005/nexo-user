@@ -4,6 +4,8 @@ import path from "path";
 import clientPromise from "@/lib/mongodb";
 import { requireAdmin } from "@/src/lib/auth/authorization";
 
+import { MOCK_MEMBERS, formatApplicantNames } from "@/lib/mockData";
+
 const DB_NAME = "nexo";
 const SHARED_FILE_PATH_PARENT = path.join(process.cwd(), "..", "shared_ipos.json");
 const SHARED_FILE_PATH_LOCAL = path.join(process.cwd(), "shared_ipos.json");
@@ -29,32 +31,39 @@ function readSharedIpos(): any[] {
 export async function GET(req: Request) {
   try {
     const auth = await requireAdmin();
+
     const { searchParams } = new URL(req.url);
     const selectedIpoId = searchParams.get("ipoId");
 
     // Read real IPOs from shared_ipos.json
     const sharedIpos = readSharedIpos();
 
-    // Try reading IPOs from MongoDB as well
+    // Fetch MongoDB state
     let dbIpos: any[] = [];
-    let dbMembers: any[] = [];
     let dbApps: any[] = [];
+    let dbMembers: any[] = [];
 
     try {
       const client = await clientPromise;
       const db = client.db(DB_NAME);
       dbIpos = await db.collection("ipos").find({}).sort({ createdAt: -1 }).toArray();
-      dbMembers = await db.collection("members").find({}).toArray();
       dbApps = await db.collection("applications").find({}).sort({ createdAt: -1 }).toArray();
+      dbMembers = await db.collection("members").find({}).toArray();
     } catch (_e) {
       console.warn("MongoDB fetch optional, using shared_ipos.json data.");
     }
 
     // Member lookup map
     const memberMap = new Map<string, any>();
+    MOCK_MEMBERS.forEach((m) => {
+      if (m.id) memberMap.set(m.id, m);
+      if (m.username) memberMap.set(m.username.toLowerCase(), m);
+      if (m.name) memberMap.set(m.name.toLowerCase(), m);
+    });
     dbMembers.forEach((m) => {
       if (m.id) memberMap.set(m.id, m);
       if (m.username) memberMap.set(m.username.toLowerCase(), m);
+      if (m.name) memberMap.set(m.name.toLowerCase(), m);
     });
 
     // Combine IPOs from shared_ipos.json and MongoDB
@@ -160,12 +169,7 @@ export async function GET(req: Request) {
           if (statusRaw === "ALLOTTED") normalizedStatus = "ALLOTTED";
           else if (statusRaw === "NOT_ALLOTTED" || statusRaw === "REFUNDED") normalizedStatus = "NOT_ALLOTTED";
 
-          const rawApplicant = String(app.applicantName || member?.name || "Applicant").trim();
-          // Clean applicant name: "@krish, @shivamprasad" -> "krish, shivamprasad"
-          const cleanApplicant = rawApplicant
-            .replace(/^@+/, "")
-            .replace(/,\s*@+/g, ", ")
-            .trim();
+          const cleanApplicant = formatApplicantNames(app);
 
           // Extract first applicant/participant username
           let cleanUsername = "";
@@ -189,6 +193,7 @@ export async function GET(req: Request) {
             id: appId,
             applicantName: cleanApplicant,
             username: cleanUsername,
+            memberId: app.memberId || member?.id || undefined,
             pan: pan,
             panNumbers: panNumbersList,
             allottedIndices: app.allottedIndices || (normalizedStatus === "ALLOTTED" ? Array.from({ length: Number(lots) || 1 }, (_, i) => i) : []),
@@ -197,6 +202,8 @@ export async function GET(req: Request) {
             allotmentStatus: normalizedStatus,
             rawStatus: app.allotmentStatus || app.status || "AWAITING",
             totalContribution: app.totalContribution || 15000,
+            participants: app.participants || [],
+            contributors: app.contributors || [],
             createdAt: app.createdAt || new Date(),
           });
         };
