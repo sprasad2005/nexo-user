@@ -151,11 +151,11 @@
     "allotmentFinalizedAt": "2026-08-15T07:19:05.972Z",
     "allotmentFinalizedBy": "Ankit",
     "profitDistribution": {
-      "totalProfit": 15000,
+      "totalProfit": 1000,
       "totalLots": 3,
       "allottedLots": 1,
-      "oneLotProfit": 5000,
-      "publishedAt": "2026-08-15T07:19:25.976Z"
+      "oneLotProfit": 333,
+      "publishedAt": "2026-08-15T07:24:54.908Z"
     }
   },
   {

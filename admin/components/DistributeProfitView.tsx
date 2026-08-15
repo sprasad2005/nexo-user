@@ -12,11 +12,31 @@ export function DistributeProfitView() {
   // Show all IPOs (active + historical/hidden) for profit distribution
   const activeIpos = ipos;
 
-  const [selectedIpoId, setSelectedIpoId] = useState(activeIpos[0]?.id || "");
+  const [selectedIpoId, setSelectedIpoId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("nexo_distribute_selected_ipo_id");
+      if (stored) return stored;
+    }
+    return activeIpos[0]?.id || "";
+  });
   const [allottedLots, setAllottedLots] = useState<number | "">(1);
   const [totalProfit, setTotalProfit] = useState<number | "">("");
   const [isSuccessToast, setIsSuccessToast] = useState(false);
-  const [realApplications, setRealApplications] = useState<any[]>([]);
+  const [realApplications, setRealApplications] = useState<any[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const storedIpoId = localStorage.getItem("nexo_distribute_selected_ipo_id") || activeIpos[0]?.id;
+        if (storedIpoId) {
+          const cached = localStorage.getItem(`nexo_admin_apps_${storedIpoId}`);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          }
+        }
+      } catch {}
+    }
+    return [];
+  });
   const [isFetchingApps, setIsFetchingApps] = useState(false);
 
   const selectedIpo = activeIpos.find((ipo) => ipo.id === selectedIpoId) || activeIpos[0];
@@ -26,12 +46,27 @@ export function DistributeProfitView() {
   // Fetch real applications from API whenever selected IPO changes
   React.useEffect(() => {
     if (!selectedIpoId) return;
+
+    try {
+      localStorage.setItem("nexo_distribute_selected_ipo_id", selectedIpoId);
+      const cached = localStorage.getItem(`nexo_admin_apps_${selectedIpoId}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setRealApplications(parsed);
+        }
+      }
+    } catch {}
+
     setIsFetchingApps(true);
     fetch(`/api/admin/allotment?ipoId=${selectedIpoId}`)
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.applications)) {
           setRealApplications(data.applications);
+          try {
+            localStorage.setItem(`nexo_admin_apps_${selectedIpoId}`, JSON.stringify(data.applications));
+          } catch {}
 
           // Auto-calculate allotted lots from the allotment section
           let autoCount = 0;
@@ -54,15 +89,9 @@ export function DistributeProfitView() {
             setAllottedLots(totalApplied > 0 ? totalApplied : 1);
             setAutoAllottedBadge("ℹ No lots marked Allotted yet in Allotment Section (showing total applied)");
           }
-        } else {
-          setRealApplications([]);
-          setAutoAllottedBadge(null);
         }
       })
-      .catch(() => {
-        setRealApplications([]);
-        setAutoAllottedBadge(null);
-      })
+      .catch(() => {})
       .finally(() => setIsFetchingApps(false));
   }, [selectedIpoId]);
 

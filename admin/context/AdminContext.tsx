@@ -55,13 +55,24 @@ const defaultAdmin: Member = {
   panFull: "ABCDE1234F",
 };
 
-const API_BASE_URL = "http://localhost:3000/api/ipos";
+const API_BASE_URL = "/api/ipos";
 
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
-  const [ipos, setIpos] = useState<IPOOpportunity[]>([]);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [ipos, setIpos] = useState<IPOOpportunity[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("nexo_cached_ipos");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [currentUser, setCurrentUser] = useState<Member>(defaultAdmin);
 
   useEffect(() => {
@@ -81,7 +92,6 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
 
   const refreshIpos = async () => {
     try {
-      setIsLoading(true);
       const res = await fetch(`${API_BASE_URL}?admin=true`);
       const data = await res.json();
       if (data?.success && Array.isArray(data.ipos)) {
@@ -115,8 +125,12 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         });
 
         setIpos(combined);
+        try {
+          localStorage.setItem("nexo_cached_ipos", JSON.stringify(combined));
+        } catch {}
       }
     } catch (err) {
+
       let extraLocal: IPOOpportunity[] = [];
       let hiddenLocal: string[] = [];
       let profitDists: Record<string, any> = {};

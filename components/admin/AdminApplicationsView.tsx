@@ -20,15 +20,26 @@ import {
   Eye,
   EyeSlash,
   Warning,
+  ArrowSquareOut,
 } from "@phosphor-icons/react";
 
 export function AdminApplicationsView() {
-  const { ipos, activeApplicationIpo, updateApplication, deleteApplication } = useNexo();
+  const { ipos, activeApplicationIpo, updateApplication, deleteApplication, updateRegistrarUrl } = useNexo();
 
   // Filter & Search State
-  const [selectedIpoId, setSelectedIpoId] = useState<string>("");
+  const [selectedIpoId, setSelectedIpoId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("nexo_admin_selected_ipo_id");
+      if (stored) return stored;
+    }
+    return "";
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | AllotmentStatus>("ALL");
+
+  // Registrar URL Modal State
+  const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
+  const [customRegistrarUrl, setCustomRegistrarUrl] = useState("");
 
   // PAN Reveal State per Application
   const [revealedPans, setRevealedPans] = useState<Record<string, boolean>>({});
@@ -59,27 +70,58 @@ export function AdminApplicationsView() {
     ipoName: string;
   } | null>(null);
 
-  // Default to active IPO or first IPO with applications
+  // Default to active IPO or first IPO with applications if not set
   useEffect(() => {
     if (!selectedIpoId && ipos.length > 0) {
       const active = activeApplicationIpo || ipos.find((i) => i.applications && i.applications.length > 0) || ipos[0];
       if (active) {
         setSelectedIpoId(active.id);
+        try {
+          localStorage.setItem("nexo_admin_selected_ipo_id", active.id);
+        } catch {}
       }
     }
   }, [ipos, activeApplicationIpo, selectedIpoId]);
 
-  const [fetchedApps, setFetchedApps] = useState<any[]>([]);
+  const [fetchedApps, setFetchedApps] = useState<any[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const storedIpoId = localStorage.getItem("nexo_admin_selected_ipo_id");
+        if (storedIpoId) {
+          const cached = localStorage.getItem(`nexo_admin_apps_${storedIpoId}`);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          }
+        }
+      } catch {}
+    }
+    return [];
+  });
 
   // Fetch complete merged applications for selected IPO from API
   useEffect(() => {
     if (selectedIpoId) {
+      try {
+        localStorage.setItem("nexo_admin_selected_ipo_id", selectedIpoId);
+        const cached = localStorage.getItem(`nexo_admin_apps_${selectedIpoId}`);
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setFetchedApps(parsed);
+          }
+        }
+      } catch {}
+
       let active = true;
       fetch(`/api/admin/allotment?ipoId=${encodeURIComponent(selectedIpoId)}`)
         .then((res) => res.json())
         .then((data) => {
           if (active && data.success && Array.isArray(data.applications)) {
             setFetchedApps(data.applications);
+            try {
+              localStorage.setItem(`nexo_admin_apps_${selectedIpoId}`, JSON.stringify(data.applications));
+            } catch {}
           }
         })
         .catch(() => {});
@@ -331,23 +373,53 @@ export function AdminApplicationsView() {
           </p>
         </div>
 
-        {/* IPO Selector Dropdown */}
-        <div className="flex items-center gap-2">
-          <label className="text-xs font-bold text-slate-500 dark:text-[#858D99] whitespace-nowrap">
-            Select IPO:
-          </label>
-          <CustomSelect
-            value={selectedIpoId}
-            onChange={(val) => setSelectedIpoId(val)}
-            options={ipos.map((ipo) => ({
-              value: ipo.id,
-              label: ipo.name,
-              badge: `${ipo.applications?.length || 0} apps`,
-            }))}
-            className="min-w-[220px]"
-          />
+        {/* IPO Selector & Allotment Link Actions */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-bold text-slate-500 dark:text-[#858D99] whitespace-nowrap">
+              Select IPO:
+            </label>
+            <CustomSelect
+              value={selectedIpoId}
+              onChange={(val) => setSelectedIpoId(val)}
+              options={ipos.map((ipo) => ({
+                value: ipo.id,
+                label: ipo.name,
+                badge: `${ipo.applications?.length || 0} apps`,
+              }))}
+              className="min-w-[200px]"
+            />
+          </div>
+
+          {selectedIpo && (
+            <div className="flex items-center gap-2">
+              <a
+                href={selectedIpo.registrarUrl || "https://ipostatus.kfintech.com"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 dark:bg-[#6B93FF] hover:bg-blue-700 text-white dark:text-[#101114] font-extrabold text-xs transition-all shadow-xs cursor-pointer active:scale-[0.98]"
+              >
+                <span>Check Allotment</span>
+                <ArrowSquareOut size={14} weight="bold" />
+              </a>
+
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomRegistrarUrl(selectedIpo.registrarUrl || "");
+                  setIsUrlModalOpen(true);
+                }}
+                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-[#1D2026] hover:bg-slate-200 dark:hover:bg-[#252931] border border-slate-200 dark:border-[#252931] text-slate-700 dark:text-[#AEB5C0] hover:text-blue-600 dark:hover:text-[#6B93FF] font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                title="Configure / Add Check Allotment Website URL"
+              >
+                <PencilSimple size={14} weight="bold" />
+                <span className="hidden sm:inline">Set URL</span>
+              </button>
+            </div>
+          )}
         </div>
       </div>
+
 
       {/* Summary Metrics Banner */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -687,6 +759,114 @@ export function AdminApplicationsView() {
           </div>
         </div>
       )}
+      {/* CONFIGURE REGISTRAR ALLOTMENT URL MODAL */}
+      {isUrlModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 dark:bg-black/80 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-white dark:bg-[#14161A] rounded-3xl p-6 sm:p-7 max-w-lg w-full border border-slate-200 dark:border-[#252931] shadow-2xl space-y-5 animate-modal-pop-in">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-lg font-black text-slate-900 dark:text-[#F5F7FA] tracking-tight">
+                  Set Check Allotment URL
+                </h3>
+                <p className="text-xs text-slate-500 dark:text-[#858D99] mt-1 font-medium">
+                  When members click <strong>Check Allotment</strong> for <span className="text-slate-900 dark:text-[#F5F7FA] font-bold">{selectedIpo?.name}</span>, they will be directed to this website URL.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsUrlModalOpen(false)}
+                className="w-8 h-8 rounded-full text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#1D2026] flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X size={16} weight="bold" />
+              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-bold text-slate-600 dark:text-[#AEB5C0] uppercase tracking-wider mb-1.5">
+                  Registrar Website URL
+                </label>
+                <input
+                  type="url"
+                  value={customRegistrarUrl}
+                  onChange={(e) => setCustomRegistrarUrl(e.target.value)}
+                  placeholder="https://ipostatus.kfintech.com"
+                  className="w-full bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-xl px-3.5 py-2.5 text-xs sm:text-sm font-semibold text-slate-900 dark:text-[#F5F7FA] focus:border-blue-600 dark:focus:border-[#6B93FF] focus:bg-white dark:focus:bg-[#101114] outline-none transition-all"
+                />
+              </div>
+
+              {/* Presets */}
+              <div>
+                <span className="text-[11px] font-bold text-slate-400 dark:text-[#626A75] uppercase tracking-wider block mb-2">
+                  Quick Registrar Presets:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { name: "KFintech", url: "https://ipostatus.kfintech.com" },
+                    { name: "Link Intime", url: "https://linkintime.co.in/initial_offer/public-issues.html" },
+                    { name: "Bigshare", url: "https://www.bigshareonline.com/ipo_Allotment.html" },
+                    { name: "Skyline", url: "https://www.skylinerta.com/ipo.php" },
+                    { name: "Purva", url: "https://www.purvashare.com/investor-service/ipo-query" },
+                  ].map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => setCustomRegistrarUrl(preset.url)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+                        customRegistrarUrl === preset.url
+                          ? "bg-blue-600 dark:bg-[#6B93FF] text-white dark:text-[#101114] border-transparent shadow-xs"
+                          : "bg-slate-50 dark:bg-[#1D2026] hover:bg-slate-100 dark:hover:bg-[#252931] border-slate-200 dark:border-[#252931] text-slate-600 dark:text-[#AEB5C0]"
+                      }`}
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-3 border-t border-slate-100 dark:border-[#1F232B]">
+              {customRegistrarUrl ? (
+                <a
+                  href={customRegistrarUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-bold text-blue-600 dark:text-[#6B93FF] hover:underline flex items-center gap-1"
+                >
+                  <span>Test Link</span>
+                  <ArrowSquareOut size={13} weight="bold" />
+                </a>
+              ) : (
+                <span />
+              )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsUrlModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-600 dark:text-[#AEB5C0] hover:bg-slate-100 dark:hover:bg-[#1D2026] cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (selectedIpo && customRegistrarUrl.trim()) {
+                      updateRegistrarUrl(selectedIpo.id, customRegistrarUrl.trim());
+                      showFeedback("✓ Check Allotment link updated successfully!");
+                      setIsUrlModalOpen(false);
+                    }
+                  }}
+                  className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-[#6B93FF] dark:hover:bg-[#5280ff] text-white dark:text-[#101114] text-xs font-extrabold shadow-md shadow-blue-600/20 cursor-pointer transition-colors"
+                >
+                  Save URL
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
+

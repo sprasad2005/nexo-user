@@ -330,18 +330,36 @@ export function ApplicationsView() {
           )}
 
           {activeIpo && (
-            <a
-              href={activeIpo.registrarUrl || "https://ipostatus.kfintech.com"}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#4F75FF] via-[#436AF5] to-[#3B5FE0] hover:from-[#3E64F0] hover:to-[#3254D0] text-white font-extrabold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer shrink-0 active:scale-[0.98] ring-1 ring-white/10"
-            >
-              <span>Check Allotment</span>
-              <ArrowSquareOut size={15} weight="bold" />
-            </a>
+            <div className="flex items-center gap-2">
+              <a
+                href={activeIpo.registrarUrl || "https://ipostatus.kfintech.com"}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-gradient-to-r from-[#4F75FF] via-[#436AF5] to-[#3B5FE0] hover:from-[#3E64F0] hover:to-[#3254D0] text-white font-extrabold text-xs shadow-md shadow-blue-500/20 transition-all cursor-pointer shrink-0 active:scale-[0.98] ring-1 ring-white/10"
+              >
+                <span>Check Allotment</span>
+                <ArrowSquareOut size={15} weight="bold" />
+              </a>
+
+              {(currentUser?.role === "ADMIN" || currentMember?.role === "ADMIN") && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setCustomRegistrarUrl(activeIpo.registrarUrl || "");
+                    setIsUrlModalOpen(true);
+                  }}
+                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-alt hover:bg-surface border border-line text-ink-secondary hover:text-accent font-extrabold text-xs transition-all cursor-pointer shadow-2xs shrink-0"
+                  title="Configure / Add Check Allotment Website URL"
+                >
+                  <PencilSimple size={14} weight="bold" />
+                  <span className="hidden sm:inline">Edit URL</span>
+                </button>
+              )}
+            </div>
           )}
         </div>
       </div>
+
 
       {/* EDIT APPLICATION MODAL */}
       {editingApp && (
@@ -453,47 +471,105 @@ export function ApplicationsView() {
 
       {/* ADMIN REGISTRAR URL EDIT MODAL */}
       {isUrlModalOpen && (
-        <div className="fixed inset-0 z-50 bg-overlay backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-surface rounded-2xl p-6 max-w-md w-full border border-line shadow-xl space-y-4 animate-fade-in">
-            <div>
-              <h3 className="text-h4 font-semibold text-ink">
-                Configure Registrar URL ({activeIpo?.name})
-              </h3>
-              <p className="text-small text-ink-tertiary mt-1">
-                Enter the official IPO allotment status URL for this company&apos;s registrar.
-              </p>
-            </div>
-
-            <div>
-              <label className="block text-caption font-semibold text-ink-secondary mb-1">
-                Registrar Webpage URL
-              </label>
-              <input
-                type="url"
-                value={customRegistrarUrl}
-                onChange={(e) => setCustomRegistrarUrl(e.target.value)}
-                placeholder="https://linkintime.co.in/initial_offer/public-issues.html"
-                className="w-full bg-surface-alt border border-line-strong rounded-xl px-3 py-2 text-body font-normal text-ink focus:border-accent focus:bg-surface outline-none"
-              />
-            </div>
-
-            <div className="flex items-center justify-end gap-2 pt-2">
+        <div className="fixed inset-0 z-50 bg-overlay backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
+          <div className="bg-surface rounded-3xl p-6 sm:p-7 max-w-lg w-full border border-line shadow-2xl space-y-5 animate-modal-pop-in">
+            <div className="flex items-start justify-between">
+              <div>
+                <h3 className="text-h4 font-extrabold text-ink tracking-tight">
+                  Set Check Allotment URL
+                </h3>
+                <p className="text-small text-ink-tertiary mt-1 font-medium">
+                  When members click <strong>Check Allotment</strong> for <span className="text-ink font-semibold">{activeIpo?.name}</span>, they will be directed to this website link.
+                </p>
+              </div>
               <button
                 onClick={() => setIsUrlModalOpen(false)}
-                className="px-3 py-1.5 rounded-lg border border-line text-small font-medium text-ink-secondary hover:bg-surface-alt cursor-pointer transition-colors"
+                className="w-8 h-8 rounded-full text-ink-muted hover:text-ink hover:bg-surface-alt flex items-center justify-center transition-colors cursor-pointer"
               >
-                Cancel
+                <X size={16} weight="bold" />
               </button>
-              <button
-                onClick={handleSaveRegistrarUrl}
-                className="px-4 py-1.5 rounded-lg bg-accent text-white text-small font-semibold hover:bg-accent-hover shadow-xs cursor-pointer transition-colors"
-              >
-                Save URL
-              </button>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-caption font-bold text-ink-secondary uppercase tracking-wider mb-1.5">
+                  Official Registrar Allotment Website URL
+                </label>
+                <input
+                  type="url"
+                  value={customRegistrarUrl}
+                  onChange={(e) => setCustomRegistrarUrl(e.target.value)}
+                  placeholder="https://ipostatus.kfintech.com"
+                  className="w-full bg-surface-alt border border-line-strong rounded-xl px-3.5 py-2.5 text-small font-medium text-ink focus:border-accent focus:bg-surface outline-none transition-all"
+                />
+              </div>
+
+              {/* Quick Registrar Presets */}
+              <div>
+                <span className="text-[11px] font-bold text-ink-tertiary uppercase tracking-wider block mb-2">
+                  Quick Registrar Presets:
+                </span>
+                <div className="flex flex-wrap gap-1.5">
+                  {[
+                    { name: "KFintech", url: "https://ipostatus.kfintech.com" },
+                    { name: "Link Intime", url: "https://linkintime.co.in/initial_offer/public-issues.html" },
+                    { name: "Bigshare", url: "https://www.bigshareonline.com/ipo_Allotment.html" },
+                    { name: "Skyline", url: "https://www.skylinerta.com/ipo.php" },
+                    { name: "Purva", url: "https://www.purvashare.com/investor-service/ipo-query" },
+                  ].map((preset) => (
+                    <button
+                      key={preset.name}
+                      type="button"
+                      onClick={() => setCustomRegistrarUrl(preset.url)}
+                      className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer border ${
+                        customRegistrarUrl === preset.url
+                          ? "bg-accent text-white border-accent shadow-xs"
+                          : "bg-surface-alt hover:bg-surface border-line text-ink-secondary hover:text-ink"
+                      }`}
+                    >
+                      {preset.name}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-between pt-2 border-t border-line-subtle">
+              {customRegistrarUrl ? (
+                <a
+                  href={customRegistrarUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs font-bold text-accent hover:underline flex items-center gap-1"
+                >
+                  <span>Test Link</span>
+                  <ArrowSquareOut size={13} weight="bold" />
+                </a>
+              ) : (
+                <span />
+              )}
+
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setIsUrlModalOpen(false)}
+                  className="px-4 py-2 rounded-xl border border-line text-small font-medium text-ink-secondary hover:bg-surface-alt cursor-pointer transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={handleSaveRegistrarUrl}
+                  className="px-5 py-2 rounded-xl bg-accent text-white text-small font-extrabold hover:bg-accent-hover shadow-xs cursor-pointer transition-colors active:scale-[0.98]"
+                >
+                  Save URL
+                </button>
+              </div>
             </div>
           </div>
         </div>
       )}
+
 
       {/* SINGLE CLEAN FINTECH INVESTMENT LEDGER CONTAINER */}
       {selectedIpoList.map((ipo) => {

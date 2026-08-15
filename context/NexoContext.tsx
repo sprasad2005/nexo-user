@@ -176,7 +176,18 @@ export interface NexoContextType {
 const NexoContext = createContext<NexoContextType | undefined>(undefined);
 
 export function NexoProvider({ children }: { children: React.ReactNode }) {
-  const [members, setMembers] = useState<Member[]>(MOCK_MEMBERS);
+  const [members, setMembers] = useState<Member[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("nexo_cached_members");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return MOCK_MEMBERS;
+  });
   const [currentUser, setCurrentUser] = useState<Member | null>(null);
   const [isUserLogoutModalOpen, setIsUserLogoutModalOpen] = useState(false);
   const [isLoginSuccessOpen, setIsLoginSuccessOpen] = useState(false);
@@ -223,14 +234,16 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
 
   const refreshIpos = async () => {
     try {
-      let ipoRes = await fetch("/api/ipos");
-      let ipoData = await ipoRes.json();
+      const [ipoRes, appRes] = await Promise.all([
+        fetch("/api/ipos").then((r) => r.json()).catch(() => null),
+        fetch("/api/applications").then((r) => r.json()).catch(() => null),
+      ]);
 
       let apiIpos: IPOOpportunity[] = [];
-      if (Array.isArray(ipoData?.ipos)) {
-        apiIpos = ipoData.ipos.map((raw: any) => (raw.metrics ? raw : mapIPOToOpportunity(raw)));
-      } else if (Array.isArray(ipoData)) {
-        apiIpos = ipoData.map((raw: any) => (raw.metrics ? raw : mapIPOToOpportunity(raw)));
+      if (Array.isArray(ipoRes?.ipos)) {
+        apiIpos = ipoRes.ipos.map((raw: any) => (raw.metrics ? raw : mapIPOToOpportunity(raw)));
+      } else if (Array.isArray(ipoRes)) {
+        apiIpos = ipoRes.map((raw: any) => (raw.metrics ? raw : mapIPOToOpportunity(raw)));
       }
 
       let extraLocal: IPOOpportunity[] = [];
@@ -244,6 +257,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
         profitDists = JSON.parse(localStorage.getItem("nexo_shared_profit_dists") || "{}");
         localApps = JSON.parse(localStorage.getItem("nexo_local_applications") || "{}");
       } catch (e) {}
+
+      const dbApplications: any[] = (appRes?.success && Array.isArray(appRes.applications)) ? appRes.applications : [];
 
       const mergedMap = new Map<string, IPOOpportunity>();
       apiIpos.forEach((ipo: IPOOpportunity) => mergedMap.set(ipo.id, ipo));
@@ -259,16 +274,45 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       const combined = Array.from(mergedMap.values()).map((ipo) => {
         const dist = profitDists[ipo.id] || ipo.profitDistribution;
         const extraApps = localApps[ipo.id] || [];
-        const existingAppIds = new Set((ipo.applications || []).map((a) => a.id));
-        const mergedApps = [
-          ...(ipo.applications || []),
-          ...extraApps.filter((a) => !existingAppIds.has(a.id)),
-        ];
+
+        // Map database applications for this IPO
+        const dbAppsForIpo: Application[] = dbApplications
+          .filter((doc: any) => doc.ipoId === ipo.id || doc.ipoName?.toLowerCase() === ipo.name?.toLowerCase())
+          .map((doc: any) => ({
+            id: doc.id,
+            ipoId: ipo.id,
+            type: doc.fundingStructure === "MULTI_FRIEND" ? "COMBINED" : "INDIVIDUAL",
+            applicantName: doc.applicantName || "Member",
+            memberId: doc.memberId || "mem_1",
+            panMasked: doc.panNumbers?.[0] || doc.pan || "ABCDE2741D",
+            panNumbers: doc.panNumbers || [doc.panMasked || "ABCDE2741D"],
+            totalContribution: doc.totalContribution || 15000,
+            lotCount: doc.numberOfPanCards || doc.lotCount || 1,
+            verified: true,
+            allotmentStatus: doc.allotmentStatus || "AWAITING",
+            status: doc.status || "AWAITING",
+            createdAt: typeof doc.createdAt === "string" ? doc.createdAt : new Date().toISOString(),
+            participants: (doc.contributors || doc.participants || []).map((c: any) => ({
+              memberId: c.memberId || "mem_1",
+              memberName: c.memberName || "Member",
+              avatar: "/oggy.png",
+              contribution: c.amount || c.contribution || 15000,
+              percentage: c.percentage || 100,
+              panMasked: doc.panNumbers?.[0] || "ABCDE2741D",
+              panFull: doc.panNumbers?.[0] || "ABCDE2741D",
+              status: "SUBMITTED" as const,
+            })),
+          }));
+
+        const existingAppIds = new Set(dbAppsForIpo.map((a) => a.id));
+        const fileApps = (ipo.applications || []).filter((a) => !existingAppIds.has(a.id));
+        const customLocalApps = extraApps.filter((a) => !existingAppIds.has(a.id));
+        const mergedApps = [...dbAppsForIpo, ...fileApps, ...customLocalApps];
 
         return {
           ...ipo,
           applications: mergedApps,
-          combinedCapital: mergedApps.reduce((sum, a) => sum + a.totalContribution, 0),
+          combinedCapital: mergedApps.reduce((sum, a) => sum + (a.totalContribution || 0), 0),
           participantsCount: new Set(mergedApps.flatMap((a) => (a.participants || []).map((p) => p.memberId))).size,
           isHidden: hiddenLocal.includes(ipo.id) || ipo.isHidden === true,
           profitDistribution: dist || ipo.profitDistribution,
@@ -389,6 +433,10 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       const uniquePublishedCards = Array.from(cardMap.values());
 
       setIpos(combined);
+      try {
+        localStorage.setItem("nexo_cached_ipos", JSON.stringify(combined));
+      } catch {}
+
       if (uniquePublishedCards.length > 0) {
         setListedIpos(uniquePublishedCards);
       }
@@ -396,6 +444,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       console.warn("Failed to refresh IPOs from API in NexoContext:", err);
     }
   };
+
 
   // Restore session, active tab, fetch MongoDB profile, & persisted local storage state safely after hydration
   useEffect(() => {
@@ -482,9 +531,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       .catch((err) => console.error("MongoDB profile fetch error:", err));
 
     refreshMembers();
-    refreshIpos().then(() => {
-      refreshApplications();
-    });
+    refreshIpos();
+    refreshApplications();
 
     const handleHashChange = () => {
       const hashTab = window.location.hash.replace("#", "").toLowerCase() as ViewTab;
@@ -512,6 +560,9 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       const data = await res.json().catch(() => null);
       if (data?.success && Array.isArray(data.members) && data.members.length > 0) {
         setMembers(data.members);
+        try {
+          localStorage.setItem("nexo_cached_members", JSON.stringify(data.members));
+        } catch {}
       }
     } catch (err) {
       console.warn("Failed to fetch members from API:", err);
@@ -751,7 +802,18 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
         }
       });
   };
-  const [ipos, setIpos] = useState<IPOOpportunity[]>(MOCK_IPOS);
+  const [ipos, setIpos] = useState<IPOOpportunity[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("nexo_cached_ipos");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return MOCK_IPOS;
+  });
   const [activities, setActivities] = useState<ActivityItem[]>(MOCK_ACTIVITIES);
   const [actionItems, setActionItems] = useState<ActionItem[]>(MOCK_ACTION_ITEMS);
   const [notifications, setNotifications] = useState<BroadcastNotification[]>([]);
@@ -1364,9 +1426,28 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateRegistrarUrl = (ipoId: string, url: string) => {
-    setIpos((prev) =>
-      prev.map((ipo) => (ipo.id === ipoId ? { ...ipo, registrarUrl: url } : ipo))
-    );
+    const cleanUrl = url.trim();
+    setIpos((prev) => {
+      const updated = prev.map((ipo) =>
+        ipo.id === ipoId || ipo.name.toLowerCase() === ipoId.toLowerCase()
+          ? { ...ipo, registrarUrl: cleanUrl }
+          : ipo
+      );
+      try {
+        localStorage.setItem("nexo_cached_ipos", JSON.stringify(updated));
+      } catch {}
+      return updated;
+    });
+
+    fetch("/api/ipos", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        action: "updateRegistrarUrl",
+        ipoId,
+        registrarUrl: cleanUrl,
+      }),
+    }).catch((err) => console.error("Failed to sync registrar URL to API:", err));
   };
 
   const createIPO = (data: {

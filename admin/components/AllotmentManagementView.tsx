@@ -58,12 +58,43 @@ export interface IPOItem {
 
 export function AllotmentManagementView() {
   // Data states
-  const [ipos, setIpos] = useState<IPOItem[]>([]);
-  const [selectedIpoId, setSelectedIpoId] = useState<string>("");
+  const [ipos, setIpos] = useState<IPOItem[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("nexo_cached_admin_allotment_ipos");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return [];
+  });
+  const [selectedIpoId, setSelectedIpoId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem("nexo_admin_selected_ipo_id");
+      if (stored) return stored;
+    }
+    return "";
+  });
   const [selectedIpo, setSelectedIpo] = useState<IPOItem | null>(null);
-  const [applications, setApplications] = useState<ApplicationItem[]>([]);
+  const [applications, setApplications] = useState<ApplicationItem[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const storedIpoId = localStorage.getItem("nexo_admin_selected_ipo_id");
+        if (storedIpoId) {
+          const cached = localStorage.getItem(`nexo_admin_apps_${storedIpoId}`);
+          if (cached) {
+            const parsed = JSON.parse(cached);
+            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+          }
+        }
+      } catch {}
+    }
+    return [];
+  });
   const [currentUserRole, setCurrentUserRole] = useState<string>("ADMIN");
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isAppsLoading, setIsAppsLoading] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
 
@@ -91,16 +122,21 @@ export function AllotmentManagementView() {
   // Fetch initial IPO list
   const fetchIpos = async () => {
     try {
-      setIsLoading(true);
       const res = await fetch("/api/admin/allotment");
       const data = await res.json();
       if (res.ok && data.success) {
         setIpos(data.ipos || []);
+        try {
+          localStorage.setItem("nexo_cached_admin_allotment_ipos", JSON.stringify(data.ipos || []));
+        } catch {}
         if (data.currentUserRole) {
           setCurrentUserRole(data.currentUserRole);
         }
         if (data.ipos?.length > 0 && !selectedIpoId) {
           setSelectedIpoId(data.ipos[0].id);
+          try {
+            localStorage.setItem("nexo_admin_selected_ipo_id", data.ipos[0].id);
+          } catch {}
         }
       } else {
         showToast(data.error || "Failed to load IPO catalog.", "error");
@@ -115,6 +151,18 @@ export function AllotmentManagementView() {
   // Fetch applications for selected IPO
   const fetchApplicationsForIpo = async (ipoId: string) => {
     if (!ipoId) return;
+
+    try {
+      localStorage.setItem("nexo_admin_selected_ipo_id", ipoId);
+      const cached = localStorage.getItem(`nexo_admin_apps_${ipoId}`);
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setApplications(parsed);
+        }
+      }
+    } catch {}
+
     try {
       setIsAppsLoading(true);
       const res = await fetch(`/api/admin/allotment?ipoId=${encodeURIComponent(ipoId)}`);
@@ -123,6 +171,9 @@ export function AllotmentManagementView() {
         setSelectedIpo(data.selectedIpo || null);
         const apps: ApplicationItem[] = data.applications || [];
         setApplications(apps);
+        try {
+          localStorage.setItem(`nexo_admin_apps_${ipoId}`, JSON.stringify(apps));
+        } catch {}
 
         // Pre-populate selectedAppIds with currently allotted applications/lots
         const initialSelected: string[] = [];
@@ -158,6 +209,7 @@ export function AllotmentManagementView() {
       fetchApplicationsForIpo(selectedIpoId);
     }
   }, [selectedIpoId]);
+
 
   // Expand applications so every lot has its own row matching user-side sequence
   const expandedApplications = useMemo(() => {
