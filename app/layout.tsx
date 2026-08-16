@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Script from "next/script";
 import { NexoProvider } from "@/context/NexoContext";
 import { ThemeProvider } from "@/components/providers/ThemeProvider";
 
@@ -34,13 +33,6 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
       <head suppressHydrationWarning />
       <body className="min-h-full flex flex-col bg-page text-ink font-sans antialiased" suppressHydrationWarning>
-        <Script
-          id="nexo-theme-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('nexo-theme');if(t==='dark')document.documentElement.classList.add('dark')}catch(e){}})()`,
-          }}
-        />
         <ThemeProvider>
           <NexoProvider>{children}</NexoProvider>
         </ThemeProvider>
