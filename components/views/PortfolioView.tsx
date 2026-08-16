@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useNexo } from "@/context/NexoContext";
 import { MetricCard, Card } from "../ui/Card";
 import { StatusBadge } from "../ui/Badge";
@@ -39,6 +39,8 @@ export function PortfolioView() {
     clearTransactions,
     deleteTransaction,
     updateTransaction,
+    currentUser,
+    currentMember,
   } = useNexo();
 
   // Edit Savings Modal State
@@ -60,46 +62,144 @@ export function PortfolioView() {
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [deleteNotification, setDeleteNotification] = useState<string | null>(null);
 
-  // Calculate individual holdings strictly from user-added/edited contributions and transactions
-  const myHoldings = ipos.map((ipo) => {
-    const explicitContrib = userContributions[ipo.id] ?? 0;
-    const txnContrib = transactions
-      .filter((t) => t.ipoId === ipo.id && t.status !== "REFUNDED" && t.status !== "REJECTED")
-      .reduce((sum, t) => sum + t.amount, 0);
+  // Active user identification
+  const activeUserId = currentUser?.id || currentMember?.id;
+  const activeUserName = (currentUser?.name || currentMember?.name || "").toLowerCase().trim();
+  const activeUserUsername = (currentUser?.username || currentMember?.username || "").toLowerCase().trim();
 
-    const totalIpoApplied = Math.max(explicitContrib, txnContrib);
+  // Filter transactions strictly for the active logged-in user
+  const userTransactions = useMemo(() => {
+    return transactions.filter((txn) => {
+      // 1. Direct memberId or userId match
+      if (txn.memberId && (txn.memberId === activeUserId || txn.memberId === currentUser?.id)) {
+        return true;
+      }
+      if (txn.userId && (txn.userId === activeUserId || txn.userId === currentUser?.id)) {
+        return true;
+      }
 
-    // Only calculate profit when allotment/listing status & gain is pushed by admin
-    const isAdminPushed =
-      ipo.status === "ALLOTTED" ||
-      ipo.status === "SOLD" ||
-      ipo.status === "HOLDING" ||
-      ipo.status === "LISTED";
+      // 2. Participant name or username match
+      if (Array.isArray(txn.participants) && txn.participants.length > 0) {
+        const matchesParticipant = txn.participants.some((p) => {
+          if (typeof p !== "string") return false;
+          const cleanP = p.toLowerCase().trim();
+          return (
+            (activeUserName && (cleanP.includes(activeUserName) || activeUserName.includes(cleanP))) ||
+            (activeUserUsername && (cleanP.includes(activeUserUsername) || activeUserUsername.includes(cleanP)))
+          );
+        });
+        if (matchesParticipant) return true;
+      }
 
-    let myProfit = 0;
-    if (isAdminPushed && totalIpoApplied > 0 && ipo.listingGainPercent) {
-      myProfit = Math.round((totalIpoApplied * ipo.listingGainPercent) / 100);
-    }
+      // 3. Match from IPO applications where user is a participant
+      const matchingIpo = ipos.find((i) => i.id === txn.ipoId);
+      if (matchingIpo && Array.isArray(matchingIpo.applications)) {
+        const hasUserApp = matchingIpo.applications.some((app) => {
+          if (app.memberId && (app.memberId === activeUserId || app.memberId === currentUser?.id)) return true;
+          const appName = (app.applicantName || "").toLowerCase().trim();
+          if (activeUserName && (appName.includes(activeUserName) || activeUserName.includes(appName))) return true;
+          if (activeUserUsername && (appName.includes(activeUserUsername) || activeUserUsername.includes(appName))) return true;
+          if (Array.isArray(app.participants)) {
+            return app.participants.some(
+              (p: any) =>
+                p.memberId === activeUserId ||
+                (p.memberName &&
+                  (p.memberName.toLowerCase().includes(activeUserName) ||
+                    p.memberName.toLowerCase().includes(activeUserUsername)))
+            );
+          }
+          return false;
+        });
 
-    return {
-      ipo,
-      myContribution: totalIpoApplied,
-      myProfit,
-      hasContribution: totalIpoApplied > 0,
-    };
-  });
+        if (hasUserApp && (txn as any).applicationNumber) {
+          return matchingIpo.applications.some((a) => a.applicationNumber === txn.applicationNumber);
+        }
+      }
 
-  // Calculate profit across transactions ONLY when allotment status is pushed by admin
-  const transactionProfits = transactions
-    .filter((t) => t.status === "ALLOTTED")
-    .map((txn) => {
-      const ipo = ipos.find((i) => i.id === txn.ipoId);
-      const gainPct = ipo?.listingGainPercent ?? 0;
-      return Math.round((txn.amount * gainPct) / 100);
+      return false;
     });
+  }, [transactions, activeUserId, activeUserName, activeUserUsername, ipos, currentUser]);
 
-  // Sum applied from transactions (all types)
-  const txnTotalApplied = transactions.reduce((sum, t) => sum + t.amount, 0);
+  // Calculate individual holdings strictly from user-added/edited contributions and user's own transactions
+  const myHoldings = useMemo(() => {
+    return ipos.map((ipo) => {
+      const explicitContrib = userContributions[ipo.id] ?? 0;
+      const userApps = (ipo.applications || []).filter((app) => {
+        if (app.memberId && (app.memberId === activeUserId || app.memberId === currentUser?.id)) return true;
+        const appName = (app.applicantName || "").toLowerCase().trim();
+        if (activeUserName && (appName.includes(activeUserName) || activeUserName.includes(appName))) return true;
+        if (activeUserUsername && (appName.includes(activeUserUsername) || activeUserUsername.includes(appName))) return true;
+        if (Array.isArray(app.participants)) {
+          return app.participants.some(
+            (p: any) =>
+              p.memberId === activeUserId ||
+              (p.memberName &&
+                (p.memberName.toLowerCase().includes(activeUserName) ||
+                  p.memberName.toLowerCase().includes(activeUserUsername)))
+          );
+        }
+        return false;
+      });
+
+      const appContrib = userApps.reduce((sum, app) => {
+        if (Array.isArray(app.participants) && app.participants.length > 0) {
+          const myPart = app.participants.find(
+            (p: any) =>
+              p.memberId === activeUserId ||
+              (p.memberName &&
+                (p.memberName.toLowerCase().includes(activeUserName) ||
+                  p.memberName.toLowerCase().includes(activeUserUsername)))
+          );
+          return sum + (myPart ? Number(myPart.contribution) || 0 : 0);
+        }
+        return sum + (Number(app.totalContribution) || 0);
+      }, 0);
+
+      const txnContrib = userTransactions
+        .filter((t) => t.ipoId === ipo.id && t.status !== "REFUNDED" && t.status !== "REJECTED")
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const totalIpoApplied = Math.max(explicitContrib, appContrib, txnContrib);
+
+      // Only calculate profit when allotment/listing status & gain is pushed by admin
+      const isUserAllotted =
+        userApps.some((a) => a.allotmentStatus === "ALLOTTED") ||
+        userTransactions.some((t) => t.ipoId === ipo.id && t.status === "ALLOTTED");
+
+      const isAdminPushed =
+        isUserAllotted ||
+        ipo.status === "ALLOTTED" ||
+        ipo.status === "SOLD" ||
+        ipo.status === "HOLDING" ||
+        ipo.status === "LISTED";
+
+      let myProfit = 0;
+      if (isAdminPushed && totalIpoApplied > 0 && ipo.listingGainPercent) {
+        myProfit = Math.round((totalIpoApplied * ipo.listingGainPercent) / 100);
+      }
+
+      return {
+        ipo,
+        myContribution: totalIpoApplied,
+        myProfit,
+        hasContribution: totalIpoApplied > 0,
+      };
+    });
+  }, [ipos, userContributions, userTransactions, activeUserId, activeUserName, activeUserUsername, currentUser]);
+
+  // Calculate profit across user's transactions ONLY when allotment status is pushed by admin
+  const transactionProfits = useMemo(() => {
+    return userTransactions
+      .filter((t) => t.status === "ALLOTTED")
+      .map((txn) => {
+        const ipo = ipos.find((i) => i.id === txn.ipoId);
+        const gainPct = ipo?.listingGainPercent ?? 0;
+        return Math.round((txn.amount * gainPct) / 100);
+      });
+  }, [userTransactions, ipos]);
+
+  // Sum applied from user transactions (all types)
+  const txnTotalApplied = userTransactions.reduce((sum, t) => sum + t.amount, 0);
 
   // Total applied capital (sum of transaction amounts + explicit contributions)
   const myTotalApplied = Math.max(
@@ -203,7 +303,7 @@ export function PortfolioView() {
         <MetricCard
           label="Total Applied Capital"
           value={myTotalApplied > 0 ? formatINR(myTotalApplied) : "₹0"}
-          subtitle={`${transactions.length} active application(s)`}
+          subtitle={`${userTransactions.length} active application(s)`}
           icon={<FileText size={20} className="text-amber-600" />}
         />
 
@@ -222,16 +322,16 @@ export function PortfolioView() {
           <div className="flex items-center gap-2">
             <Receipt size={18} className="text-blue-600 dark:text-blue-400" />
             <h3 className="text-base font-extrabold text-ink">My IPO Transactions &amp; Deductions</h3>
-            {transactions.length > 0 && (
+            {userTransactions.length > 0 && (
               <span className="text-[10px] font-bold text-white bg-blue-600 px-2 py-0.5 rounded-full">
-                {transactions.length}
+                {userTransactions.length}
               </span>
             )}
           </div>
           <span className="text-xs text-ink-secondary font-medium">All active applications — Solo &amp; Group</span>
         </div>
 
-        {transactions.length === 0 ? (
+        {userTransactions.length === 0 ? (
           <div className="py-10 flex flex-col items-center justify-center gap-3 text-center">
             <div className="w-12 h-12 rounded-2xl bg-surface-alt flex items-center justify-center">
               <Receipt size={24} className="text-ink-tertiary" />
@@ -258,7 +358,7 @@ export function PortfolioView() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-line/60">
-                {transactions.map((txn, idx) => {
+                {userTransactions.map((txn, idx) => {
                   const d = new Date(txn.createdAt);
                   const dateStr = isValidDate(d)
                     ? d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })

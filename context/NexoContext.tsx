@@ -1369,6 +1369,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
         canonicalType === "INDIVIDUAL"
           ? [applicantMember?.name || members[0].name]
           : formattedParticipants.map((p) => p.memberName),
+      memberId: applicantMember?.id || currentUser?.id,
       createdAt: new Date().toISOString(),
       status: "SUBMITTED",
     };

@@ -246,6 +246,8 @@ export interface Transaction {
   panMasked?: string;
   applicationNumber: string;
   participants: string[]; // member names
+  memberId?: string;
+  userId?: string;
   createdAt: string; // ISO string
   status: "SUBMITTED" | "ALLOTTED" | "REFUNDED" | "REJECTED";
 }

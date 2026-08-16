@@ -19,7 +19,14 @@ export async function GET() {
       .sort({ createdAt: -1 })
       .toArray();
 
-    return NextResponse.json({ success: true, transactions });
+    return NextResponse.json(
+      { success: true, transactions },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=5, stale-while-revalidate=15",
+        },
+      }
+    );
   } catch (err: any) {
     console.warn("GET /api/transactions MongoDB unavailable, returning empty array fallback.");
     return NextResponse.json({ success: true, transactions: [] });
@@ -33,7 +40,7 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json().catch(() => ({}));
-    const newDoc: TransactionDocument = {
+    const newDoc: any = {
       id: body.id || `txn_${Date.now()}`,
       ipoId: body.ipoId || "1",
       ipoName: body.ipoName || "IPO",
@@ -41,6 +48,7 @@ export async function POST(req: Request) {
       amount: Number(body.amount) || 15000,
       applicationNumber: body.applicationNumber || `NEXO-APP-${Math.floor(1000 + Math.random() * 9000)}`,
       participants: Array.isArray(body.participants) ? body.participants : ["Member"],
+      memberId: body.memberId || body.userId || undefined,
       status: body.status || "SUBMITTED",
       createdAt: new Date(),
     };
