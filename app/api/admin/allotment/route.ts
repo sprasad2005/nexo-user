@@ -46,9 +46,16 @@ export async function GET(req: Request) {
     try {
       const client = await clientPromise;
       const db = client.db(DB_NAME);
-      dbIpos = await db.collection("ipos").find({}).sort({ createdAt: -1 }).toArray();
-      dbApps = await db.collection("applications").find({}).sort({ createdAt: -1 }).toArray();
-      dbMembers = await db.collection("members").find({}).toArray();
+
+      const [iposArr, appsArr, memsArr] = await Promise.all([
+        db.collection("ipos").find({ isHidden: { $ne: true } }).sort({ createdAt: -1 }).toArray(),
+        db.collection("applications").find({}).sort({ createdAt: -1 }).toArray(),
+        db.collection("members").find({}, { projection: { id: 1, name: 1, username: 1, avatar: 1, panMasked: 1 } }).toArray(),
+      ]);
+
+      dbIpos = iposArr;
+      dbApps = appsArr;
+      dbMembers = memsArr;
     } catch (_e) {
       console.warn("MongoDB fetch optional, using shared_ipos.json data.");
     }
@@ -226,14 +233,21 @@ export async function GET(req: Request) {
       }
     }
 
-    return NextResponse.json({
-      success: true,
-      currentUserRole: auth.role,
-      ipos,
-      selectedIpo,
-      applications,
-      metrics,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        currentUserRole: auth.role,
+        ipos,
+        selectedIpo,
+        applications,
+        metrics,
+      },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=5, stale-while-revalidate=15",
+        },
+      }
+    );
   } catch (err: any) {
     console.error("GET /api/admin/allotment error:", err);
     if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {

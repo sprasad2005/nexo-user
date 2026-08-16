@@ -106,8 +106,16 @@ async function runBenchmark() {
     db.collection("members").find({}, { projection: { id: 1, name: 1, username: 1, avatar: 1 } }).toArray(),
   ]);
   const accDuration = performance.now() - startAcc;
-  console.log(`\n📊 [Account Security Pipeline]:`);
-  console.log(`   - 8 Parallel Database Operations Execution Time: ${accDuration.toFixed(2)}ms`);
+  // 6. Unified Dashboard Service Pipeline
+  const startDash = performance.now();
+  const { getDashboardSummary } = await import("../lib/services/dashboardService");
+  const dashData = await getDashboardSummary();
+  const dashDuration = performance.now() - startDash;
+  const dashPayloadSize = (JSON.stringify(dashData).length / 1024).toFixed(2);
+  console.log(`\n📊 [Unified Dashboard Service Pipeline]:`);
+  console.log(`   - Consolidated Metrics: Stats (8), Activities (${dashData.recentActivities.length}), IPOs (${dashData.recentIpos.length})`);
+  console.log(`   - Query Execution Time: ${dashDuration.toFixed(2)}ms`);
+  console.log(`   - Transferred Payload Size: ${dashPayloadSize} KB`);
 
   console.log("\n==================================================");
   console.log("✨ BENCHMARK COMPLETED: ALL PIPELINES SUB-100MS");

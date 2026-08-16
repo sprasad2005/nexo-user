@@ -109,9 +109,31 @@ export async function createSession(
   return { sessionToken: rawToken, session: sessionDoc };
 }
 
+// In-memory cache for high-frequency validated sessions to eliminate duplicate database lookups
+const sessionAuthCache = new Map<
+  string,
+  {
+    data: { session: SessionDocument; user: UserDocument; member: MemberDocument };
+    expiresAt: number;
+  }
+>();
+
+export function clearSessionAuthCache(tokenHashOrUserId?: string) {
+  if (!tokenHashOrUserId) {
+    sessionAuthCache.clear();
+    return;
+  }
+  for (const [hash, entry] of sessionAuthCache.entries()) {
+    if (hash === tokenHashOrUserId || entry.data.user.id === tokenHashOrUserId) {
+      sessionAuthCache.delete(hash);
+    }
+  }
+}
+
 /**
  * Validates a raw session token against MongoDB nexo.sessions.
  * Verifies: non-null, token hash match, not revoked, not expired, user ACTIVE.
+ * Uses a 30-second hot cache to eliminate redundant sequential DB roundtrips.
  */
 export async function validateSessionToken(rawToken: string): Promise<{
   session: SessionDocument;
@@ -120,8 +142,16 @@ export async function validateSessionToken(rawToken: string): Promise<{
 } | null> {
   if (!rawToken) return null;
 
+  const tokenHash = hashSessionToken(rawToken);
+  const nowTime = Date.now();
+
+  // 1. Check in-memory session cache
+  const cached = sessionAuthCache.get(tokenHash);
+  if (cached && nowTime < cached.expiresAt) {
+    return cached.data;
+  }
+
   try {
-    const tokenHash = hashSessionToken(rawToken);
     const client = await clientPromise;
     const db = client.db(DB_NAME);
 
@@ -130,28 +160,48 @@ export async function validateSessionToken(rawToken: string): Promise<{
     });
 
     if (!session) return null;
-    if (session.revokedAt !== null) return null;
+    if (session.revokedAt !== null) {
+      sessionAuthCache.delete(tokenHash);
+      return null;
+    }
 
     const now = new Date();
-    if (new Date(session.expiresAt) < now) return null;
+    if (new Date(session.expiresAt) < now) {
+      sessionAuthCache.delete(tokenHash);
+      return null;
+    }
 
-    // Verify User exists and is ACTIVE
-    const user = await db.collection<UserDocument>("users").findOne({ id: session.userId });
-    if (!user || user.status !== "ACTIVE") return null;
+    // Verify User exists and is ACTIVE, fetch Member in parallel with lean projection
+    const [user, member] = await Promise.all([
+      db.collection<UserDocument>("users").findOne({ id: session.userId }, { projection: { passwordHash: 0 } }),
+      db.collection<MemberDocument>("members").findOne({ id: session.userId }),
+    ]);
 
-    // Resolve Member profile
-    const member = await db.collection<MemberDocument>("members").findOne({ id: user.memberId });
-    if (!member) return null;
+    if (!user || user.status !== "ACTIVE") {
+      sessionAuthCache.delete(tokenHash);
+      return null;
+    }
+
+    // If member not found by session.userId, look up by user.memberId
+    let finalMember = member;
+    if (!finalMember && user.memberId) {
+      finalMember = await db.collection<MemberDocument>("members").findOne({ id: user.memberId });
+    }
+    if (!finalMember) return null;
 
     // Update lastActiveAt periodically (sliding activity window)
     if (now.getTime() - new Date(session.lastActiveAt).getTime() > 5 * 60 * 1000) {
-      await db.collection<SessionDocument>("sessions").updateOne(
+      db.collection<SessionDocument>("sessions").updateOne(
         { id: session.id },
         { $set: { lastActiveAt: now, updatedAt: now } }
-      );
+      ).catch(() => {});
     }
 
-    return { session, user, member };
+    const result = { session, user, member: finalMember };
+    // Cache for 30 seconds
+    sessionAuthCache.set(tokenHash, { data: result, expiresAt: nowTime + 30000 });
+
+    return result;
   } catch (err) {
     console.error("Session validation error:", err);
     return null;
@@ -163,6 +213,7 @@ export async function validateSessionToken(rawToken: string): Promise<{
  */
 export async function revokeSession(sessionId: string): Promise<boolean> {
   try {
+    clearSessionAuthCache();
     const client = await clientPromise;
     const db = client.db(DB_NAME);
     const res = await db.collection<SessionDocument>("sessions").updateOne(
@@ -181,6 +232,7 @@ export async function revokeSession(sessionId: string): Promise<boolean> {
  */
 export async function revokeAllOtherSessions(userId: string, currentSessionId: string): Promise<number> {
   try {
+    clearSessionAuthCache(userId);
     const client = await clientPromise;
     const db = client.db(DB_NAME);
     const res = await db.collection<SessionDocument>("sessions").updateMany(
@@ -199,6 +251,7 @@ export async function revokeAllOtherSessions(userId: string, currentSessionId: s
  */
 export async function revokeAllUserSessions(userId: string): Promise<number> {
   try {
+    clearSessionAuthCache(userId);
     const client = await clientPromise;
     const db = client.db(DB_NAME);
     const res = await db.collection<SessionDocument>("sessions").updateMany(

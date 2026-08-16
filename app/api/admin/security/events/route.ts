@@ -54,16 +54,39 @@ export async function GET(request: Request) {
     const client = await clientPromise;
     const db = client.db(DB_NAME);
     
-    const events = await db.collection("activities")
-      .find(query)
+    const events = await db
+      .collection("activities")
+      .find(query, {
+        projection: {
+          id: 1,
+          eventType: 1,
+          category: 1,
+          severity: 1,
+          title: 1,
+          actorName: 1,
+          actorUsername: 1,
+          actorRole: 1,
+          targetName: 1,
+          metadata: 1,
+          createdAt: 1,
+          ipAddress: 1,
+        },
+      })
       .sort({ createdAt: -1 })
       .limit(limit)
       .toArray();
 
-    return NextResponse.json({
-      success: true,
-      events
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        events,
+      },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=5, stale-while-revalidate=15",
+        },
+      }
+    );
 
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message || "Internal Server Error" }, { status: 500 });
