@@ -1,14 +1,13 @@
 [
   {
-    "id": "ipo_1786880631304",
-    "name": "suzlon",
-    "company": "suzlon",
-    "logo": "SU",
+    "id": "ipo_1786887825226",
+    "applications": [],
     "category": "Mainboard",
-    "status": "APPLICATION_OPEN",
-    "recommendation": "APPLY",
-    "thesis": "jsbjs",
+    "combinedCapital": 0,
+    "company": "jhgjhg",
+    "createdBy": "Shivam Prasad",
     "isHidden": false,
+    "logo": "JH",
     "metrics": {
       "issueSize": "₹2,400 Cr",
       "priceBand": {
@@ -17,723 +16,611 @@
       },
       "lotSize": 1,
       "minInvestment": 15000,
-      "gmpPercent": 21.5,
+      "gmpPercent": 18.5,
       "openDate": "18 Aug 2026",
       "closeDate": "28 Aug 2026",
       "allotmentDate": "01 Sep 2026",
       "listingDate": "04 Sep 2026",
       "fundUnblockDate": "02 Sep 2026"
     },
-    "createdBy": "Shivam Prasad",
+    "name": "jhgjhg",
     "participantsCount": 0,
-    "combinedCapital": 60000,
+    "recommendation": "APPLY",
+    "status": "APPLICATION_OPEN",
+    "thesis": "gvhgv"
+  },
+  {
+    "id": "ipo_6",
+    "name": "Ather Energy",
+    "company": "Ather Energy Pvt Ltd",
+    "logo": "AE",
+    "category": "Mainboard",
+    "status": "WATCHLIST",
+    "recommendation": "WATCH",
+    "thesis": "Promising EV two-wheeler ecosystem but high cash burn rate requires careful monitoring of final listing valuation.",
+    "metrics": {
+      "issueSize": "₹3,100 Cr",
+      "priceBand": {
+        "min": 310,
+        "max": 330
+      },
+      "lotSize": 45,
+      "minInvestment": 14850,
+      "openDate": "28 Aug 2026",
+      "closeDate": "31 Aug 2026",
+      "allotmentDate": "03 Sep 2026",
+      "listingDate": "08 Sep 2026",
+      "gmp": 18,
+      "gmpPercent": 5.45
+    },
+    "createdBy": "Ankit",
+    "participantsCount": 0,
+    "combinedCapital": 0,
+    "tags": [
+      "EV",
+      "Automotive",
+      "High Risk"
+    ],
+    "applications": [],
+    "createdAt": "2026-08-13T10:27:21.709Z",
+    "updatedAt": "2026-08-13T10:27:21.709Z"
+  },
+  {
+    "id": "ipo_5",
+    "name": "Premier Energies",
+    "company": "Premier Energies Limited",
+    "logo": "PE",
+    "category": "Mainboard",
+    "status": "SOLD",
+    "recommendation": "APPLY",
+    "thesis": "Integrated solar cell and module manufacturer benefiting from PLI schemes and domestic content mandates.",
+    "metrics": {
+      "issueSize": "₹2,830 Cr",
+      "priceBand": {
+        "min": 420,
+        "max": 450
+      },
+      "lotSize": 33,
+      "minInvestment": 14850,
+      "openDate": "27 Jun 2026",
+      "closeDate": "29 Jun 2026",
+      "allotmentDate": "03 Jul 2026",
+      "listingDate": "06 Jul 2026"
+    },
+    "issuePrice": 450,
+    "currentPrice": 990,
+    "realizedProfit": 18400,
+    "listingGainPercent": 120,
+    "createdBy": "Ankit",
+    "participantsCount": 3,
+    "combinedCapital": 45000,
+    "tags": [
+      "Solar",
+      "Clean Energy",
+      "Multi-bagger"
+    ],
     "applications": [
       {
-        "id": "app_1786882825434",
-        "ipoId": "ipo_1786880631304",
-        "type": "INDIVIDUAL",
-        "applicantName": "@bhushan",
-        "memberId": "mem_1786882705813",
-        "panMasked": "IKXPP8965P",
-        "panNumbers": [
-          "IKXPP8965P"
-        ],
-        "totalContribution": 15000,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "AWAITING",
-        "status": "AWAITING",
-        "createdAt": "2026-08-16T12:20:25.434Z",
-        "applicationNumber": "NEXO-APP-9946",
+        "id": "app_105",
+        "ipoId": "ipo_5",
+        "type": "COMBO",
+        "totalContribution": 45000,
+        "status": "ALLOTTED",
+        "allotmentStatus": "ALLOTTED",
+        "createdAt": "2026-06-28T09:15:00Z",
         "participants": [
           {
-            "memberId": "mem_1786882705813",
-            "memberName": "bhushan",
-            "avatar": "/japlu.png",
-            "contribution": 15000,
-            "percentage": 100,
-            "panMasked": "IKXPP8965P",
-            "panFull": "IKXPP8965P",
-            "status": "SUBMITTED"
-          }
-        ]
-      },
-      {
-        "id": "app_1786880758697",
-        "ipoId": "ipo_1786880631304",
-        "type": "COMBINED",
-        "applicantName": "@krish & @user",
-        "memberId": "mem_admin",
-        "panMasked": "IKXPP8955P",
-        "panNumbers": [
-          "IKXPP8955P"
-        ],
-        "totalContribution": 15000,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "AWAITING",
-        "status": "AWAITING",
-        "createdAt": "2026-08-16T11:45:58.697Z",
-        "applicationNumber": "NEXO-APP-3835",
-        "participants": [
-          {
-            "memberId": "mem_1786713174555",
-            "memberName": "krish",
-            "avatar": "/doremon.png",
-            "contribution": 7500,
-            "percentage": 50,
-            "panMasked": "IKXPP8955P",
-            "panFull": "IKXPP8955P",
-            "status": "SUBMITTED"
-          },
-          {
-            "memberId": "mem_1786680225463",
-            "memberName": "user",
-            "avatar": "/sinchan.png",
-            "contribution": 7500,
-            "percentage": 50,
-            "panMasked": "ABCDE1234F",
-            "panFull": "ABCDE1234F",
-            "status": "SUBMITTED"
-          }
-        ]
-      },
-      {
-        "id": "app_1786880705878",
-        "ipoId": "ipo_1786880631304",
-        "type": "COMBINED",
-        "applicantName": "@user2",
-        "memberId": "mem_1786684116726",
-        "panMasked": "IKXPP8958P",
-        "panNumbers": [
-          "IKXPP8958P"
-        ],
-        "totalContribution": 15000,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "AWAITING",
-        "status": "AWAITING",
-        "createdAt": "2026-08-16T11:45:05.879Z",
-        "applicationNumber": "NEXO-APP-1969",
-        "participants": [
-          {
-            "memberId": "mem_1786680225463",
-            "memberName": "krish",
-            "avatar": "/sinchan.png",
-            "contribution": 7500,
-            "percentage": 50,
-            "panMasked": "IKXPP8958P",
-            "panFull": "IKXPP8958P",
-            "status": "SUBMITTED"
-          },
-          {
-            "memberId": "mem_1786684116726",
-            "memberName": "user2",
+            "memberId": "mem_1",
+            "memberName": "Ankit",
             "avatar": "/oggy.png",
-            "contribution": 7500,
-            "percentage": 50,
+            "contribution": 15000,
+            "percentage": 33.3,
             "panMasked": "ABCDE1234F",
-            "panFull": "ABCDE1234F",
-            "status": "SUBMITTED"
+            "status": "ALLOTTED",
+            "allotmentShares": 33,
+            "profitLoss": 6133
+          },
+          {
+            "memberId": "mem_2",
+            "memberName": "Ashay",
+            "avatar": "/oggy.png",
+            "contribution": 15000,
+            "percentage": 33.3,
+            "panMasked": "ABCDE1234F",
+            "status": "ALLOTTED",
+            "allotmentShares": 33,
+            "profitLoss": 6133
+          },
+          {
+            "memberId": "mem_3",
+            "memberName": "Ranveer",
+            "avatar": "/jack.png",
+            "contribution": 15000,
+            "percentage": 33.4,
+            "panMasked": "BCDEF2345G",
+            "status": "ALLOTTED",
+            "allotmentShares": 33,
+            "profitLoss": 6133
           }
         ]
+      }
+    ],
+    "createdAt": "2026-08-13T10:27:21.709Z",
+    "updatedAt": "2026-08-13T10:27:21.709Z"
+  },
+  {
+    "id": "ipo_4",
+    "name": "Bajaj Housing",
+    "company": "Bajaj Housing Finance Limited",
+    "logo": "BH",
+    "category": "Mainboard",
+    "status": "HOLDING",
+    "recommendation": "APPLY",
+    "thesis": "Premier non-bank housing finance player with lowest GNPA in the sector (0.28%) and strong parentage.",
+    "metrics": {
+      "issueSize": "₹6,560 Cr",
+      "priceBand": {
+        "min": 66,
+        "max": 70
       },
+      "lotSize": 214,
+      "minInvestment": 14980,
+      "openDate": "09 Jul 2026",
+      "closeDate": "11 Jul 2026",
+      "allotmentDate": "16 Jul 2026",
+      "listingDate": "19 Jul 2026"
+    },
+    "issuePrice": 70,
+    "currentPrice": 128.5,
+    "listingGainPercent": 15.43,
+    "createdBy": "Ankit",
+    "participantsCount": 2,
+    "combinedCapital": 44892,
+    "tags": [
+      "NBFC",
+      "Housing Finance",
+      "Mega Allotment"
+    ],
+    "applications": [
       {
-        "id": "app_1786880681452",
-        "ipoId": "ipo_1786880631304",
-        "type": "INDIVIDUAL",
-        "applicantName": "@krish",
-        "memberId": "mem_1786713174555",
-        "panMasked": "IKXPP8988P",
-        "panNumbers": [
-          "IKXPP8988P"
-        ],
-        "totalContribution": 15000,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "AWAITING",
-        "status": "AWAITING",
-        "createdAt": "2026-08-16T11:44:41.452Z",
-        "applicationNumber": "NEXO-APP-7767",
+        "id": "app_104",
+        "ipoId": "ipo_4",
+        "type": "COMBO",
+        "totalContribution": 44892,
+        "status": "ALLOTTED",
+        "allotmentStatus": "ALLOTTED",
+        "createdAt": "2026-07-10T10:00:00Z",
         "participants": [
           {
-            "memberId": "mem_1786713174555",
-            "memberName": "krish",
-            "avatar": "/doremon.png",
-            "contribution": 15000,
-            "percentage": 100,
-            "panMasked": "IKXPP8988P",
-            "panFull": "IKXPP8988P",
+            "memberId": "mem_1",
+            "memberName": "Ankit",
+            "avatar": "/oggy.png",
+            "contribution": 22446,
+            "percentage": 50,
+            "panMasked": "ABCDE1234F",
+            "status": "ALLOTTED",
+            "allotmentShares": 214,
+            "profitLoss": 6928,
+            "profitLossPercent": 15.43
+          },
+          {
+            "memberId": "mem_2",
+            "memberName": "Ashay",
+            "avatar": "/oggy.png",
+            "contribution": 22446,
+            "percentage": 50,
+            "panMasked": "ABCDE1234F",
+            "status": "ALLOTTED",
+            "allotmentShares": 214,
+            "profitLoss": 6928,
+            "profitLossPercent": 15.43
+          }
+        ]
+      }
+    ],
+    "createdAt": "2026-08-13T10:27:21.709Z",
+    "updatedAt": "2026-08-13T10:27:21.709Z"
+  },
+  {
+    "id": "ipo_3",
+    "name": "Hexaware Tech",
+    "company": "Hexaware Technologies Ltd",
+    "logo": "HT",
+    "category": "Mainboard",
+    "status": "ALLOTMENT_PENDING",
+    "recommendation": "APPLY",
+    "thesis": "High-margin IT services business backed by Carlyle with stable revenue visibility and multi-year digital transformation contracts.",
+    "metrics": {
+      "issueSize": "₹9,950 Cr",
+      "priceBand": {
+        "min": 670,
+        "max": 708
+      },
+      "lotSize": 21,
+      "minInvestment": 14868,
+      "openDate": "05 Aug 2026",
+      "closeDate": "08 Aug 2026",
+      "allotmentDate": "13 Aug 2026",
+      "listingDate": "16 Aug 2026",
+      "gmp": 110,
+      "gmpPercent": 15.5
+    },
+    "createdBy": "Ankit",
+    "participantsCount": 2,
+    "combinedCapital": 85000,
+    "tags": [
+      "IT Services",
+      "PE Backed"
+    ],
+    "applications": [
+      {
+        "id": "app_103",
+        "ipoId": "ipo_3",
+        "type": "COMBO",
+        "totalContribution": 85000,
+        "status": "SUBMITTED",
+        "allotmentStatus": "AWAITING",
+        "createdAt": "2026-08-06T11:20:00Z",
+        "applicationNumber": "NEXO-HT-4412",
+        "participants": [
+          {
+            "memberId": "mem_2",
+            "memberName": "Ashay",
+            "avatar": "/oggy.png",
+            "contribution": 45000,
+            "percentage": 52.9,
+            "panMasked": "ABCDE1234F",
+            "status": "SUBMITTED"
+          },
+          {
+            "memberId": "mem_1",
+            "memberName": "Ankit",
+            "avatar": "/oggy.png",
+            "contribution": 40000,
+            "percentage": 47.1,
+            "panMasked": "ABCDE1234F",
             "status": "SUBMITTED"
           }
         ]
       }
     ],
-    "registrarUrl": "https://www.hotstar.com/in/shows/game-of-thrones/1971002880/dragonstone/1971035104/watch?episodeNumber=10&search_query=got&seasonId=1971009218"
+    "createdAt": "2026-08-13T10:27:21.709Z",
+    "updatedAt": "2026-08-13T10:27:21.709Z"
   },
   {
-    "id": "ipo_1786777779359",
+    "id": "ipo_2",
+    "name": "Swiggy Limited",
+    "company": "Swiggy India Pvt Ltd",
+    "logo": "SW",
+    "category": "Mainboard",
+    "status": "ALLOTTED",
+    "recommendation": "APPLY",
+    "thesis": "Market leader in quick commerce (Instamart expansion) showing path to adjusted EBITDA breakeven with strong institutional demand.",
+    "metrics": {
+      "issueSize": "₹11,327 Cr",
+      "priceBand": {
+        "min": 371,
+        "max": 390
+      },
+      "lotSize": 38,
+      "minInvestment": 14820,
+      "openDate": "05 Aug 2026",
+      "closeDate": "08 Aug 2026",
+      "allotmentDate": "12 Aug 2026",
+      "listingDate": "15 Aug 2026",
+      "gmp": 38,
+      "gmpPercent": 9.7
+    },
+    "createdBy": "Ankit",
+    "participantsCount": 4,
+    "combinedCapital": 210000,
+    "tags": [
+      "Consumer Tech",
+      "Quick Commerce",
+      "Unicorn"
+    ],
+    "applications": [
+      {
+        "id": "app_102",
+        "ipoId": "ipo_2",
+        "type": "COMBO",
+        "totalContribution": 210000,
+        "status": "SUBMITTED",
+        "allotmentStatus": "AWAITING",
+        "createdAt": "2026-08-12T09:00:00Z",
+        "applicationNumber": "NEXO-SW-9021",
+        "participants": [
+          {
+            "memberId": "mem_1",
+            "memberName": "Ankit",
+            "avatar": "/oggy.png",
+            "contribution": 50000,
+            "percentage": 23.8,
+            "panMasked": "ABCDE1234F",
+            "status": "SUBMITTED"
+          },
+          {
+            "memberId": "mem_2",
+            "memberName": "Ashay",
+            "avatar": "/oggy.png",
+            "contribution": 50000,
+            "percentage": 23.8,
+            "panMasked": "ABCDE1234F",
+            "status": "SUBMITTED"
+          },
+          {
+            "memberId": "mem_4",
+            "memberName": "Priya",
+            "avatar": "/sinchan.png",
+            "contribution": 60000,
+            "percentage": 28.6,
+            "panMasked": "CDEFG3456H",
+            "status": "SUBMITTED"
+          },
+          {
+            "memberId": "mem_5",
+            "memberName": "Siddharth",
+            "avatar": "/japlu.png",
+            "contribution": 50000,
+            "percentage": 23.8,
+            "panMasked": "DEFGH4567I",
+            "status": "SUBMITTED"
+          }
+        ]
+      }
+    ],
+    "createdAt": "2026-08-13T10:27:21.709Z",
+    "updatedAt": "2026-08-13T10:27:21.709Z"
+  },
+  {
+    "id": "ipo_1",
     "name": "Dhoot Transmission",
-    "company": "Dhoot Transmission",
-    "logo": "DH",
+    "company": "Dhoot Transmission Private Limited",
+    "logo": "DT",
     "category": "Mainboard",
     "status": "ALLOTMENT_OUT",
     "recommendation": "APPLY",
-    "thesis": "AFTER 2PM @",
-    "isHidden": false,
+    "thesis": "Strong operating profile and attractive risk/reward based on current valuation and automotive OEM demand metrics.",
+    "isFeatured": false,
+    "closeCountdown": "1d 08h",
     "metrics": {
-      "issueSize": "₹3,016 Cr",
+      "issueSize": "₹450 Cr",
       "priceBand": {
-        "min": 0,
-        "max": 0
+        "min": 245,
+        "max": 258
       },
-      "lotSize": 1,
-      "minInvestment": 14924,
-      "gmpPercent": 32,
-      "openDate": "18 Aug 2026",
-      "closeDate": "28 Aug 2026",
-      "allotmentDate": "01 Sep 2026",
-      "listingDate": "04 Sep 2026",
-      "fundUnblockDate": "02 Sep 2026"
+      "lotSize": 58,
+      "minInvestment": 14964,
+      "openDate": "14 Aug 2026",
+      "closeDate": "14 Aug 2026",
+      "allotmentDate": "21 Aug 2026",
+      "listingDate": "24 Aug 2026",
+      "gmp": 45,
+      "gmpPercent": 17.4
     },
-    "createdBy": "Shivam Prasad",
-    "participantsCount": 0,
-    "combinedCapital": 44772,
-    "applications": [
-      {
-        "id": "app_1786778319357",
-        "ipoId": "ipo_1786777779359",
-        "type": "COMBINED",
-        "applicantName": "@krish & @user4",
-        "memberId": "mem_admin",
-        "panMasked": "PPONF8289F",
-        "panNumbers": [
-          "PPONF8289F"
-        ],
-        "totalContribution": 14924,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "NOT_ALLOTTED",
-        "status": "NOT_ALLOTTED",
-        "createdAt": "2026-08-15T07:18:39.357Z",
-        "applicationNumber": "NEXO-APP-2529",
-        "participants": [
-          {
-            "memberId": "mem_1786713174555",
-            "memberName": "krish",
-            "avatar": "/doremon.png",
-            "contribution": 1000,
-            "percentage": 6.7,
-            "panMasked": "PPONF8289F",
-            "panFull": "PPONF8289F",
-            "status": "SUBMITTED"
-          },
-          {
-            "memberId": "mem_1786684473400",
-            "memberName": "user4",
-            "avatar": "/oggy.png",
-            "contribution": 13924,
-            "percentage": 93.3,
-            "panMasked": "ABCDE1234F",
-            "panFull": "ABCDE1234F",
-            "status": "SUBMITTED"
-          }
-        ],
-        "allottedIndices": [],
-        "updatedAt": "2026-08-15T07:19:05.972Z"
-      },
-      {
-        "id": "app_1786777837300",
-        "ipoId": "ipo_1786777779359",
-        "type": "COMBINED",
-        "applicantName": "@krish, @user2",
-        "memberId": "mem_admin",
-        "panMasked": "POENF7379G",
-        "panNumbers": [
-          "POENF7379G"
-        ],
-        "totalContribution": 14924,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "NOT_ALLOTTED",
-        "status": "NOT_ALLOTTED",
-        "createdAt": "2026-08-15T07:10:37.300Z",
-        "applicationNumber": "NEXO-APP-9931",
-        "participants": [
-          {
-            "memberId": "mem_1786713174555",
-            "memberName": "@krish, @user2",
-            "avatar": "/doremon.png",
-            "contribution": 7462,
-            "percentage": 50,
-            "panMasked": "POENF7379G",
-            "panFull": "POENF7379G",
-            "status": "SUBMITTED"
-          },
-          {
-            "memberId": "mem_1786684116726",
-            "memberName": "user2",
-            "avatar": "/oggy.png",
-            "contribution": 7462,
-            "percentage": 50,
-            "panMasked": "ABCDE1234F",
-            "panFull": "ABCDE1234F",
-            "status": "SUBMITTED"
-          }
-        ],
-        "allottedIndices": [],
-        "updatedAt": "2026-08-15T07:19:05.972Z"
-      },
-      {
-        "id": "app_1786777803803",
-        "ipoId": "ipo_1786777779359",
-        "type": "INDIVIDUAL",
-        "applicantName": "krish",
-        "memberId": "mem_1786713174555",
-        "panMasked": "KPEUA2335S",
-        "panNumbers": [
-          "KPEUA2335S"
-        ],
-        "totalContribution": 14924,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "ALLOTTED",
-        "status": "ALLOTTED",
-        "createdAt": "2026-08-15T07:10:03.803Z",
-        "applicationNumber": "NEXO-APP-6157",
-        "participants": [
-          {
-            "memberId": "mem_1786713174555",
-            "memberName": "krish",
-            "avatar": "/doremon.png",
-            "contribution": 14924,
-            "percentage": 100,
-            "panMasked": "KPEUA2335S",
-            "panFull": "KPEUA2335S",
-            "status": "SUBMITTED"
-          }
-        ],
-        "allottedIndices": [
-          0
-        ],
-        "updatedAt": "2026-08-15T07:19:05.972Z"
-      }
+    "createdBy": "Ankit",
+    "participantsCount": 3,
+    "combinedCapital": 14964,
+    "tags": [
+      "Auto Ancillary",
+      "Profitable"
     ],
+    "applications": [],
+    "createdAt": "2026-08-13T10:27:21.709Z",
+    "updatedAt": "2026-08-15T07:19:05.972Z",
     "allotmentFinalized": true,
     "allotmentFinalizedAt": "2026-08-15T07:19:05.972Z",
-    "allotmentFinalizedBy": "Ankit",
-    "profitDistribution": {
-      "totalProfit": 1000,
-      "totalLots": 3,
-      "allottedLots": 1,
-      "oneLotProfit": 333,
-      "publishedAt": "2026-08-15T07:24:54.908Z"
-    },
-    "registrarUrl": "https://ipostatus.kfintech.com"
-  },
-  {
-    "id": "ipo_1786720662450",
-    "name": "NEW IPO",
-    "company": "NEW IPO",
-    "logo": "NE",
-    "category": "Mainboard",
-    "status": "ALLOTMENT_OUT",
-    "recommendation": "APPLY",
-    "thesis": "2pm",
-    "isHidden": true,
-    "metrics": {
-      "issueSize": "₹1,500 Cr",
-      "priceBand": {
-        "min": 0,
-        "max": 0
-      },
-      "lotSize": 1,
-      "minInvestment": 1234,
-      "gmpPercent": 18.5,
-      "openDate": "18 Aug 2026",
-      "closeDate": "28 Aug 2026",
-      "allotmentDate": "01 Sep 2026",
-      "listingDate": "04 Sep 2026",
-      "fundUnblockDate": "02 Sep 2026"
-    },
-    "createdBy": "Shivam Prasad",
-    "participantsCount": 0,
-    "combinedCapital": 1234,
-    "applications": [
-      {
-        "id": "app_1786726146220",
-        "ipoId": "ipo_1786720662450",
-        "type": "INDIVIDUAL",
-        "applicantName": "user2",
-        "memberId": "mem_1786684116726",
-        "panMasked": "HSCPP7066Q",
-        "panNumbers": [
-          "HSCPP7066Q"
-        ],
-        "totalContribution": 1234,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "ALLOTTED",
-        "status": "ALLOTTED",
-        "createdAt": "2026-08-14T16:49:06.220Z",
-        "applicationNumber": "NEXO-APP-4331",
-        "participants": [
-          {
-            "memberId": "mem_1786684116726",
-            "memberName": "user2",
-            "avatar": "/oggy.png",
-            "contribution": 1234,
-            "percentage": 100,
-            "panMasked": "HSCPP7066Q",
-            "panFull": "HSCPP7066Q",
-            "status": "SUBMITTED"
-          }
-        ],
-        "updatedAt": "2026-08-15T06:06:04.566Z",
-        "allottedIndices": [
-          0
-        ]
-      }
-    ],
-    "allotmentFinalized": true,
-    "allotmentFinalizedAt": "2026-08-15T06:06:04.566Z",
     "allotmentFinalizedBy": "Ankit"
   },
   {
-    "id": "ipo_1786694812510",
-    "name": "Shiprocket",
-    "company": "Shiprocket",
-    "logo": "SH",
+    "id": "ipo_ntpc",
+    "name": "NTPC Green Energy",
+    "company": "NTPC Green Energy Limited",
+    "logo": "NG",
+    "category": "Mainboard",
+    "status": "CLOSED",
+    "recommendation": "APPLY",
+    "thesis": "Maharatna PSU renewable energy arm with 26 GW operating & pipeline capacity across solar and wind power projects.",
+    "metrics": {
+      "issueSize": "₹10,000 Cr",
+      "priceBand": {
+        "min": 102,
+        "max": 108
+      },
+      "lotSize": 138,
+      "minInvestment": 14904,
+      "openDate": "01 Aug 2026",
+      "closeDate": "04 Aug 2026",
+      "allotmentDate": "09 Aug 2026",
+      "listingDate": "12 Aug 2026",
+      "gmp": 15,
+      "gmpPercent": 13.88
+    },
+    "createdBy": "Shivam Prasad",
+    "participantsCount": 3,
+    "combinedCapital": 20000,
+    "tags": [
+      "Renewables",
+      "PSU",
+      "Clean Energy"
+    ],
+    "applications": [],
+    "createdAt": "2026-08-13T10:27:21.709Z",
+    "updatedAt": "2026-08-13T10:27:21.709Z"
+  },
+  {
+    "id": "ipo_veritas",
+    "name": "Veritas Pharma Sciences",
+    "company": "Veritas Pharma Sciences Ltd",
+    "logo": "VP",
+    "category": "Mainboard",
+    "status": "ALLOTMENT_PENDING",
+    "recommendation": "APPLY",
+    "thesis": "Dominant CDMO player with 14 FDA-approved sites and 3-year US contract pipeline worth ₹2,800 Cr.",
+    "decisionDate": "11 Aug 2026",
+    "decisionBy": "Ankit",
+    "isFeatured": false,
+    "metrics": {
+      "issueSize": "₹2,240 Cr",
+      "priceBand": {
+        "min": 610,
+        "max": 640
+      },
+      "lotSize": 23,
+      "minInvestment": 14720,
+      "faceValue": 5,
+      "rhpUrl": "https://www.sebi.gov.in",
+      "openDate": "02 Aug 2026",
+      "closeDate": "05 Aug 2026",
+      "allotmentDate": "10 Aug 2026",
+      "listingDate": "14 Aug 2026",
+      "gmp": 120,
+      "gmpPercent": 18.75,
+      "retailQuotaPercent": 35
+    },
+    "createdBy": "Ankit",
+    "registrarUrl": "https://ipostatus.linkintime.co.in",
+    "participantsCount": 4,
+    "combinedCapital": 58880,
+    "tags": [
+      "Pharma",
+      "CDMO",
+      "FDA Approved"
+    ],
+    "applications": [],
+    "createdAt": "2026-08-13T10:27:21.709Z",
+    "updatedAt": "2026-08-13T10:27:21.709Z"
+  },
+  {
+    "id": "ipo_tata_tech",
+    "name": "Tata Technologies",
+    "company": "Tata Technologies Limited",
+    "logo": "TT",
     "category": "Mainboard",
     "status": "ALLOTMENT_OUT",
     "recommendation": "APPLY",
-    "thesis": "Apply after 2 pm",
-    "isHidden": true,
+    "thesis": "Global ER&D services leader in automotive, aerospace, and heavy machinery with strong Tata Group synergy.",
+    "decisionDate": "12 Aug 2026",
+    "decisionBy": "Ashay",
+    "isFeatured": true,
     "metrics": {
-      "issueSize": "₹1,600 Cr",
+      "issueSize": "₹3,042 Cr",
       "priceBand": {
-        "min": 0,
-        "max": 0
+        "min": 475,
+        "max": 500
       },
-      "lotSize": 1,
-      "minInvestment": 14938,
-      "gmpPercent": 20,
-      "openDate": "18 Aug 2026",
-      "closeDate": "28 Aug 2026",
-      "allotmentDate": "01 Sep 2026",
-      "listingDate": "04 Sep 2026",
-      "fundUnblockDate": "02 Sep 2026"
+      "lotSize": 30,
+      "minInvestment": 15000,
+      "faceValue": 2,
+      "rhpUrl": "https://www.sebi.gov.in",
+      "openDate": "12 Aug 2026",
+      "closeDate": "14 Aug 2026",
+      "allotmentDate": "19 Aug 2026",
+      "listingDate": "22 Aug 2026",
+      "gmp": 110,
+      "gmpPercent": 22
     },
     "createdBy": "Shivam Prasad",
-    "participantsCount": 0,
-    "combinedCapital": 74690,
-    "applications": [
-      {
-        "id": "app_1786713334301",
-        "ipoId": "ipo_1786694812510",
-        "type": "COMBINED",
-        "applicantName": "@krish, @shivamprasad",
-        "memberId": "mem_admin",
-        "panMasked": "HSCPP7066A",
-        "panNumbers": [
-          "HSCPP7066A"
-        ],
-        "totalContribution": 14938,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "ALLOTTED",
-        "status": "ALLOTTED",
-        "createdAt": "2026-08-14T13:15:34.301Z",
-        "applicationNumber": "NEXO-APP-1181",
-        "participants": [
-          {
-            "memberId": "mem_1786713174555",
-            "memberName": "@krish, @shivamprasad",
-            "avatar": "/doremon.png",
-            "contribution": 7469,
-            "percentage": 50,
-            "panMasked": "HSCPP7066A",
-            "panFull": "HSCPP7066A",
-            "status": "SUBMITTED"
-          },
-          {
-            "memberId": "mem_1786684730514",
-            "memberName": "shivamprasad",
-            "avatar": "/jack.png",
-            "contribution": 7469,
-            "percentage": 50,
-            "panMasked": "ABCDE1234F",
-            "panFull": "ABCDE1234F",
-            "status": "SUBMITTED"
-          }
-        ],
-        "updatedAt": "2026-08-14T16:34:40.489Z"
-      },
-      {
-        "id": "app_1786713257321",
-        "ipoId": "ipo_1786694812510",
-        "type": "INDIVIDUAL",
-        "applicantName": "krish",
-        "memberId": "mem_1786713174555",
-        "panMasked": "HSCPP7066Q",
-        "panNumbers": [
-          "HSCPP7066Q"
-        ],
-        "totalContribution": 14938,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "ALLOTTED",
-        "status": "ALLOTTED",
-        "createdAt": "2026-08-14T13:14:17.321Z",
-        "applicationNumber": "NEXO-APP-2558",
-        "participants": [
-          {
-            "memberId": "mem_1786713174555",
-            "memberName": "krish",
-            "avatar": "/doremon.png",
-            "contribution": 14938,
-            "percentage": 100,
-            "panMasked": "HSCPP7066Q",
-            "panFull": "HSCPP7066Q",
-            "status": "SUBMITTED"
-          }
-        ],
-        "updatedAt": "2026-08-14T16:34:40.489Z"
-      },
-      {
-        "id": "app_1786697965236",
-        "ipoId": "ipo_1786694812510",
-        "type": "COMBINED",
-        "applicantName": "@user2, @shivamprasad",
-        "memberId": "mem_admin",
-        "panMasked": "HSCPA8077A",
-        "panNumbers": [
-          "HSCPA8077A"
-        ],
-        "totalContribution": 14938,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "NOT_ALLOTTED",
-        "status": "NOT_ALLOTTED",
-        "createdAt": "2026-08-14T08:59:25.236Z",
-        "applicationNumber": "NEXO-APP-9310",
-        "participants": [
-          {
-            "memberId": "mem_1786680225463",
-            "memberName": "@user2, @shivamprasad",
-            "avatar": "/sinchan.png",
-            "contribution": 7469,
-            "percentage": 50,
-            "panMasked": "HSCPA8077A",
-            "panFull": "HSCPA8077A",
-            "status": "SUBMITTED"
-          },
-          {
-            "memberId": "mem_1786684730514",
-            "memberName": "shivamprasad",
-            "avatar": "/jack.png",
-            "contribution": 7469,
-            "percentage": 50,
-            "panMasked": "ABCDE1234F",
-            "panFull": "ABCDE1234F",
-            "status": "SUBMITTED"
-          }
-        ],
-        "updatedAt": "2026-08-14T16:34:40.489Z"
-      },
-      {
-        "id": "app_1786695102163",
-        "ipoId": "ipo_1786694812510",
-        "type": "INDIVIDUAL",
-        "applicantName": "shivamprasad",
-        "memberId": "mem_1786684730514",
-        "panMasked": "HSCPP7066A",
-        "panNumbers": [
-          "HSCPP7066A"
-        ],
-        "totalContribution": 14938,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "NOT_ALLOTTED",
-        "status": "NOT_ALLOTTED",
-        "createdAt": "2026-08-14T08:11:42.163Z",
-        "applicationNumber": "NEXO-APP-2738",
-        "participants": [
-          {
-            "memberId": "mem_1786684730514",
-            "memberName": "shivamprasad",
-            "avatar": "/jack.png",
-            "contribution": 14938,
-            "percentage": 100,
-            "panMasked": "HSCPP7066A",
-            "panFull": "HSCPP7066A",
-            "status": "SUBMITTED"
-          }
-        ],
-        "updatedAt": "2026-08-14T16:34:40.489Z"
-      },
-      {
-        "id": "app_1786694857088",
-        "ipoId": "ipo_1786694812510",
-        "type": "INDIVIDUAL",
-        "applicantName": "user4",
-        "memberId": "mem_1786684473400",
-        "panMasked": "HSCPP7066Q",
-        "panNumbers": [
-          "HSCPP7066Q"
-        ],
-        "totalContribution": 14938,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "NOT_ALLOTTED",
-        "status": "NOT_ALLOTTED",
-        "createdAt": "2026-08-14T08:07:37.088Z",
-        "applicationNumber": "NEXO-APP-9731",
-        "participants": [
-          {
-            "memberId": "mem_1786684473400",
-            "memberName": "user4",
-            "avatar": "/oggy.png",
-            "contribution": 14938,
-            "percentage": 100,
-            "panMasked": "HSCPP7066Q",
-            "panFull": "HSCPP7066Q",
-            "status": "SUBMITTED"
-          }
-        ],
-        "updatedAt": "2026-08-14T16:34:40.489Z"
-      }
+    "registrarUrl": "https://ipostatus.kfintech.com",
+    "participantsCount": 3,
+    "combinedCapital": 60000,
+    "tags": [
+      "Engineering",
+      "Automotive",
+      "High GMP"
     ],
-    "profitDistribution": {
-      "totalProfit": 12000,
-      "totalLots": 5,
-      "allottedLots": 1,
-      "oneLotProfit": 2400,
-      "publishedAt": "2026-08-14T13:19:21.342Z"
-    },
-    "allotmentFinalized": true,
-    "allotmentFinalizedAt": "2026-08-14T16:34:40.489Z",
-    "allotmentFinalizedBy": "Ankit"
-  },
-  {
-    "id": "ipo_1786630252147",
-    "name": "HDB Financial Services",
-    "company": "HDB Financial Services Limited",
-    "logo": "HDB",
-    "category": "Mainboard",
-    "status": "APPLICATION_OPEN",
-    "recommendation": "APPLY",
-    "thesis": "Leading NBFC subsidiary of HDFC Bank with strong retail lending and credit distribution network.",
-    "isHidden": true,
-    "metrics": {
-      "issueSize": "₹2,400 Cr",
-      "priceBand": {
-        "min": 700,
-        "max": 740
-      },
-      "lotSize": 20,
-      "minInvestment": 14800,
-      "gmpPercent": 18.5,
-      "openDate": "18 Aug 2026",
-      "closeDate": "28 Aug 2026",
-      "allotmentDate": "01 Sep 2026",
-      "listingDate": "04 Sep 2026",
-      "fundUnblockDate": "02 Sep 2026"
-    },
-    "createdBy": "Admin",
-    "participantsCount": 1,
-    "combinedCapital": 44600,
     "applications": [
       {
-        "id": "app_1786684232663",
-        "ipoId": "ipo_1786630252147",
+        "id": "app_01",
+        "ipoId": "ipo_tata_tech",
         "type": "INDIVIDUAL",
-        "applicantName": "user",
-        "memberId": "mem_admin",
-        "panMasked": "HSCPP7066S",
-        "panNumbers": [
-          "HSCPP7066S"
-        ],
-        "totalContribution": 14800,
+        "applicantName": "Ankit",
+        "memberId": "mem_1",
+        "panMasked": "ABCDE1234F",
+        "totalContribution": 15000,
         "lotCount": 1,
         "verified": true,
-        "allotmentStatus": "AWAITING",
-        "status": "AWAITING",
-        "createdAt": "2026-08-14T05:10:32.663Z",
-        "applicationNumber": "NEXO-APP-7940",
-        "participants": [
-          {
-            "memberId": "mem_admin",
-            "memberName": "user",
-            "avatar": "/oggy.png",
-            "contribution": 14800,
-            "percentage": 100,
-            "panMasked": "HSCPP7066S",
-            "panFull": "HSCPP7066S",
-            "status": "SUBMITTED"
-          }
-        ]
+        "allotmentStatus": "ALLOTTED",
+        "status": "ALLOTTED",
+        "createdAt": "2026-08-12T10:00:00Z",
+        "applicationNumber": "NEXO-TT-001",
+        "participants": []
       },
       {
-        "id": "app_1786684188970",
-        "ipoId": "ipo_1786630252147",
+        "id": "app_02",
+        "ipoId": "ipo_tata_tech",
         "type": "INDIVIDUAL",
-        "applicantName": "user",
-        "memberId": "mem_admin",
-        "panMasked": "HSCPP7066V",
-        "panNumbers": [
-          "HSCPP7066V"
-        ],
-        "totalContribution": 14800,
-        "lotCount": 1,
-        "verified": true,
-        "allotmentStatus": "AWAITING",
-        "status": "AWAITING",
-        "createdAt": "2026-08-14T05:09:48.970Z",
-        "applicationNumber": "NEXO-APP-5418",
-        "participants": [
-          {
-            "memberId": "mem_admin",
-            "memberName": "user",
-            "avatar": "/oggy.png",
-            "contribution": 14800,
-            "percentage": 100,
-            "panMasked": "HSCPP7066V",
-            "panFull": "HSCPP7066V",
-            "status": "SUBMITTED"
-          }
-        ]
-      },
-      {
-        "id": "app_1786683514267",
-        "ipoId": "ipo_1786630252147",
-        "type": "INDIVIDUAL",
-        "applicantName": "user",
-        "memberId": "mem_1786680225463",
-        "panMasked": "HSCPP7066Q",
-        "panNumbers": [
-          "HSCPP7066Q"
-        ],
+        "applicantName": "Ashay",
+        "memberId": "mem_2",
+        "panMasked": "BCDEF2345G",
         "totalContribution": 15000,
         "lotCount": 1,
         "verified": true,
         "allotmentStatus": "AWAITING",
         "status": "AWAITING",
-        "createdAt": "2026-08-14T04:58:34.267Z",
-        "applicationNumber": "NEXO-APP-6912",
+        "createdAt": "2026-08-12T10:15:00Z",
+        "applicationNumber": "NEXO-TT-002",
+        "participants": []
+      },
+      {
+        "id": "app_03",
+        "ipoId": "ipo_tata_tech",
+        "type": "INDIVIDUAL",
+        "applicantName": "Ranveer",
+        "memberId": "mem_3",
+        "panMasked": "CDEFG3456H",
+        "totalContribution": 15000,
+        "lotCount": 1,
+        "verified": true,
+        "allotmentStatus": "NOT_ALLOTTED",
+        "status": "NOT_ALLOTTED",
+        "createdAt": "2026-08-12T10:30:00Z",
+        "applicationNumber": "NEXO-TT-003",
+        "participants": []
+      },
+      {
+        "id": "app_04",
+        "ipoId": "ipo_tata_tech",
+        "type": "COMBINED",
+        "totalContribution": 15000,
+        "lotCount": 1,
+        "verified": true,
+        "allotmentStatus": "ALLOTTED",
+        "status": "ALLOTTED",
+        "createdAt": "2026-08-12T11:00:00Z",
+        "applicationNumber": "NEXO-TT-004",
         "participants": [
           {
-            "memberId": "mem_1786680225463",
-            "memberName": "user",
-            "avatar": "/japlu.png",
-            "contribution": 15000,
-            "percentage": 100,
-            "panMasked": "HSCPP7066Q",
-            "panFull": "HSCPP7066Q",
-            "status": "SUBMITTED"
+            "memberId": "mem_1",
+            "memberName": "Ankit",
+            "avatar": "/oggy.png",
+            "contribution": 5000,
+            "percentage": 33.3,
+            "panMasked": "ABCDE1234F"
+          },
+          {
+            "memberId": "mem_2",
+            "memberName": "Ashay",
+            "avatar": "/oggy.png",
+            "contribution": 5000,
+            "percentage": 33.3,
+            "panMasked": "ABCDE1234F"
+          },
+          {
+            "memberId": "mem_3",
+            "memberName": "Ranveer",
+            "avatar": "/jack.png",
+            "contribution": 5000,
+            "percentage": 33.4,
+            "panMasked": "BCDEF2345G"
           }
         ]
       }
-    ]
+    ],
+    "createdAt": "2026-08-13T10:27:21.709Z",
+    "updatedAt": "2026-08-14T14:47:43.142Z",
+    "allotmentFinalized": true,
+    "allotmentFinalizedAt": "2026-08-14T14:47:43.142Z",
+    "allotmentFinalizedBy": "Ankit"
   }
 ]
