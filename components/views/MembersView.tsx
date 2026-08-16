@@ -322,7 +322,7 @@ export function MembersView() {
                 key={member.id}
                 className={`group relative rounded-2xl p-5 transition-all duration-300 flex flex-col justify-between overflow-hidden font-sans bg-gradient-to-b from-surface via-surface-alt/60 to-surface-alt/90 dark:from-[#11131A] dark:to-[#0D0E14] border ${
                   isSuperAdminCard
-                    ? "border-accent/40 hover:border-accent shadow-md shadow-accent/5 hover:shadow-xl hover:shadow-accent/10"
+                    ? "border-accent/50 hover:border-accent shadow-lg shadow-accent/10 hover:shadow-2xl hover:shadow-accent/15 superadmin-aura"
                     : "border-line/80 hover:border-accent/40 hover:shadow-xl hover:shadow-accent/5"
                 } hover:-translate-y-1`}
               >
@@ -335,13 +335,21 @@ export function MembersView() {
                     <div className="flex items-center gap-3.5">
                       {/* Avatar with Status Ring */}
                       <div className="relative shrink-0">
-                        <img
-                          src={member.avatar}
-                          alt={member.name}
-                          className={`w-13 h-13 rounded-2xl object-cover ring-2 ${
-                            isSuperAdminCard ? "ring-accent/50 group-hover:ring-accent" : "ring-accent/30 group-hover:ring-accent/60"
-                          } bg-surface-alt transition-all duration-300 shadow-md`}
-                        />
+                        {isSuperAdminCard ? (
+                          <div className="p-[2px] rounded-2xl bg-gradient-to-tr from-blue-500 via-indigo-500 to-cyan-400 shadow-md shadow-accent/20">
+                            <img
+                              src={member.avatar}
+                              alt={member.name}
+                              className="w-12.5 h-12.5 rounded-[14px] object-cover bg-surface-alt"
+                            />
+                          </div>
+                        ) : (
+                          <img
+                            src={member.avatar}
+                            alt={member.name}
+                            className="w-13 h-13 rounded-2xl object-cover ring-2 ring-accent/30 group-hover:ring-accent/60 bg-surface-alt transition-all duration-300 shadow-md"
+                          />
+                        )}
                         <span
                           className="w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-surface absolute -bottom-0.5 -right-0.5 shadow-xs"
                           title="Active Member"
@@ -365,8 +373,8 @@ export function MembersView() {
                             {member.name}
                           </h3>
                           {isSuperAdminCard && (
-                            <span className="px-2.5 py-0.5 rounded-full bg-accent-soft text-accent border border-accent/30 text-[10px] font-mono font-bold tracking-wider uppercase shrink-0 flex items-center gap-1 shadow-2xs">
-                              <Crown size={11} weight="fill" className="text-accent" />
+                            <span className="relative inline-flex items-center px-2.5 py-0.5 rounded-full bg-accent-soft text-accent border border-accent/40 text-[10px] font-mono font-extrabold tracking-wider uppercase shrink-0 shadow-2xs">
+                              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse mr-1.5" />
                               <span>Super Admin</span>
                             </span>
                           )}
