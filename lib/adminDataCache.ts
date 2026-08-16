@@ -15,6 +15,23 @@ const memoryCache = new Map<string, CacheEntry<any>>();
 // In-flight promise tracker to prevent duplicate concurrent network requests
 const inFlightRequests = new Map<string, Promise<any>>();
 
+// Invalidation epoch tracker to prevent stale in-flight fetches from overwriting newer mutations
+const lastInvalidatedAt = new Map<string, number>();
+
+// Cross-tab synchronization via storage event
+if (typeof window !== "undefined") {
+  window.addEventListener("storage", (e) => {
+    if (e.key && e.key.startsWith("nexo_inval_")) {
+      const keyOrPrefix = e.key.replace("nexo_inval_", "");
+      for (const k of memoryCache.keys()) {
+        if (k === keyOrPrefix || k.startsWith(keyOrPrefix)) {
+          memoryCache.delete(k);
+        }
+      }
+    }
+  });
+}
+
 export const AdminDataCache = {
   /**
    * Retrieves data from memory or localStorage cache immediately if available.
@@ -83,11 +100,16 @@ export const AdminDataCache = {
 
   /**
    * Invalidates a specific cache key or all keys matching a prefix.
+   * Broadcasts to other open tabs via localStorage token.
    */
   invalidate(keyOrPrefix: string): void {
+    const now = Date.now();
+    lastInvalidatedAt.set(keyOrPrefix, now);
+
     for (const k of memoryCache.keys()) {
       if (k === keyOrPrefix || k.startsWith(keyOrPrefix)) {
         memoryCache.delete(k);
+        lastInvalidatedAt.set(k, now);
       }
     }
 
@@ -101,6 +123,9 @@ export const AdminDataCache = {
           }
         }
         toRemove.forEach((k) => localStorage.removeItem(k));
+
+        // Signal other tabs to drop stale in-memory cache
+        localStorage.setItem(`nexo_inval_${keyOrPrefix}`, String(now));
       } catch {}
     }
   },
@@ -109,7 +134,7 @@ export const AdminDataCache = {
    * Performs an SWR fetch:
    * 1. Returns cached data immediately if available.
    * 2. Deduplicates concurrent requests in flight.
-   * 3. Revalidates in the background and calls onUpdate callback if data changed.
+   * 3. Prevents older race-condition responses from overwriting newer mutated state.
    */
   async fetchSWR<T>(
     key: string,
@@ -121,6 +146,7 @@ export const AdminDataCache = {
     } = {}
   ): Promise<T> {
     const { ttlMs = 60000, forceRefresh = false, onUpdate } = options;
+    const requestStartedAt = Date.now();
 
     const cached = this.get<T>(key);
 
@@ -133,6 +159,13 @@ export const AdminDataCache = {
     const fetchPromise = (async () => {
       try {
         const fresh = await fetcher();
+        
+        // Guard against stale response overwriting a mutation that happened during fetch
+        const lastInval = lastInvalidatedAt.get(key);
+        if (lastInval && lastInval > requestStartedAt) {
+          return fresh;
+        }
+
         this.set(key, fresh, ttlMs);
         if (onUpdate && JSON.stringify(cached) !== JSON.stringify(fresh)) {
           onUpdate(fresh);
