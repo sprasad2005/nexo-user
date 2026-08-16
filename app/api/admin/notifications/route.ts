@@ -32,11 +32,27 @@ export async function POST(req: Request) {
     const client = await clientPromise;
     const db = client.db(DB_NAME);
 
+    let targetMemberName = "All Group Members";
+    if (targetMemberId && targetMemberId !== "ALL") {
+      const targetUser = await db.collection("members").findOne({ id: targetMemberId });
+      if (targetUser) {
+        targetMemberName = targetUser.name || targetUser.username || targetMemberId;
+      }
+    }
+
+    let senderAvatar = "/oggy.png";
+    const senderUser = await db.collection("members").findOne({ id: auth.memberId });
+    if (senderUser && senderUser.avatar) {
+      senderAvatar = senderUser.avatar;
+    }
+
     const notificationDoc = {
       id: `notif_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
       senderId: auth.memberId,
       senderName: auth.displayName || "Administrator",
+      senderAvatar,
       targetMemberId: targetMemberId || "ALL",
+      targetMemberName,
       title: title.trim(),
       message: message.trim(),
       severity: ["INFO", "SUCCESS", "WARNING", "CRITICAL"].includes(severity) ? severity : "INFO",
@@ -52,7 +68,7 @@ export async function POST(req: Request) {
 
     return NextResponse.json({
       success: true,
-      message: targetMemberId === "ALL" ? "Notification broadcasted to all group members!" : "Notification sent to member.",
+      message: targetMemberId === "ALL" ? "Notification broadcasted to all group members!" : `Notification sent to ${targetMemberName}!`,
       notification: notificationDoc,
     });
   } catch (err: any) {

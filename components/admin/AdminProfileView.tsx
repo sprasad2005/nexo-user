@@ -51,8 +51,8 @@ export function AdminProfileView({ onSignOutClick }: AdminProfileViewProps = {})
   const phone       = profileOverride.phone     || activeAdmin?.phone     || "+91 98200 12345";
   const panMasked = currentUser?.panMasked || "ABCDE1234F";
   const avatar    = profileOverride.avatar    || currentUser?.avatar    || "";
-  const rawRole   = String(currentUser?.role || "ADMIN").toUpperCase();
-  const roleLabel = rawRole === "SUPER_ADMIN" ? "Super Administrator" : rawRole === "ADMIN" ? "Administrator" : "Member";
+  const rawRole   = String(currentUser?.role || "SUPER_ADMIN").toUpperCase();
+  const roleLabel = rawRole === "SUPER_ADMIN" ? "Super Administrator" : "Member";
 
   const fieldValues: Record<string, string> = { name, username, phone, panMasked, roleLabel };
 

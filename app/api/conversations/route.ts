@@ -68,9 +68,14 @@ export async function GET(req: Request) {
 
         // Get all members of this conversation
         const cMemberships = await memberCol.find({ conversationId: c.id }).toArray();
+        const seenPartIds = new Set<string>();
         const participantMembers = cMemberships
           .map((m) => userMap.get(m.memberId))
-          .filter(Boolean);
+          .filter((u): u is MemberDocument => {
+            if (!u || !u.id || seenPartIds.has(u.id)) return false;
+            seenPartIds.add(u.id);
+            return true;
+          });
 
         let title = c.title;
         let avatar = c.avatar;

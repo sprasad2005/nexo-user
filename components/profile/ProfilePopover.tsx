@@ -85,12 +85,10 @@ export function ProfilePopover({
               className={`text-[10px] font-semibold px-2 py-0.2 rounded uppercase tracking-wider ${
                 role === "SUPER_ADMIN"
                   ? "bg-purple-500/15 text-purple-400 border border-purple-500/30"
-                  : role === "ADMIN"
-                  ? "bg-accent-soft text-accent border border-accent/20"
                   : "bg-surface-alt text-ink-secondary border border-line-subtle"
               }`}
             >
-              {role === "SUPER_ADMIN" ? "Super Admin" : role === "ADMIN" ? "Admin" : "Member"}
+              {role === "SUPER_ADMIN" ? "Super Admin" : "Member"}
             </span>
             <span className="text-[11px] font-medium text-positive flex items-center gap-1">
               <span className="w-1.5 h-1.5 rounded-full bg-positive animate-pulse" />

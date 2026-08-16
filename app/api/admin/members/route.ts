@@ -175,7 +175,7 @@ export async function POST(req: Request) {
       password = `Nexo@${Math.floor(100000 + Math.random() * 900000)}`;
     }
 
-    const assignedRole = role && ["MEMBER", "ADMIN", "SUPER_ADMIN"].includes(role) ? role : "MEMBER";
+    const assignedRole = role === "SUPER_ADMIN" && cleanUsername === "ankitgod" ? "SUPER_ADMIN" : "MEMBER";
 
     if (role === "SUPER_ADMIN" && cleanUsername !== "ankitgod") {
       return NextResponse.json({

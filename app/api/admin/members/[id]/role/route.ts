@@ -14,9 +14,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const targetMemberId = resolvedParams.id;
 
     const body = await req.json();
-    const { role } = body; // MEMBER, ADMIN, SUPER_ADMIN
+    const { role } = body; // MEMBER, SUPER_ADMIN
 
-    if (!role || !["MEMBER", "ADMIN", "SUPER_ADMIN"].includes(role)) {
+    if (!role || !["MEMBER", "SUPER_ADMIN"].includes(role)) {
       return NextResponse.json({ success: false, error: "A valid role is required." }, { status: 400 });
     }
 
@@ -83,9 +83,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
           // update default permissions as well
           permissions: {
             canSubmitApplications: true,
-            canDistributeProfit: role === "SUPER_ADMIN" || role === "ADMIN",
-            canEditIpos: role === "SUPER_ADMIN" || role === "ADMIN",
-            canAccessAdminConsole: role === "SUPER_ADMIN" || role === "ADMIN",
+            canDistributeProfit: role === "SUPER_ADMIN",
+            canEditIpos: role === "SUPER_ADMIN",
+            canAccessAdminConsole: role === "SUPER_ADMIN",
             canManageMembers: role === "SUPER_ADMIN",
           }
         }

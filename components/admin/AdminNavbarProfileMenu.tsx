@@ -80,7 +80,7 @@ export function AdminNavbarProfileMenu({
 
         {/* Popover Dropdown Menu */}
         {isOpen && (
-          <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-surface border border-line shadow-2xl z-50 overflow-hidden font-sans text-ink backdrop-blur-xl animate-fade-in select-none">
+          <div className="absolute right-0 top-full mt-3.5 w-72 rounded-2xl bg-surface border border-line shadow-2xl z-50 overflow-hidden font-sans text-ink backdrop-blur-xl animate-fade-in select-none">
             {/* Backdrop overlay for quick click-outside */}
             <div
               className="fixed inset-0 z-40 bg-transparent"

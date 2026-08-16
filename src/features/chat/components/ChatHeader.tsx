@@ -118,7 +118,7 @@ export function ChatHeader({
           <div className="hidden sm:flex items-center -space-x-2 mr-1">
             {participantsList.slice(0, 3).map((p, idx) => (
               <img
-                key={p.id || idx}
+                key={`header_part_${p.id || idx}_${idx}`}
                 src={p.avatar || "/oggy.png"}
                 alt={p.name}
                 title={p.name}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AdminProvider } from "@/admin/context/AdminContext";
 import { AdminSidebar } from "@/admin/components/AdminSidebar";
 import { AdminNavbarProfileMenu } from "@/components/admin/AdminNavbarProfileMenu";
+import { NotificationPopover } from "@/components/shell/NotificationPopover";
 import { AdminLogoutModal } from "@/components/admin/AdminLogoutModal";
 import { AddIPODrawer } from "@/admin/components/AddIPODrawer";
 import { MessagesTab } from "@/src/features/admin/components/MessagesTab";
@@ -111,11 +112,14 @@ function AdminMessagesContent() {
             </span>
           </div>
 
-          <AdminNavbarProfileMenu
-            activeTab="messages"
-            onSelectTab={handleTabChange}
-            onSignOutClick={() => setIsLogoutModalOpen(true)}
-          />
+          <div className="flex items-center gap-3">
+            <NotificationPopover />
+            <AdminNavbarProfileMenu
+              activeTab="messages"
+              onSelectTab={handleTabChange}
+              onSignOutClick={() => setIsLogoutModalOpen(true)}
+            />
+          </div>
         </header>
 
         {/* Messages Content */}

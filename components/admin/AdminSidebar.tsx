@@ -225,8 +225,8 @@ export function AdminSidebar({
                 <h4 className="text-xs font-extrabold text-ink truncate">
                   {activeUser?.name || "Ankit"}
                 </h4>
-                <span className="text-[9px] font-mono text-blue-600 dark:text-[#6B93FF] bg-blue-50 dark:bg-blue-950/40 px-1 rounded uppercase border border-blue-200 dark:border-blue-800">
-                  {activeUser?.role === "SUPER_ADMIN" ? "SUPER ADMIN" : "ADMIN"}
+                <span className="text-[9px] font-mono text-purple-600 dark:text-[#A78BFA] bg-purple-50 dark:bg-purple-950/40 px-1.5 py-0.5 rounded uppercase border border-purple-200 dark:border-purple-800 font-extrabold">
+                  SUPER ADMIN
                 </span>
               </div>
             </div>

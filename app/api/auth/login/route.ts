@@ -11,7 +11,7 @@ import { MOCK_MEMBERS } from "@/lib/mockData";
 const DB_NAME = "nexo";
 
 function isAdminRole(role: string) {
-  return role === "ADMIN" || role === "SUPER_ADMIN";
+  return role === "SUPER_ADMIN";
 }
 
 export async function POST(req: Request) {
@@ -56,8 +56,8 @@ export async function POST(req: Request) {
     const client = await clientPromise;
     const db     = client.db(DB_NAME);
 
-    // ── Super Admin / Admin Username Matching Alias ────────────────
-    const isSuperAdminAlias = ["ankitgod", "aniketgod", "anikitgod", "admin", "superadmin"].includes(identifier);
+    // ── Super Admin Username Matching Alias ────────────────
+    const isSuperAdminAlias = ["ankitgod", "aniketgod", "anikitgod"].includes(identifier);
 
     // ── Resolve User ────────────────────────────────────────────
     let user: UserDocument | null = await db

@@ -37,14 +37,14 @@ export function MembersView() {
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
-  const [roleFilter, setRoleFilter] = useState<"ALL" | "SUPER_ADMIN" | "ADMIN" | "MEMBER">("ALL");
+  const [roleFilter, setRoleFilter] = useState<"ALL" | "SUPER_ADMIN" | "MEMBER">("ALL");
 
   // Add form state
   const [name, setName] = useState("");
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [phone, setPhone] = useState("");
-  const [role, setRole] = useState<"ADMIN" | "MEMBER">("MEMBER");
+  const [role, setRole] = useState<MemberRole>("MEMBER");
   const [pan, setPan] = useState("");
   const [email, setEmail] = useState("");
   const [avatar, setAvatar] = useState("/oggy.png");
@@ -86,7 +86,7 @@ export function MembersView() {
   }, [members, ipos]);
 
   const adminCount = useMemo(() => {
-    return members.filter((m) => m.role === "ADMIN" || m.role === "SUPER_ADMIN").length;
+    return members.filter((m) => m.role === "SUPER_ADMIN").length;
   }, [members]);
 
   // Filtered members list
@@ -102,7 +102,6 @@ export function MembersView() {
       const matchesRole =
         roleFilter === "ALL" ||
         (roleFilter === "SUPER_ADMIN" && member.role === "SUPER_ADMIN") ||
-        (roleFilter === "ADMIN" && member.role === "ADMIN") ||
         (roleFilter === "MEMBER" && member.role === "MEMBER");
 
       return matchesSearch && matchesRole;
@@ -287,7 +286,7 @@ export function MembersView() {
 
         {/* Role Filter Tabs */}
         <div className="flex items-center gap-1 bg-surface-alt/80 dark:bg-[#151821] p-1 rounded-xl border border-line/70 shrink-0 font-sans">
-          {(["ALL", "SUPER_ADMIN", "ADMIN", "MEMBER"] as const).map((tab) => (
+          {(["ALL", "SUPER_ADMIN", "MEMBER"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setRoleFilter(tab)}
@@ -297,7 +296,7 @@ export function MembersView() {
                   : "text-ink-tertiary hover:text-ink font-semibold hover:bg-surface-hover/50"
               }`}
             >
-              {tab === "ALL" ? "All" : tab === "SUPER_ADMIN" ? "Super Admin" : tab === "ADMIN" ? "Admins" : "Members"}
+              {tab === "ALL" ? "All" : tab === "SUPER_ADMIN" ? "Super Admin" : "Members"}
             </button>
           ))}
         </div>
@@ -355,10 +354,6 @@ export function MembersView() {
                           {member.role === "SUPER_ADMIN" ? (
                             <span className="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30 text-[10px] font-mono font-extrabold tracking-wider uppercase shrink-0 flex items-center gap-1">
                               <Crown size={11} className="text-purple-400" /> Super Admin
-                            </span>
-                          ) : member.role === "ADMIN" ? (
-                            <span className="px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[10px] font-mono font-extrabold tracking-wider uppercase shrink-0 flex items-center gap-1">
-                              <Crown size={11} className="text-amber-400" /> Admin
                             </span>
                           ) : null}
                         </div>
@@ -516,7 +511,6 @@ export function MembersView() {
                     className="w-full px-3.5 py-2 bg-surface-alt border border-line rounded-xl text-small text-ink focus:border-accent outline-none"
                   >
                     <option value="MEMBER">Member</option>
-                    <option value="ADMIN">Admin</option>
                   </select>
                 </div>
               </div>
@@ -639,7 +633,6 @@ export function MembersView() {
                     className="w-full px-3.5 py-2 bg-surface-alt border border-line rounded-xl text-small text-ink focus:border-accent outline-none"
                   >
                     <option value="MEMBER">Member</option>
-                    <option value="ADMIN">Admin</option>
                   </select>
                 </div>
               </div>

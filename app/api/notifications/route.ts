@@ -11,9 +11,12 @@ export async function GET() {
     const client = await clientPromise;
     const db = client.db(DB_NAME);
 
-    // Fetch notifications targeted at ALL or specific member
+    // Fetch notifications targeted at ALL or specific member, excluding dismissed ones
     const filter = authUser
-      ? { $or: [{ targetMemberId: "ALL" }, { targetMemberId: authUser.memberId }] }
+      ? {
+          $or: [{ targetMemberId: "ALL" }, { targetMemberId: authUser.memberId }],
+          dismissedBy: { $ne: authUser.memberId },
+        }
       : { targetMemberId: "ALL" };
 
     const notifications = await db
@@ -27,8 +30,11 @@ export async function GET() {
       success: true,
       notifications: notifications.map((n) => ({
         id: n.id,
+        senderId: n.senderId,
         senderName: n.senderName,
+        senderAvatar: n.senderAvatar || "/oggy.png",
         targetMemberId: n.targetMemberId,
+        targetMemberName: n.targetMemberName || (n.targetMemberId === "ALL" ? "All Group Members" : n.targetMemberId),
         title: n.title,
         message: n.message,
         severity: n.severity,

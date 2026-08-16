@@ -5,6 +5,7 @@ import { useRouter, useParams } from "next/navigation";
 import { AdminProvider } from "@/admin/context/AdminContext";
 import { AdminSidebar } from "@/admin/components/AdminSidebar";
 import { AdminNavbarProfileMenu } from "@/components/admin/AdminNavbarProfileMenu";
+import { NotificationPopover } from "@/components/shell/NotificationPopover";
 import { AdminLogoutModal } from "@/components/admin/AdminLogoutModal";
 import { AddIPODrawer } from "@/admin/components/AddIPODrawer";
 import {
@@ -488,11 +489,14 @@ function MemberDetailPageContent() {
             </span>
           </div>
 
-          <AdminNavbarProfileMenu
-            activeTab="members"
-            onSelectTab={handleTabChange}
-            onSignOutClick={() => setIsLogoutModalOpen(true)}
-          />
+          <div className="flex items-center gap-3">
+            <NotificationPopover />
+            <AdminNavbarProfileMenu
+              activeTab="members"
+              onSelectTab={handleTabChange}
+              onSignOutClick={() => setIsLogoutModalOpen(true)}
+            />
+          </div>
         </header>
 
         {/* Toast Alert */}
@@ -1006,25 +1010,6 @@ function MemberDetailPageContent() {
                               </span>
                             </div>
 
-                            <div className="pt-4 flex items-center gap-3">
-                              {member.role === "MEMBER" && (
-                                <button
-                                  onClick={() => handleRoleChange("ADMIN")}
-                                  className="px-3 py-1.5 rounded-lg border border-blue-500/30 bg-blue-500/5 hover:bg-blue-500/10 text-blue-500 dark:text-[#8B9CFF] text-[11px] font-bold transition-all cursor-pointer"
-                                >
-                                  Promote to Admin
-                                </button>
-                              )}
-
-                              {member.role === "ADMIN" && (
-                                <button
-                                  onClick={() => handleRoleChange("MEMBER")}
-                                  className="px-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-800 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 text-[11px] font-bold transition-all cursor-pointer"
-                                >
-                                  Demote to Member
-                                </button>
-                              )}
-                            </div>
                           </div>
                         </div>
                       </div>

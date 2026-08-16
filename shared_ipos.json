@@ -1,5 +1,177 @@
 [
   {
+    "id": "ipo_1786880631304",
+    "name": "suzlon",
+    "company": "suzlon",
+    "logo": "SU",
+    "category": "Mainboard",
+    "status": "APPLICATION_OPEN",
+    "recommendation": "APPLY",
+    "thesis": "jsbjs",
+    "isHidden": false,
+    "metrics": {
+      "issueSize": "₹2,400 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 21.5,
+      "openDate": "18 Aug 2026",
+      "closeDate": "28 Aug 2026",
+      "allotmentDate": "01 Sep 2026",
+      "listingDate": "04 Sep 2026",
+      "fundUnblockDate": "02 Sep 2026"
+    },
+    "createdBy": "Shivam Prasad",
+    "participantsCount": 0,
+    "combinedCapital": 60000,
+    "applications": [
+      {
+        "id": "app_1786882825434",
+        "ipoId": "ipo_1786880631304",
+        "type": "INDIVIDUAL",
+        "applicantName": "@bhushan",
+        "memberId": "mem_1786882705813",
+        "panMasked": "IKXPP8965P",
+        "panNumbers": [
+          "IKXPP8965P"
+        ],
+        "totalContribution": 15000,
+        "lotCount": 1,
+        "verified": true,
+        "allotmentStatus": "AWAITING",
+        "status": "AWAITING",
+        "createdAt": "2026-08-16T12:20:25.434Z",
+        "applicationNumber": "NEXO-APP-9946",
+        "participants": [
+          {
+            "memberId": "mem_1786882705813",
+            "memberName": "bhushan",
+            "avatar": "/japlu.png",
+            "contribution": 15000,
+            "percentage": 100,
+            "panMasked": "IKXPP8965P",
+            "panFull": "IKXPP8965P",
+            "status": "SUBMITTED"
+          }
+        ]
+      },
+      {
+        "id": "app_1786880758697",
+        "ipoId": "ipo_1786880631304",
+        "type": "COMBINED",
+        "applicantName": "@krish & @user",
+        "memberId": "mem_admin",
+        "panMasked": "IKXPP8955P",
+        "panNumbers": [
+          "IKXPP8955P"
+        ],
+        "totalContribution": 15000,
+        "lotCount": 1,
+        "verified": true,
+        "allotmentStatus": "AWAITING",
+        "status": "AWAITING",
+        "createdAt": "2026-08-16T11:45:58.697Z",
+        "applicationNumber": "NEXO-APP-3835",
+        "participants": [
+          {
+            "memberId": "mem_1786713174555",
+            "memberName": "krish",
+            "avatar": "/doremon.png",
+            "contribution": 7500,
+            "percentage": 50,
+            "panMasked": "IKXPP8955P",
+            "panFull": "IKXPP8955P",
+            "status": "SUBMITTED"
+          },
+          {
+            "memberId": "mem_1786680225463",
+            "memberName": "user",
+            "avatar": "/sinchan.png",
+            "contribution": 7500,
+            "percentage": 50,
+            "panMasked": "ABCDE1234F",
+            "panFull": "ABCDE1234F",
+            "status": "SUBMITTED"
+          }
+        ]
+      },
+      {
+        "id": "app_1786880705878",
+        "ipoId": "ipo_1786880631304",
+        "type": "COMBINED",
+        "applicantName": "@user2",
+        "memberId": "mem_1786684116726",
+        "panMasked": "IKXPP8958P",
+        "panNumbers": [
+          "IKXPP8958P"
+        ],
+        "totalContribution": 15000,
+        "lotCount": 1,
+        "verified": true,
+        "allotmentStatus": "AWAITING",
+        "status": "AWAITING",
+        "createdAt": "2026-08-16T11:45:05.879Z",
+        "applicationNumber": "NEXO-APP-1969",
+        "participants": [
+          {
+            "memberId": "mem_1786680225463",
+            "memberName": "krish",
+            "avatar": "/sinchan.png",
+            "contribution": 7500,
+            "percentage": 50,
+            "panMasked": "IKXPP8958P",
+            "panFull": "IKXPP8958P",
+            "status": "SUBMITTED"
+          },
+          {
+            "memberId": "mem_1786684116726",
+            "memberName": "user2",
+            "avatar": "/oggy.png",
+            "contribution": 7500,
+            "percentage": 50,
+            "panMasked": "ABCDE1234F",
+            "panFull": "ABCDE1234F",
+            "status": "SUBMITTED"
+          }
+        ]
+      },
+      {
+        "id": "app_1786880681452",
+        "ipoId": "ipo_1786880631304",
+        "type": "INDIVIDUAL",
+        "applicantName": "@krish",
+        "memberId": "mem_1786713174555",
+        "panMasked": "IKXPP8988P",
+        "panNumbers": [
+          "IKXPP8988P"
+        ],
+        "totalContribution": 15000,
+        "lotCount": 1,
+        "verified": true,
+        "allotmentStatus": "AWAITING",
+        "status": "AWAITING",
+        "createdAt": "2026-08-16T11:44:41.452Z",
+        "applicationNumber": "NEXO-APP-7767",
+        "participants": [
+          {
+            "memberId": "mem_1786713174555",
+            "memberName": "krish",
+            "avatar": "/doremon.png",
+            "contribution": 15000,
+            "percentage": 100,
+            "panMasked": "IKXPP8988P",
+            "panFull": "IKXPP8988P",
+            "status": "SUBMITTED"
+          }
+        ]
+      }
+    ],
+    "registrarUrl": "https://www.hotstar.com/in/shows/game-of-thrones/1971002880/dragonstone/1971035104/watch?episodeNumber=10&search_query=got&seasonId=1971009218"
+  },
+  {
     "id": "ipo_1786777779359",
     "name": "Dhoot Transmission",
     "company": "Dhoot Transmission",

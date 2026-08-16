@@ -55,6 +55,9 @@ export interface NexoContextType {
   dismissActionItem: (id: string) => void;
   notifications: BroadcastNotification[];
   sendBroadcastNotification: (notif: BroadcastNotification) => void;
+  refreshNotifications: () => Promise<void>;
+  deleteNotification: (id: string, scope?: "me" | "everyone") => Promise<void>;
+  markAllNotificationsRead: () => void;
   portfolioSummary: PortfolioSummary;
   individualSavings: number;
   updateIndividualSavings: (amount: number) => void;
@@ -201,22 +204,15 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
   const [activeTab, setActiveTabState] = useState<ViewTab>(() => {
     if (typeof window !== "undefined") {
       try {
-        const storedUser = localStorage.getItem("nexo_session_user");
-        if (storedUser) {
-          const parsed = JSON.parse(storedUser);
-          if (parsed.role === "SUPER_ADMIN" || parsed.role === "ADMIN") {
-            const hashTab = window.location.hash.replace("#", "").toLowerCase() as ViewTab;
-            if (hashTab && hashTab !== "dashboard") return hashTab;
-            return "admin";
-          }
-        }
+        const hashTab = window.location.hash.replace("#", "").toLowerCase() as ViewTab;
+        if (hashTab) return hashTab;
         const storedTab = localStorage.getItem("nexo_active_tab") as ViewTab;
         if (storedTab) return storedTab;
       } catch {}
     }
     return "dashboard";
   });
-  const [currentUserRole, setCurrentUserRole] = useState<MemberRole>("ADMIN");
+  const [currentUserRole, setCurrentUserRole] = useState<MemberRole>("MEMBER");
 
   const setActiveTab = (tab: ViewTab) => {
     setActiveTabState(tab);
@@ -543,12 +539,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
 
           if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") {
             const hashTab = window.location.hash.replace("#", "").toLowerCase() as ViewTab;
-            if (!hashTab || hashTab === "dashboard") {
+            if (hashTab === "admin") {
               setActiveTabState("admin");
-              try {
-                localStorage.setItem("nexo_active_tab", "admin");
-                if (typeof window !== "undefined") window.history.replaceState(null, "", "#admin");
-              } catch {}
             }
           }
 
@@ -812,8 +804,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       console.warn("API login attempt failed, attempting local verification:", err);
     }
 
-    // 2. Fallback: Match against assigned credentials in local state
-    const isSuperAdminAlias = ["ankitgod", "aniketgod", "anikitgod", "admin", "superadmin"].includes(cleanUser);
+    const isSuperAdminAlias = ["ankitgod", "aniketgod", "anikitgod"].includes(cleanUser);
     let foundMember = members.find((m) => {
       const uName = (m.username || m.name).toLowerCase();
       const uEmail = m.email.toLowerCase();
@@ -893,6 +884,28 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       })
       .catch(() => {});
   }, []);
+
+  const refreshNotifications = async () => {
+    try {
+      const res = await fetch("/api/notifications");
+      const data = await res.json();
+      if (data.success && Array.isArray(data.notifications)) {
+        setNotifications(data.notifications);
+      }
+    } catch {}
+  };
+
+  const deleteNotification = async (id: string, scope: "me" | "everyone" = "everyone") => {
+    // 1. Optimistic removal from state
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await fetch(`/api/notifications/${id}?scope=${scope}`, { method: "DELETE" });
+    } catch {}
+  };
+
+  const markAllNotificationsRead = () => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, isRead: true })));
+  };
 
   const sendBroadcastNotification = (notif: BroadcastNotification) => {
     setNotifications((prev) => [notif, ...prev]);
@@ -1657,6 +1670,9 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
         dismissActionItem,
         notifications,
         sendBroadcastNotification,
+        refreshNotifications,
+        deleteNotification,
+        markAllNotificationsRead,
         portfolioSummary,
         individualSavings,
         updateIndividualSavings,

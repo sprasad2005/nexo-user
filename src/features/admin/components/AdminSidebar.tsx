@@ -275,8 +275,8 @@ export function AdminSidebar({
                 <h4 className="text-xs font-bold text-ink truncate leading-none">
                   {activeUser?.name || "Niranjan"}
                 </h4>
-                <span className="text-[10px] text-ink-tertiary leading-tight block truncate mt-0.5">
-                  {activeUser?.role === "SUPER_ADMIN" ? "Super Admin" : "Admin"}
+                <span className="text-[10px] text-purple-400 font-bold leading-tight block truncate mt-0.5">
+                  Super Admin
                 </span>
               </div>
             </div>

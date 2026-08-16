@@ -1,7 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useNexo } from "@/context/NexoContext";
-import { Users, X, Plus, Check, ShieldCheck } from "@phosphor-icons/react";
+import { Users, X, Plus, Check, ShieldCheck, UploadSimple, Camera } from "@phosphor-icons/react";
+
+const PRESET_AVATARS = [
+  { name: "Oggy", path: "/oggy.png" },
+  { name: "Jack", path: "/jack.png" },
+  { name: "Shinchan", path: "/sinchan.png" },
+  { name: "Doraemon", path: "/doremon.png" },
+  { name: "Japlu", path: "/japlu.png" },
+];
 
 interface CreateGroupModalProps {
   isOpen: boolean;
@@ -16,10 +24,13 @@ export function CreateGroupModal({
 }: CreateGroupModalProps) {
   const { members, currentMember } = useNexo();
   const [groupTitle, setGroupTitle] = useState("");
+  const [selectedAvatar, setSelectedAvatar] = useState<string>("/oggy.png");
+  const [customAvatarUrl, setCustomAvatarUrl] = useState<string>("");
   const [selectedMemberIds, setSelectedMemberIds] = useState<string[]>([]);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setIsMounted(true);
@@ -33,6 +44,23 @@ export function CreateGroupModal({
     );
   };
 
+  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      setErrorMsg("Image file must be less than 2MB");
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const dataUrl = event.target?.result as string;
+      if (dataUrl) {
+        setSelectedAvatar(dataUrl);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
   const handleCreateGroup = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -44,12 +72,14 @@ export function CreateGroupModal({
 
     setIsSubmitting(true);
     try {
+      const avatarToUse = customAvatarUrl.trim() || selectedAvatar;
       const res = await fetch("/api/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           type: "GROUP",
           title: groupTitle.trim(),
+          avatar: avatarToUse,
           participantIds: selectedMemberIds,
         }),
       });
@@ -58,6 +88,8 @@ export function CreateGroupModal({
       if (res.ok && data.success) {
         onGroupCreated(data.conversation);
         setGroupTitle("");
+        setSelectedAvatar("/oggy.png");
+        setCustomAvatarUrl("");
         setSelectedMemberIds([]);
         onClose();
       } else {
@@ -99,9 +131,70 @@ export function CreateGroupModal({
             </div>
           )}
 
+          {/* Group Logo Selector */}
+          <div className="space-y-2 p-3 rounded-2xl bg-surface-alt/40 border border-line/60">
+            <label className="text-xs font-bold text-ink block">Group Logo / Icon</label>
+            <div className="flex items-center gap-3">
+              <div className="relative group">
+                <img
+                  src={customAvatarUrl.trim() || selectedAvatar}
+                  alt="Group Logo Preview"
+                  className="w-12 h-12 rounded-full object-cover border-2 border-line shrink-0 shadow-xs"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="absolute inset-0 bg-black/60 rounded-full opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white cursor-pointer"
+                >
+                  <Camera size={16} weight="bold" />
+                </button>
+              </div>
+
+              <div className="flex-1 space-y-1.5 min-w-0">
+                <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+                  {PRESET_AVATARS.map((p) => (
+                    <button
+                      key={p.path}
+                      type="button"
+                      onClick={() => {
+                        setSelectedAvatar(p.path);
+                        setCustomAvatarUrl("");
+                      }}
+                      className={`p-0.5 rounded-full border-2 transition-all cursor-pointer shrink-0 ${
+                        selectedAvatar === p.path && !customAvatarUrl
+                          ? "border-accent scale-105 shadow-sm"
+                          : "border-transparent opacity-60 hover:opacity-100"
+                      }`}
+                    >
+                      <img src={p.path} alt={p.name} className="w-7 h-7 rounded-full object-cover" />
+                    </button>
+                  ))}
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileUpload}
+                    accept="image/*"
+                    className="hidden"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileInputRef.current?.click()}
+                    className="px-2 py-1 rounded-lg bg-surface hover:bg-surface-hover border border-line text-[11px] font-bold text-ink flex items-center gap-1 transition-all cursor-pointer"
+                  >
+                    <UploadSimple size={12} />
+                    <span>Upload Image</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* Group Title */}
           <div className="space-y-1.5">
-            <label className="text-xs font-bold text-ink block">Group Name</label>
+            <label className="text-xs font-bold text-ink block">Group Name *</label>
             <input
               type="text"
               placeholder="e.g. High Net Worth Investors, VIP Syndicate..."

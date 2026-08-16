@@ -3,6 +3,8 @@ import clientPromise from "@/lib/mongodb";
 import { ConversationDocument } from "@/src/models/Conversation";
 import { ConversationMemberDocument } from "@/src/models/ConversationMember";
 import { MemberDocument } from "@/src/models/Member";
+import { getAuthenticatedUser } from "@/src/lib/auth/authorization";
+import { broadcastRealtimeEvent } from "@/app/api/realtime/route";
 
 const DB = "nexo";
 const COL_CONV = "conversations";
@@ -80,6 +82,60 @@ export async function GET(
     console.error("GET /api/conversations/[id] error:", err);
     return NextResponse.json(
       { success: false, error: "Failed to fetch conversation details" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function PATCH(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await req.json();
+    const { avatar, title } = body;
+
+    const auth = await getAuthenticatedUser();
+    const isSuperAdmin = auth?.role === "SUPER_ADMIN";
+
+    const client = await clientPromise;
+    const db = client.db(DB);
+    const convCol = db.collection<ConversationDocument>(COL_CONV);
+
+    const conv = await convCol.findOne({ id });
+    if (!conv) {
+      return NextResponse.json({ success: false, error: "Group not found." }, { status: 404 });
+    }
+
+    // Allow Super Admin or the group creator
+    if (!isSuperAdmin && (!auth || conv.createdBy !== auth.memberId)) {
+      return NextResponse.json(
+        { success: false, error: "Access denied. Only Super Admin can update group logo." },
+        { status: 403 }
+      );
+    }
+
+    const updateFields: any = { updatedAt: new Date() };
+    if (avatar && typeof avatar === "string") updateFields.avatar = avatar;
+    if (title && typeof title === "string" && title.trim()) updateFields.title = title.trim();
+
+    await convCol.updateOne({ id }, { $set: updateFields });
+
+    const updatedConv = await convCol.findOne({ id });
+    if (updatedConv) {
+      broadcastRealtimeEvent("conversation:update", updatedConv);
+    }
+
+    return NextResponse.json({
+      success: true,
+      message: "Group logo updated successfully!",
+      conversation: updatedConv,
+    });
+  } catch (err: any) {
+    console.error("PATCH /api/conversations/[id] error:", err);
+    return NextResponse.json(
+      { success: false, error: "Failed to update group logo." },
       { status: 500 }
     );
   }

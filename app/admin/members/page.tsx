@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { AdminProvider } from "@/admin/context/AdminContext";
 import { AdminSidebar } from "@/admin/components/AdminSidebar";
 import { AdminNavbarProfileMenu } from "@/components/admin/AdminNavbarProfileMenu";
+import { NotificationPopover } from "@/components/shell/NotificationPopover";
 import { AdminLogoutModal } from "@/components/admin/AdminLogoutModal";
 import { AddIPODrawer } from "@/admin/components/AddIPODrawer";
 import { 
@@ -150,6 +151,7 @@ function MembersPageContent() {
             sessionStorage.setItem("nexo_admin_authenticated", "true");
           } catch {}
           setAdminStatus("AUTHORIZED");
+          setCurrentUserRole(data.user?.role || data.member?.role || "ADMIN");
         } else {
           try {
             sessionStorage.removeItem("nexo_admin_authenticated");
@@ -582,11 +584,14 @@ function MembersPageContent() {
             </span>
           </div>
 
-          <AdminNavbarProfileMenu
-            activeTab="members"
-            onSelectTab={handleTabChange}
-            onSignOutClick={() => setIsLogoutModalOpen(true)}
-          />
+          <div className="flex items-center gap-3">
+            <NotificationPopover />
+            <AdminNavbarProfileMenu
+              activeTab="members"
+              onSelectTab={handleTabChange}
+              onSignOutClick={() => setIsLogoutModalOpen(true)}
+            />
+          </div>
         </header>
 
         {/* Toast Alert */}
@@ -954,30 +959,6 @@ function MembersPageContent() {
 
                                   <div className="my-1 border-t border-slate-100 dark:border-[#252931]" />
 
-                                  {member.role === "MEMBER" ? (
-                                    <button
-                                      onClick={() => {
-                                        setActiveDropdownRow(null);
-                                        handleRoleChangeSubmit(member, "ADMIN");
-                                      }}
-                                      className="w-full px-3 py-2 hover:bg-slate-100/80 dark:hover:bg-[#20242F] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 rounded-xl transition-all duration-150 cursor-pointer group"
-                                    >
-                                      <ShieldCheck size={15} className="text-slate-400 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-white transition-colors" />
-                                      <span>Promote to Admin</span>
-                                    </button>
-                                  ) : (
-                                    <button
-                                      onClick={() => {
-                                        setActiveDropdownRow(null);
-                                        handleRoleChangeSubmit(member, "MEMBER");
-                                      }}
-                                      className="w-full px-3 py-2 hover:bg-slate-100/80 dark:hover:bg-[#20242F] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 rounded-xl transition-all duration-150 cursor-pointer group"
-                                    >
-                                      <ShieldCheck size={15} className="text-slate-400 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-white transition-colors" />
-                                      <span>Demote to Member</span>
-                                    </button>
-                                  )}
-
                                   <button
                                     onClick={() => {
                                       setActiveDropdownRow(null);
@@ -1217,54 +1198,12 @@ function MembersPageContent() {
                     </div>
                   )}
 
-                  <div className="relative">
+                  <div>
                     <label className="text-[10px] font-extrabold text-slate-450 dark:text-[#858D99] uppercase tracking-wider block mb-1.5 font-bold">ASSIGN USER ROLE</label>
-                    <button
-                      type="button"
-                      onClick={() => setIsRoleDropdownOpen(!isRoleDropdownOpen)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs focus:outline-none font-semibold text-slate-705 dark:text-slate-200 cursor-pointer flex items-center justify-between transition-colors hover:bg-slate-100/50 dark:hover:bg-[#15171D]"
-                    >
-                      <span>
-                        {formRole === "MEMBER" && "Member (Standard member access)"}
-                        {formRole === "ADMIN" && "Admin (Manage IPOs and transactions)"}
-                      </span>
-                      <CaretDown size={14} className={`text-slate-400 transition-transform duration-200 ${isRoleDropdownOpen ? "rotate-180" : ""}`} />
-                    </button>
-
-                    {isRoleDropdownOpen && (
-                      <>
-                        <div className="fixed inset-0 z-20" onClick={() => setIsRoleDropdownOpen(false)} />
-                        
-                        <div className="absolute top-full left-0 right-0 mt-1.5 bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-xl shadow-lg z-30 divide-y divide-slate-100 dark:divide-[#252931]/60 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
-                          {[
-                            { value: "MEMBER", title: "Member", desc: "Standard member access" },
-                            { value: "ADMIN", title: "Admin", desc: "Manage IPOs and transactions" },
-                          ].map((roleOpt) => (
-                            <button
-                              key={roleOpt.value}
-                              type="button"
-                              onClick={() => {
-                                setFormRole(roleOpt.value as any);
-                                if (roleOpt.value !== "SUPER_ADMIN") setIsSuperAdminConfirmed(false);
-                                setIsRoleDropdownOpen(false);
-                              }}
-                              className={`w-full text-left px-4 py-2.5 hover:bg-slate-50 dark:hover:bg-[#1C2026] flex flex-col transition-colors cursor-pointer ${
-                                formRole === roleOpt.value ? "bg-blue-500/5 dark:bg-blue-500/10" : ""
-                              }`}
-                            >
-                              <span className={`text-xs font-bold ${formRole === roleOpt.value ? "text-blue-600 dark:text-[#6B93FF]" : "text-slate-850 dark:text-slate-200"}`}>
-                                {roleOpt.title}
-                              </span>
-                              <span className="text-[10px] text-slate-400 dark:text-[#858D99] mt-0.5">
-                                {roleOpt.desc}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </>
-                    )}
-
-
+                    <div className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-[#15171C] border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-600 dark:text-slate-300 select-none flex items-center justify-between">
+                      <span>Member (Standard member access)</span>
+                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-200/60 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase">MEMBER</span>
+                    </div>
                   </div>
 
                   {isSuperAdmin && (

@@ -8,6 +8,7 @@ import { AdminIPOManagement } from "../../admin/components/AdminIPOManagement";
 import { DistributeProfitView } from "../../admin/components/DistributeProfitView";
 import { AddIPODrawer } from "../../admin/components/AddIPODrawer";
 import { AdminNavbarProfileMenu } from "./AdminNavbarProfileMenu";
+import { NotificationPopover } from "../shell/NotificationPopover";
 import { AdminProfileView } from "./AdminProfileView";
 import { AdminSettingsView } from "./AdminSettingsView";
 import { AdminLogoutModal } from "./AdminLogoutModal";
@@ -250,11 +251,14 @@ function AdminDashboardContent() {
             </span>
           </div>
 
-          <AdminNavbarProfileMenu
-            activeTab={activeTab}
-            onSelectTab={(tab) => setActiveTab(tab)}
-            onSignOutClick={() => setIsLogoutModalOpen(true)}
-          />
+          <div className="flex items-center gap-3">
+            <NotificationPopover />
+            <AdminNavbarProfileMenu
+              activeTab={activeTab}
+              onSelectTab={(tab) => setActiveTab(tab)}
+              onSignOutClick={() => setIsLogoutModalOpen(true)}
+            />
+          </div>
         </header>
 
         {/* Feedback Alert */}

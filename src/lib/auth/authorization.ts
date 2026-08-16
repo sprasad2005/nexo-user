@@ -65,7 +65,7 @@ export async function requireUser(): Promise<AuthContext> {
  */
 export async function requireAdmin(): Promise<AuthContext> {
   const auth = await requireUser();
-  if (auth.role !== "ADMIN" && auth.role !== "SUPER_ADMIN") {
+  if (auth.role !== "SUPER_ADMIN") {
     throw new Error("FORBIDDEN");
   }
   return auth;
