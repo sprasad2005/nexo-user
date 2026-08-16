@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { AdminProvider } from "../../admin/context/AdminContext";
 import { AdminSidebar } from "../../admin/components/AdminSidebar";
 import { AdminIPOManagement } from "../../admin/components/AdminIPOManagement";
+import { AdminIPOHistoryView } from "../../admin/components/AdminIPOHistoryView";
 import { DistributeProfitView } from "../../admin/components/DistributeProfitView";
 import { AddIPODrawer } from "../../admin/components/AddIPODrawer";
 import { AdminNavbarProfileMenu } from "./AdminNavbarProfileMenu";
@@ -154,8 +155,10 @@ function AdminDashboardContent() {
   }, []);
 
   useEffect(() => {
-    if (tabParam && ["ipos", "applications", "allotment", "allotments", "distribute-profit", "members", "messages", "activity", "security", "profile", "settings"].includes(tabParam)) {
-      if (tabParam === "allotment" || tabParam === "allotments") {
+    if (tabParam && ["ipos", "history", "applications", "allotment", "allotments", "distribute-profit", "members", "messages", "activity", "security", "profile", "settings"].includes(tabParam)) {
+      if (tabParam === "history") {
+        router.push("/admin/history");
+      } else if (tabParam === "allotment" || tabParam === "allotments") {
         router.push("/admin/allotment");
       } else if (tabParam === "applications") {
         router.push("/admin/applications");
@@ -174,7 +177,9 @@ function AdminDashboardContent() {
   }, [tabParam, router]);
 
   const handleSelectTab = (tab: string) => {
-    if (tab === "allotment" || tab === "allotments") {
+    if (tab === "history") {
+      router.push("/admin/history");
+    } else if (tab === "allotment" || tab === "allotments") {
       router.push("/admin/allotment");
     } else if (tab === "applications") {
       router.push("/admin/applications");
@@ -202,6 +207,8 @@ function AdminDashboardContent() {
     switch (tab) {
       case "ipos":
         return "IPO Management";
+      case "history":
+        return "IPO History";
       case "applications":
         return "Applications Management";
       case "allotment":
@@ -278,6 +285,7 @@ function AdminDashboardContent() {
           }`}
         >
           {activeTab === "ipos" && <AdminIPOManagement />}
+          {activeTab === "history" && <AdminIPOHistoryView />}
           {activeTab === "applications" && <AdminApplicationsView />}
           {(activeTab === "allotment" || activeTab === "allotments") && <AllotmentManagementView />}
           {activeTab === "distribute-profit" && <DistributeProfitView />}
@@ -289,6 +297,7 @@ function AdminDashboardContent() {
           )}
           {activeTab === "settings" && <AdminSettingsView />}
           {activeTab !== "ipos" &&
+            activeTab !== "history" &&
             activeTab !== "applications" &&
             activeTab !== "allotment" &&
             activeTab !== "allotments" &&
