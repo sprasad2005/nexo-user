@@ -68,6 +68,8 @@ export async function GET(req: NextRequest) {
         allIpos = dbIpos.map((item: any) => ({
           ...item,
           id: item.id || String(item._id),
+          createdAt: item.createdAt || (item._id?.getTimestamp ? item._id.getTimestamp().toISOString() : new Date().toISOString()),
+          addedAt: item.addedAt || item.createdAt || (item._id?.getTimestamp ? item._id.getTimestamp().toISOString() : new Date().toISOString()),
           _id: undefined,
         }));
         // Cache to local file

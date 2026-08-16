@@ -97,6 +97,8 @@ export async function GET(req: Request) {
             allotmentFinalized: Boolean(ipo.allotmentFinalized || existing.allotmentFinalized),
             allotmentFinalizedAt: ipo.allotmentFinalizedAt || existing.allotmentFinalizedAt || null,
             allotmentFinalizedBy: ipo.allotmentFinalizedBy || existing.allotmentFinalizedBy || null,
+            createdAt: ipo.createdAt || existing.createdAt || null,
+            addedAt: ipo.addedAt || existing.addedAt || null,
             embeddedApplications: [...existing.embeddedApplications, ...embedded],
           });
         } else {
@@ -109,6 +111,8 @@ export async function GET(req: Request) {
             allotmentFinalized: Boolean(ipo.allotmentFinalized),
             allotmentFinalizedAt: ipo.allotmentFinalizedAt || null,
             allotmentFinalizedBy: ipo.allotmentFinalizedBy || null,
+            createdAt: ipo.createdAt || null,
+            addedAt: ipo.addedAt || ipo.createdAt || null,
             metrics: ipo.metrics || {},
             embeddedApplications: embedded,
           });
