@@ -1,5 +1,69 @@
 [
   {
+    "id": "ipo_1786898877713",
+    "addedAt": "2026-08-16T16:47:57.713Z",
+    "applications": [],
+    "category": "Mainboard",
+    "combinedCapital": 0,
+    "company": "Lalitha Jwellers",
+    "createdAt": "2026-08-16T16:47:57.713Z",
+    "createdBy": "Shivam Prasad",
+    "isHidden": true,
+    "logo": "LA",
+    "metrics": {
+      "issueSize": "₹3,000 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 18.5,
+      "openDate": "18 Aug 2026",
+      "closeDate": "28 Aug 2026",
+      "allotmentDate": "01 Sep 2026",
+      "listingDate": "04 Sep 2026",
+      "fundUnblockDate": "02 Sep 2026"
+    },
+    "name": "Lalitha Jwellers",
+    "participantsCount": 0,
+    "recommendation": "APPLY",
+    "status": "APPLICATION_OPEN",
+    "thesis": "Apply After 2 PM"
+  },
+  {
+    "id": "ipo_1786898876659",
+    "addedAt": "2026-08-16T16:47:56.660Z",
+    "applications": [],
+    "category": "Mainboard",
+    "combinedCapital": 0,
+    "company": "Lalitha Jwellers",
+    "createdAt": "2026-08-16T16:47:56.660Z",
+    "createdBy": "Shivam Prasad",
+    "isHidden": false,
+    "logo": "LA",
+    "metrics": {
+      "issueSize": "₹3,000 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 18.5,
+      "openDate": "18 Aug 2026",
+      "closeDate": "28 Aug 2026",
+      "allotmentDate": "01 Sep 2026",
+      "listingDate": "04 Sep 2026",
+      "fundUnblockDate": "02 Sep 2026"
+    },
+    "name": "Lalitha Jwellers",
+    "participantsCount": 0,
+    "recommendation": "APPLY",
+    "status": "APPLICATION_OPEN",
+    "thesis": "Apply After 2 PM"
+  },
+  {
     "id": "ipo_1786897130585",
     "addedAt": "2026-08-16T16:18:50.585Z",
     "applications": [],
@@ -8,7 +72,7 @@
     "company": "INDO MIM",
     "createdAt": "2026-08-16T16:18:50.585Z",
     "createdBy": "Shivam Prasad",
-    "isHidden": false,
+    "isHidden": true,
     "logo": "IN",
     "metrics": {
       "issueSize": "₹2,400 Cr",
@@ -40,7 +104,7 @@
     "company": "NEW IPO",
     "createdAt": "2026-08-16T16:18:01.541Z",
     "createdBy": "Shivam Prasad",
-    "isHidden": false,
+    "isHidden": true,
     "logo": "NE",
     "metrics": {
       "issueSize": "₹2,400 Cr",
@@ -72,7 +136,7 @@
     "company": "xyz",
     "createdAt": "2026-08-16T15:03:02.321Z",
     "createdBy": "Shivam Prasad",
-    "isHidden": false,
+    "isHidden": true,
     "logo": "XY",
     "metrics": {
       "issueSize": "₹2,400 Cr",

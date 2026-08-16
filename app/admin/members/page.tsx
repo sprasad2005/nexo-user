@@ -1155,6 +1155,7 @@ function MembersPageContent() {
 
             {/* Wizard Form */}
             <form
+              autoComplete="off"
               onSubmit={(e) => {
                 e.preventDefault();
                 if (wizardStep === 1 && !isLoading) handleCreateMemberSubmit();
@@ -1172,6 +1173,10 @@ function MembersPageContent() {
                       <label className="text-[10px] font-extrabold text-slate-450 dark:text-[#858D99] uppercase tracking-wider block mb-1.5 font-bold">USERNAME * (Lowercase, no spaces)</label>
                       <input
                         type="text"
+                        name="create_nexo_member_username_field"
+                        autoComplete="off"
+                        data-lpignore="true"
+                        data-1p-ignore="true"
                         placeholder="e.g. niranjan"
                         value={formUsername}
                         onChange={(e) => setFormUsername(e.target.value)}
@@ -1181,7 +1186,7 @@ function MembersPageContent() {
                             if (wizardStep === 1 && !isLoading) handleCreateMemberSubmit();
                           }
                         }}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs focus:outline-none"
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600"
                       />
                     </div>
                   ) : (
@@ -1222,6 +1227,10 @@ function MembersPageContent() {
                       <div className="relative">
                         <input
                           type={showFormPassword ? "text" : "password"}
+                          name="create_nexo_member_password_field"
+                          autoComplete="new-password"
+                          data-lpignore="true"
+                          data-1p-ignore="true"
                           placeholder="At least 6 characters"
                           value={formPassword}
                           onChange={(e) => {
@@ -1234,7 +1243,7 @@ function MembersPageContent() {
                               if (wizardStep === 1 && !isLoading) handleCreateMemberSubmit();
                             }
                           }}
-                          className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs focus:outline-none"
+                          className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600"
                         />
                         <button
                           type="button"
