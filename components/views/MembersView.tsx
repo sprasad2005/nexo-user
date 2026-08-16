@@ -320,14 +320,14 @@ export function MembersView() {
             return (
               <div
                 key={member.id}
-                className={`group relative rounded-2xl p-5 transition-all duration-300 flex flex-col justify-between overflow-hidden font-sans bg-gradient-to-b from-surface via-surface-alt/60 to-surface-alt/90 dark:from-[#11131A] dark:to-[#0D0E14] border ${
+                className={`group relative rounded-2xl p-5 transition-all duration-300 flex flex-col justify-between overflow-hidden font-sans bg-surface dark:bg-[#101217] border ${
                   isSuperAdminCard
-                    ? "border-accent/50 hover:border-accent shadow-lg shadow-accent/10 hover:shadow-2xl hover:shadow-accent/15 superadmin-aura"
+                    ? "border-accent/40 hover:border-accent shadow-md shadow-accent/5 hover:shadow-xl hover:shadow-accent/10"
                     : "border-line/80 hover:border-accent/40 hover:shadow-xl hover:shadow-accent/5"
                 } hover:-translate-y-1`}
               >
                 {/* Subtle Top Accent */}
-                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent/0 via-accent/60 to-accent/0 ${isSuperAdminCard ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity duration-300`} />
+                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent/0 via-accent to-accent/0 ${isSuperAdminCard ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity duration-300`} />
 
                 <div className="space-y-4">
                   {/* Top Profile Header */}
@@ -335,35 +335,23 @@ export function MembersView() {
                     <div className="flex items-center gap-3.5">
                       {/* Avatar with Status Ring */}
                       <div className="relative shrink-0">
-                        {isSuperAdminCard ? (
-                          <div className="relative p-[2.5px] rounded-2xl bg-gradient-to-tr from-blue-500 via-indigo-500 to-cyan-400 shadow-[0_0_20px_rgba(59,130,246,0.25)] group-hover:shadow-[0_0_25px_rgba(99,102,241,0.35)] transition-all duration-300">
-                            <div className="w-13 h-13 rounded-[13.5px] overflow-hidden bg-surface-alt ring-1 ring-black/40 dark:ring-white/10">
-                              <img
-                                src={member.avatar}
-                                alt={member.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              />
-                            </div>
-                            <span
-                              className="w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-surface absolute -bottom-1 -right-1 shadow-[0_0_8px_rgba(16,185,129,0.7)]"
-                              title="Super Admin Active"
+                        <div className={`relative p-[2px] rounded-2xl transition-all duration-300 ${
+                          isSuperAdminCard
+                            ? "bg-gradient-to-b from-accent/60 via-accent/20 to-transparent ring-1 ring-accent/30 shadow-xs"
+                            : "bg-surface-alt border border-line ring-1 ring-line/50"
+                        }`}>
+                          <div className="w-13 h-13 rounded-[14px] overflow-hidden bg-surface-alt">
+                            <img
+                              src={member.avatar}
+                              alt={member.name}
+                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
                             />
                           </div>
-                        ) : (
-                          <div className="relative p-[1.5px] rounded-2xl bg-surface-alt border border-line ring-1 ring-accent/20 group-hover:ring-accent/50 shadow-sm transition-all duration-300">
-                            <div className="w-13 h-13 rounded-[14px] overflow-hidden bg-surface-alt">
-                              <img
-                                src={member.avatar}
-                                alt={member.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              />
-                            </div>
-                            <span
-                              className="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-surface absolute -bottom-0.5 -right-0.5 shadow-xs"
-                              title="Active Member"
-                            />
-                          </div>
-                        )}
+                          <span
+                            className="w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-surface absolute -bottom-0.5 -right-0.5 shadow-xs"
+                            title={isSuperAdminCard ? "Super Admin Active" : "Active Member"}
+                          />
+                        </div>
                       </div>
 
                       {/* Name, Username & Phone */}
@@ -383,9 +371,8 @@ export function MembersView() {
                             {member.name}
                           </h3>
                           {isSuperAdminCard && (
-                            <span className="relative inline-flex items-center px-2.5 py-0.5 rounded-full bg-accent-soft text-accent border border-accent/40 text-[10px] font-mono font-extrabold tracking-wider uppercase shrink-0 shadow-2xs">
-                              <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse mr-1.5" />
-                              <span>Super Admin</span>
+                            <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-accent-soft text-accent border border-accent/30 text-[10px] font-mono font-bold tracking-wider uppercase shrink-0">
+                              SUPER ADMIN
                             </span>
                           )}
                         </div>
