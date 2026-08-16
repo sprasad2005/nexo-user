@@ -30,6 +30,7 @@ import { MOCK_MEMBERS } from "@/lib/mockData";
 import { useNexo } from "@/context/NexoContext";
 import { useRouter } from "next/navigation";
 import { SendNotificationModal } from "./SendNotificationModal";
+import { AdminDataCache } from "@/lib/adminDataCache";
 
 export function SuperAdminMemberManagement() {
   const router = useRouter();
@@ -39,18 +40,11 @@ export function SuperAdminMemberManagement() {
   const [isSendNotifOpen, setIsSendNotifOpen] = useState(false);
 
   const [members, setMembers] = useState<Member[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem("nexo_cached_admin_members");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch {}
-    }
-    return MOCK_MEMBERS as any;
+    return AdminDataCache.get<Member[]>("admin_members_list") || (MOCK_MEMBERS as any);
   });
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    return !AdminDataCache.has("admin_members_list");
+  });
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"ALL" | "SUPER_ADMIN" | "MEMBER">("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "SUSPENDED">("ALL");
@@ -94,36 +88,34 @@ export function SuperAdminMemberManagement() {
   };
 
   const fetchMembers = async () => {
-    setIsLoading(true);
     try {
-      const res = await fetch("/api/admin/members");
-      const data = await res.json();
-      if (data?.success && Array.isArray(data.members) && data.members.length > 0) {
-        setMembers(data.members);
-        try {
-          localStorage.setItem("nexo_cached_admin_members", JSON.stringify(data.members));
-        } catch {}
-      } else {
-        const fallbackRes = await fetch("/api/members");
-        const fallbackData = await fallbackRes.json();
-        if (fallbackData?.success && Array.isArray(fallbackData.members) && fallbackData.members.length > 0) {
-          setMembers(fallbackData.members);
-          try {
-            localStorage.setItem("nexo_cached_admin_members", JSON.stringify(fallbackData.members));
-          } catch {}
+      const freshMembers = await AdminDataCache.fetchSWR(
+        "admin_members_list",
+        async () => {
+          const res = await fetch("/api/admin/members");
+          const data = await res.json();
+          if (data?.success && Array.isArray(data.members) && data.members.length > 0) {
+            return data.members;
+          }
+          const fallbackRes = await fetch("/api/members");
+          const fallbackData = await fallbackRes.json();
+          if (fallbackData?.success && Array.isArray(fallbackData.members)) {
+            return fallbackData.members;
+          }
+          return MOCK_MEMBERS as any;
+        },
+        {
+          ttlMs: 30000,
+          onUpdate: (data) => {
+            if (Array.isArray(data) && data.length > 0) setMembers(data);
+          },
         }
+      );
+      if (Array.isArray(freshMembers) && freshMembers.length > 0) {
+        setMembers(freshMembers);
       }
     } catch {
-      try {
-        const fallbackRes = await fetch("/api/members");
-        const fallbackData = await fallbackRes.json();
-        if (fallbackData?.success && Array.isArray(fallbackData.members) && fallbackData.members.length > 0) {
-          setMembers(fallbackData.members);
-          try {
-            localStorage.setItem("nexo_cached_admin_members", JSON.stringify(fallbackData.members));
-          } catch {}
-        }
-      } catch {}
+      // Keep existing cached state on error
     } finally {
       setIsLoading(false);
     }
@@ -222,6 +214,10 @@ export function SuperAdminMemberManagement() {
   // 2. Toggle Status (Activate / Suspend)
   const handleToggleStatus = async (member: Member) => {
     const nextStatus: MemberStatus = (member.status || "ACTIVE") === "ACTIVE" ? "SUSPENDED" : "ACTIVE";
+    const updatedMembers = members.map((m) => (m.id === member.id ? { ...m, status: nextStatus } : m));
+    setMembers(updatedMembers);
+    AdminDataCache.set("admin_members_list", updatedMembers);
+
     try {
       await fetch("/api/members", {
         method: "PUT",
@@ -230,9 +226,6 @@ export function SuperAdminMemberManagement() {
       });
     } catch {}
 
-    setMembers((prev) =>
-      prev.map((m) => (m.id === member.id ? { ...m, status: nextStatus } : m))
-    );
     showToast(
       `✓ Member ${member.name} access set to ${nextStatus}.`
     );
@@ -240,6 +233,10 @@ export function SuperAdminMemberManagement() {
 
   // 3. Toggle Role (MEMBER <-> ADMIN)
   const handleAssignRole = async (member: Member, newRole: MemberRole) => {
+    const updatedMembers = members.map((m) => (m.id === member.id ? { ...m, role: newRole } : m));
+    setMembers(updatedMembers);
+    AdminDataCache.set("admin_members_list", updatedMembers);
+
     try {
       await fetch("/api/members", {
         method: "PUT",
@@ -248,9 +245,6 @@ export function SuperAdminMemberManagement() {
       });
     } catch {}
 
-    setMembers((prev) =>
-      prev.map((m) => (m.id === member.id ? { ...m, role: newRole } : m))
-    );
     showToast(`✓ Assigned role ${newRole} to ${member.name}.`);
   };
 
@@ -258,6 +252,12 @@ export function SuperAdminMemberManagement() {
   const handleConfirmResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!resetPassMember || !customResetPass.trim()) return;
+
+    const updatedMembers = members.map((m) =>
+      m.id === resetPassMember.id ? { ...m, password: customResetPass.trim() } : m
+    );
+    setMembers(updatedMembers);
+    AdminDataCache.set("admin_members_list", updatedMembers);
 
     try {
       await fetch("/api/members", {
@@ -267,11 +267,6 @@ export function SuperAdminMemberManagement() {
       });
     } catch {}
 
-    setMembers((prev) =>
-      prev.map((m) =>
-        m.id === resetPassMember.id ? { ...m, password: customResetPass.trim() } : m
-      )
-    );
     showToast(`✓ Password reset successfully for ${resetPassMember.name}.`);
     setResetPassMember(null);
     setCustomResetPass("");
@@ -280,6 +275,12 @@ export function SuperAdminMemberManagement() {
   // 5. Revoke Sessions
   const handleRevokeSessions = async (member: Member) => {
     const revokedTime = new Date().toISOString();
+    const updatedMembers = members.map((m) =>
+      m.id === member.id ? { ...m, sessionsRevokedAt: revokedTime } : m
+    );
+    setMembers(updatedMembers);
+    AdminDataCache.set("admin_members_list", updatedMembers);
+
     try {
       await fetch("/api/members", {
         method: "PUT",
@@ -288,11 +289,6 @@ export function SuperAdminMemberManagement() {
       });
     } catch {}
 
-    setMembers((prev) =>
-      prev.map((m) =>
-        m.id === member.id ? { ...m, sessionsRevokedAt: revokedTime } : m
-      )
-    );
     showToast(`✓ All active sessions revoked for ${member.name}.`);
   };
 

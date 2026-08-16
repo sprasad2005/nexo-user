@@ -15,6 +15,7 @@ import {
   ChatCircleDots,
 } from "@phosphor-icons/react";
 import { useAdmin } from "../context/AdminContext";
+import { AdminDataCache } from "@/lib/adminDataCache";
 
 interface AdminSidebarProps {
   onAddIpoClick: () => void;
@@ -47,6 +48,60 @@ export function AdminSidebar({
     { id: "security", label: "Security", icon: ShieldCheck },
   ];
 
+  const handlePrefetch = (id: string) => {
+    if (id === "members") {
+      AdminDataCache.fetchSWR(
+        "admin_members_list",
+        async () => {
+          const res = await fetch("/api/admin/members");
+          const json = await res.json();
+          return json.members || [];
+        },
+        { ttlMs: 30000 }
+      );
+    } else if (id === "ipos" || id === "history") {
+      AdminDataCache.fetchSWR(
+        "admin_ipos",
+        async () => {
+          const res = await fetch("/api/ipos?admin=true");
+          const json = await res.json();
+          return json.ipos || [];
+        },
+        { ttlMs: 30000 }
+      );
+    } else if (id === "applications" || id === "allotment") {
+      AdminDataCache.fetchSWR(
+        "admin_applications",
+        async () => {
+          const res = await fetch("/api/applications");
+          const json = await res.json();
+          return json.applications || [];
+        },
+        { ttlMs: 30000 }
+      );
+    } else if (id === "activity") {
+      AdminDataCache.fetchSWR(
+        "admin_activities_default",
+        async () => {
+          const res = await fetch("/api/admin/activity?limit=50");
+          const json = await res.json();
+          return json.activities || [];
+        },
+        { ttlMs: 15000 }
+      );
+    } else if (id === "security") {
+      AdminDataCache.fetchSWR(
+        "admin_security_summary",
+        async () => {
+          const res = await fetch("/api/admin/security/summary");
+          const json = await res.json();
+          return json.summary;
+        },
+        { ttlMs: 30000 }
+      );
+    }
+  };
+
   const handleLogout = async () => {
     try {
       await fetch("/api/auth/logout", { method: "POST" });
@@ -76,6 +131,7 @@ export function AdminSidebar({
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
+                  onMouseEnter={() => handlePrefetch(item.id)}
                   className={`w-full h-9 flex items-center gap-3 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     isActive
                       ? "bg-blue-600 dark:bg-[#22262E] text-white dark:text-[#F5F7FA] border border-transparent dark:border-[#6B93FF]/30 shadow-sm"
@@ -97,6 +153,7 @@ export function AdminSidebar({
                 <button
                   key={item.id}
                   onClick={() => setActiveTab(item.id)}
+                  onMouseEnter={() => handlePrefetch(item.id)}
                   className={`w-full h-9 flex items-center gap-3 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     isActive
                       ? "bg-blue-600 dark:bg-[#22262E] text-white dark:text-[#F5F7FA] border border-transparent dark:border-[#6B93FF]/30 shadow-sm"

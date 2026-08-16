@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useNexo } from "@/context/NexoContext";
+import { AdminDataCache } from "@/lib/adminDataCache";
 import { IPOOpportunity, AllotmentStatus, IPOLifecycleStage, MemberRole } from "@/types/nexo";
 import {
   Plus,
@@ -55,6 +56,7 @@ export function AdminIPOManagement({
     currentMember,
     currentUser,
     currentUserRole,
+    refreshIpos,
   } = useNexo();
 
   const [isMounted, setIsMounted] = useState(false);
@@ -162,9 +164,11 @@ export function AdminIPOManagement({
       const data = await res.json();
       if (res.ok && data.success) {
         showToast(data.message || `✓ ${selectedIpoToComplete.name} marked as Completed and moved to History!`);
-        if (typeof window !== "undefined") {
-          window.location.reload();
+        AdminDataCache.invalidate("admin_ipos");
+        if (typeof refreshIpos === "function") {
+          await refreshIpos();
         }
+        window.dispatchEvent(new Event("storage"));
       } else {
         showToast(`❌ ${data.error || "Failed to mark IPO as completed."}`);
       }
