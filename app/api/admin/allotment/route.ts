@@ -33,7 +33,7 @@ export async function GET(req: Request) {
     const auth = await requireAdmin();
 
     const { searchParams } = new URL(req.url);
-    const selectedIpoId = searchParams.get("ipoId");
+    let selectedIpoId = searchParams.get("ipoId");
 
     // Read real IPOs from shared_ipos.json
     const sharedIpos = readSharedIpos();
@@ -47,15 +47,76 @@ export async function GET(req: Request) {
       const client = await clientPromise;
       const db = client.db(DB_NAME);
 
-      const [iposArr, appsArr, memsArr] = await Promise.all([
-        db.collection("ipos").find({ isHidden: { $ne: true } }).sort({ createdAt: -1 }).toArray(),
-        db.collection("applications").find({}).sort({ createdAt: -1 }).toArray(),
-        db.collection("members").find({}, { projection: { id: 1, name: 1, username: 1, avatar: 1, panMasked: 1 } }).toArray(),
+      const [iposArr, memsArr] = await Promise.all([
+        db
+          .collection("ipos")
+          .find(
+            { isHidden: { $ne: true }, isArchived: { $ne: true } },
+            {
+              projection: {
+                id: 1,
+                name: 1,
+                company: 1,
+                category: 1,
+                status: 1,
+                allotmentFinalized: 1,
+                allotmentFinalizedAt: 1,
+                allotmentFinalizedBy: 1,
+                metrics: 1,
+                applications: 1,
+                createdAt: 1,
+                addedAt: 1,
+              },
+            }
+          )
+          .sort({ createdAt: -1 })
+          .toArray(),
+        db
+          .collection("members")
+          .find({}, { projection: { id: 1, name: 1, username: 1, avatar: 1, panMasked: 1 } })
+          .toArray(),
       ]);
 
       dbIpos = iposArr;
-      dbApps = appsArr;
       dbMembers = memsArr;
+
+      // If no ipoId query was passed, default to first available IPO
+      if (!selectedIpoId) {
+        selectedIpoId = dbIpos[0]?.id || dbIpos[0]?._id?.toString() || sharedIpos[0]?.id || "";
+      }
+
+      // Query ONLY applications for the target IPO
+      if (selectedIpoId) {
+        dbApps = await db
+          .collection("applications")
+          .find(
+            { ipoId: selectedIpoId },
+            {
+              projection: {
+                id: 1,
+                ipoId: 1,
+                ipoName: 1,
+                memberId: 1,
+                applicantName: 1,
+                panMasked: 1,
+                panFull: 1,
+                panNumbers: 1,
+                lotCount: 1,
+                numberOfPanCards: 1,
+                allotmentStatus: 1,
+                status: 1,
+                totalContribution: 1,
+                participants: 1,
+                contributors: 1,
+                allottedIndices: 1,
+                createdAt: 1,
+                applicationNumber: 1,
+              },
+            }
+          )
+          .sort({ createdAt: -1 })
+          .toArray();
+      }
     } catch (_e) {
       console.warn("MongoDB fetch optional, using shared_ipos.json data.");
     }

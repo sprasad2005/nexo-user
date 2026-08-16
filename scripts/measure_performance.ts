@@ -132,7 +132,23 @@ async function runBenchmark() {
   console.log(`     * Keys Examined: ${memKeys}, Docs Examined: ${memDocs}`);
   console.log(`     * Execution Time: ${memTime}ms`);
 
-  // 7. Unified Dashboard Service Pipeline
+  // 7. Allotment Pipeline (Targeted IPO applications + Lean projections)
+  const startAllot = performance.now();
+  const sampleIpo = (await db.collection("ipos").findOne({ isHidden: { $ne: true } })) as any;
+  const sampleIpoId = sampleIpo?.id || "1";
+  const [allotIpos, allotApps] = await Promise.all([
+    db.collection("ipos").find({ isHidden: { $ne: true } }, { projection: { id: 1, name: 1, company: 1, status: 1, allotmentFinalized: 1 } }).toArray(),
+    db.collection("applications").find({ ipoId: sampleIpoId }, { projection: { id: 1, ipoId: 1, applicantName: 1, panMasked: 1, allotmentStatus: 1, totalContribution: 1, lotCount: 1 } }).toArray(),
+  ]);
+  const allotDuration = performance.now() - startAllot;
+  const allotPayloadSize = (JSON.stringify({ allotIpos, allotApps }).length / 1024).toFixed(2);
+  console.log(`\n📊 [Allotment Pipeline]:`);
+  console.log(`   - Target IPO ID: "${sampleIpoId}"`);
+  console.log(`   - IPOs in Catalog: ${allotIpos.length}, Target Applications: ${allotApps.length}`);
+  console.log(`   - Parallel Query Execution Time: ${allotDuration.toFixed(2)}ms`);
+  console.log(`   - Transferred Payload Size: ${allotPayloadSize} KB`);
+
+  // 8. Unified Dashboard Service Pipeline
   const startDash = performance.now();
   const { getDashboardSummary } = await import("../lib/services/dashboardService");
   const dashData = await getDashboardSummary();

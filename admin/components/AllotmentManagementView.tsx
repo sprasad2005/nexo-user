@@ -1,8 +1,9 @@
 "use client";
 
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { AdminDataCache } from "@/lib/adminDataCache";
 import {
   CheckCircle,
   MagnifyingGlass,
@@ -58,8 +59,15 @@ export interface IPOItem {
 
 export function AllotmentManagementView() {
   // Data states
-  const [ipos, setIpos] = useState<IPOItem[]>([]);
-  const [selectedIpoId, setSelectedIpoId] = useState<string>("");
+  const [ipos, setIpos] = useState<IPOItem[]>(() => {
+    return AdminDataCache.get<IPOItem[]>("admin_allotment_ipos") || [];
+  });
+  const [selectedIpoId, setSelectedIpoId] = useState<string>(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem("nexo_admin_selected_ipo_id") || "";
+    }
+    return "";
+  });
   const [selectedIpo, setSelectedIpo] = useState<IPOItem | null>(null);
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<string>("ADMIN");
@@ -83,114 +91,139 @@ export function AllotmentManagementView() {
   // Header checkbox ref for indeterminate state
   const headerCheckboxRef = useRef<HTMLInputElement | null>(null);
 
-  const showToast = (message: string, type: "success" | "error" | "info" = "success") => {
+  const showToast = useCallback((message: string, type: "success" | "error" | "info" = "success") => {
     setToast({ type, message });
     setTimeout(() => setToast(null), 5000);
-  };
+  }, []);
 
-  // Fetch initial IPO list
-  const fetchIpos = async () => {
-    try {
-      const res = await fetch("/api/admin/allotment");
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setIpos(data.ipos || []);
-        try {
-          localStorage.setItem("nexo_cached_admin_allotment_ipos", JSON.stringify(data.ipos || []));
-        } catch {}
-        if (data.currentUserRole) {
-          setCurrentUserRole(data.currentUserRole);
+  // Sync selectedAppIds from applications list
+  const syncSelectedAppIds = useCallback((apps: ApplicationItem[]) => {
+    const initialSelected: string[] = [];
+    apps.forEach((a) => {
+      const lotCount = Math.max(1, a.lotsApplied || 1);
+      if (Array.isArray(a.allottedIndices) && a.allottedIndices.length > 0) {
+        a.allottedIndices.forEach((idx: number) => {
+          initialSelected.push(lotCount > 1 ? `${a.id}_lot_${idx}` : a.id);
+        });
+      } else if (a.allotmentStatus === "ALLOTTED") {
+        for (let i = 0; i < lotCount; i++) {
+          initialSelected.push(lotCount > 1 ? `${a.id}_lot_${i}` : a.id);
         }
-        if (data.ipos?.length > 0 && !selectedIpoId) {
-          setSelectedIpoId(data.ipos[0].id);
-          try {
-            localStorage.setItem("nexo_admin_selected_ipo_id", data.ipos[0].id);
-          } catch {}
-        }
-      } else {
-        showToast(data.error || "Failed to load IPO catalog.", "error");
       }
-    } catch {
-      showToast("Unable to connect to administrative server.", "error");
-    } finally {
-      setIsLoading(false);
-    }
-  };
+    });
+    setSelectedAppIds(Array.from(new Set(initialSelected)));
+  }, []);
 
   // Fetch applications for selected IPO
-  const fetchApplicationsForIpo = async (ipoId: string) => {
+  const fetchApplicationsForIpo = useCallback(async (ipoId: string) => {
     if (!ipoId) return;
 
     try {
       localStorage.setItem("nexo_admin_selected_ipo_id", ipoId);
-      const cached = localStorage.getItem(`nexo_admin_apps_${ipoId}`);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setApplications(parsed);
-        }
-      }
     } catch {}
 
     try {
       setIsAppsLoading(true);
-      const res = await fetch(`/api/admin/allotment?ipoId=${encodeURIComponent(ipoId)}`);
-      const data = await res.json();
-      if (res.ok && data.success) {
+      const data = await AdminDataCache.fetchSWR(
+        `admin_allotment_apps_${ipoId}`,
+        async () => {
+          const res = await fetch(`/api/admin/allotment?ipoId=${encodeURIComponent(ipoId)}`);
+          const json = await res.json();
+          if (res.ok && json.success) return json;
+          throw new Error(json.error || "Failed to load applications");
+        },
+        {
+          ttlMs: 20000,
+          onUpdate: (freshData) => {
+            if (freshData?.success) {
+              setSelectedIpo(freshData.selectedIpo || null);
+              const apps: ApplicationItem[] = freshData.applications || [];
+              setApplications(apps);
+              syncSelectedAppIds(apps);
+            }
+          },
+        }
+      );
+
+      if (data?.success) {
         setSelectedIpo(data.selectedIpo || null);
         const apps: ApplicationItem[] = data.applications || [];
         setApplications(apps);
-        try {
-          localStorage.setItem(`nexo_admin_apps_${ipoId}`, JSON.stringify(apps));
-        } catch {}
-
-        // Pre-populate selectedAppIds with currently allotted applications/lots
-        const initialSelected: string[] = [];
-        apps.forEach((a) => {
-          const lotCount = Math.max(1, a.lotsApplied || 1);
-          if (Array.isArray(a.allottedIndices) && a.allottedIndices.length > 0) {
-            a.allottedIndices.forEach((idx: number) => {
-              initialSelected.push(lotCount > 1 ? `${a.id}_lot_${idx}` : a.id);
-            });
-          } else if (a.allotmentStatus === "ALLOTTED") {
-            for (let i = 0; i < lotCount; i++) {
-              initialSelected.push(lotCount > 1 ? `${a.id}_lot_${i}` : a.id);
-            }
-          }
-        });
-        setSelectedAppIds(Array.from(new Set(initialSelected)));
-      } else {
-        showToast(data.error || "Failed to load applications for selected IPO.", "error");
+        syncSelectedAppIds(apps);
       }
     } catch {
       showToast("Error loading application records.", "error");
     } finally {
       setIsAppsLoading(false);
     }
-  };
+  }, [showToast, syncSelectedAppIds]);
 
-  useEffect(() => {
+  // Fetch initial IPO list & bootstrap first IPO data in 1 request
+  const fetchIpos = useCallback(async () => {
     try {
-      const storedIpoId = localStorage.getItem("nexo_admin_selected_ipo_id");
-      if (storedIpoId) {
-        setSelectedIpoId(storedIpoId);
-      }
-      const cachedIpos = localStorage.getItem("nexo_cached_admin_allotment_ipos");
-      if (cachedIpos) {
-        const parsed = JSON.parse(cachedIpos);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setIpos(parsed);
+      const initialTargetIpoId = selectedIpoId;
+      const endpoint = initialTargetIpoId
+        ? `/api/admin/allotment?ipoId=${encodeURIComponent(initialTargetIpoId)}`
+        : "/api/admin/allotment";
+
+      const data = await AdminDataCache.fetchSWR(
+        "admin_allotment_bootstrap",
+        async () => {
+          const res = await fetch(endpoint);
+          const json = await res.json();
+          if (res.ok && json.success) return json;
+          throw new Error(json.error || "Failed to load IPO catalog");
+        },
+        {
+          ttlMs: 30000,
+          onUpdate: (freshData) => {
+            if (freshData?.success) {
+              if (Array.isArray(freshData.ipos)) setIpos(freshData.ipos);
+              if (freshData.selectedIpo) setSelectedIpo(freshData.selectedIpo);
+              if (Array.isArray(freshData.applications)) {
+                setApplications(freshData.applications);
+                syncSelectedAppIds(freshData.applications);
+              }
+            }
+          },
+        }
+      );
+
+      if (data?.success) {
+        setIpos(data.ipos || []);
+        if (data.currentUserRole) {
+          setCurrentUserRole(data.currentUserRole);
+        }
+
+        const activeId = data.selectedIpo?.id || data.ipos?.[0]?.id || "";
+        if (activeId && (!selectedIpoId || selectedIpoId === activeId)) {
+          setSelectedIpoId(activeId);
+          try {
+            localStorage.setItem("nexo_admin_selected_ipo_id", activeId);
+          } catch {}
+          if (data.selectedIpo) setSelectedIpo(data.selectedIpo);
+          if (Array.isArray(data.applications)) {
+            setApplications(data.applications);
+            syncSelectedAppIds(data.applications);
+          }
         }
       }
-    } catch {}
+    } catch {
+      showToast("Unable to connect to administrative server.", "error");
+    } finally {
+      setIsLoading(false);
+    }
+  }, [selectedIpoId, showToast, syncSelectedAppIds]);
+
+  useEffect(() => {
     fetchIpos();
   }, []);
 
-  useEffect(() => {
-    if (selectedIpoId) {
-      fetchApplicationsForIpo(selectedIpoId);
-    }
-  }, [selectedIpoId]);
+  const handleSelectIpo = useCallback((newId: string) => {
+    if (!newId || newId === selectedIpoId) return;
+    setSelectedIpoId(newId);
+    fetchApplicationsForIpo(newId);
+  }, [selectedIpoId, fetchApplicationsForIpo]);
 
 
   // Expand applications so every lot has its own row matching user-side sequence
@@ -356,6 +389,9 @@ export function AllotmentManagementView() {
         showToast(
           data.message || `Allotment updated successfully! ${selectedAppIds.length} allotted.`
         );
+        AdminDataCache.invalidate("admin_allotment_bootstrap");
+        AdminDataCache.invalidate(`admin_allotment_apps_${selectedIpoId}`);
+        AdminDataCache.invalidate("admin_ipos");
         fetchApplicationsForIpo(selectedIpoId);
         fetchIpos();
       } else {
@@ -383,6 +419,9 @@ export function AllotmentManagementView() {
       if (res.ok && data.success) {
         setIsReopenModalOpen(false);
         showToast(data.message || "Allotment reopened successfully.");
+        AdminDataCache.invalidate("admin_allotment_bootstrap");
+        AdminDataCache.invalidate(`admin_allotment_apps_${selectedIpoId}`);
+        AdminDataCache.invalidate("admin_ipos");
         fetchApplicationsForIpo(selectedIpoId);
         fetchIpos();
       } else {
@@ -499,7 +538,7 @@ export function AllotmentManagementView() {
           <div className="relative min-w-[240px]">
             <CustomSelect
               value={selectedIpoId}
-              onChange={(val) => setSelectedIpoId(val)}
+              onChange={(val) => handleSelectIpo(val)}
               disabled={isLoading}
               placeholder="Select IPO"
               options={ipos.map((ipo) => ({
