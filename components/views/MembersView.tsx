@@ -320,140 +320,141 @@ export function MembersView() {
             return (
               <div
                 key={member.id}
-                className={`group relative rounded-2xl transition-all duration-300 flex flex-col justify-between overflow-hidden font-sans bg-surface dark:bg-[#101217] border ${
+                className={`group relative rounded-2xl p-5 transition-all duration-300 flex flex-col justify-between overflow-hidden font-sans bg-surface dark:bg-[#101217] border ${
                   isSuperAdminCard
-                    ? "border-accent/40 hover:border-accent/80 shadow-lg shadow-accent/5 hover:shadow-2xl hover:shadow-accent/10"
+                    ? "border-accent/40 hover:border-accent shadow-md shadow-accent/5 hover:shadow-xl hover:shadow-accent/10"
                     : "border-line/80 hover:border-accent/40 hover:shadow-xl hover:shadow-accent/5"
                 } hover:-translate-y-1`}
               >
-                <div>
-                  {/* Executive Top Banner */}
-                  {isSuperAdminCard ? (
-                    <div className="relative h-20 w-full overflow-hidden bg-gradient-to-r from-[#0C1222] via-[#141C38] to-[#0D1429] border-b border-accent/20">
-                      {/* Ambient Mesh Glows */}
-                      <div className="absolute -top-6 -left-6 w-24 h-24 bg-blue-500/25 rounded-full blur-xl pointer-events-none" />
-                      <div className="absolute -bottom-6 -right-6 w-24 h-24 bg-indigo-500/25 rounded-full blur-xl pointer-events-none" />
-                      
-                      {/* Subtle Pattern Grid */}
-                      <div className="absolute inset-0 bg-[radial-gradient(#3B82F6_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none" />
+                {/* Subtle Top Accent */}
+                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent/0 via-accent to-accent/0 ${isSuperAdminCard ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity duration-300`} />
 
-                      {/* Top Right Executive Pill */}
-                      <div className="absolute top-3 right-3 z-10">
-                        <span className="relative inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 text-[10px] font-mono font-bold tracking-wider uppercase overflow-hidden shadow-2xs backdrop-blur-xs">
-                          <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full animate-[shimmer_3s_infinite]" />
-                          <span className="relative z-10 flex items-center gap-1.5">
-                            <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                            <span>SUPER ADMIN</span>
-                          </span>
-                        </span>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="relative h-14 w-full overflow-hidden bg-gradient-to-r from-surface-alt/80 via-surface/60 to-surface-alt/90 dark:from-[#13161F] dark:via-[#161B26] dark:to-[#0E1118] border-b border-line/60">
-                      <div className="absolute inset-0 bg-[radial-gradient(var(--border)_1px,transparent_1px)] [background-size:14px_14px] opacity-25 pointer-events-none" />
-                    </div>
-                  )}
-
-                  {/* Profile Header & Body */}
-                  <div className="px-5 pt-0 pb-4 space-y-3.5">
-                    {/* Avatar Overlap Row */}
-                    <div className="flex items-end justify-between -mt-7 mb-1">
+                <div className="space-y-4">
+                  {/* Top Profile Header */}
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-3.5">
+                      {/* Avatar with Animated Status & Multi-Tone Frame */}
                       <div className="relative shrink-0">
-                        {isSuperAdminCard && (
-                          <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-accent/40 via-indigo-500/30 to-cyan-400/30 blur-md animate-pulse pointer-events-none opacity-80 group-hover:opacity-100 transition-opacity duration-300" />
-                        )}
-                        <div className={`relative p-[2.5px] rounded-2xl transition-all duration-300 ${
-                          isSuperAdminCard
-                            ? "bg-gradient-to-b from-accent via-indigo-500/40 to-slate-900 ring-2 ring-surface dark:ring-[#101217] shadow-md"
-                            : "bg-surface-alt border border-line ring-2 ring-surface dark:ring-[#101217] shadow-sm"
-                        }`}>
-                          <div className="w-14 h-14 rounded-[13px] overflow-hidden bg-surface-alt">
-                            <img
-                              src={member.avatar}
-                              alt={member.name}
-                              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                            />
+                        {isSuperAdminCard ? (
+                          <div className="relative">
+                            {/* Ambient Breathing Background Aura */}
+                            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-tr from-blue-600/40 via-indigo-600/30 to-cyan-400/40 blur-md animate-pulse pointer-events-none opacity-80 group-hover:opacity-100 group-hover:blur-lg transition-all duration-500" />
+                            
+                            {/* Fluid Animated Gradient Border Frame */}
+                            <div className="relative p-[2.5px] rounded-2xl bg-gradient-to-tr from-blue-500 via-indigo-500 to-cyan-400 bg-[length:200%_200%] animate-[gradientShift_4s_ease_infinite] shadow-[0_0_18px_rgba(59,130,246,0.3)] group-hover:shadow-[0_0_26px_rgba(99,102,241,0.5)] transition-all duration-300">
+                              <div className="w-13 h-13 rounded-[13.5px] overflow-hidden bg-surface-alt relative group/img">
+                                <img
+                                  src={member.avatar}
+                                  alt={member.name}
+                                  className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
+                                />
+                                {/* Sapphire Reflection Light Streak Sweep */}
+                                <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out pointer-events-none" />
+                              </div>
+
+                              {/* Live Status Orb with Radar Ping */}
+                              <div className="absolute -bottom-1 -right-1 flex items-center justify-center">
+                                <span className="animate-ping absolute inline-flex h-3.5 w-3.5 rounded-full bg-emerald-400 opacity-75" />
+                                <span
+                                  className="relative inline-flex w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-[#0F1117] shadow-[0_0_8px_rgba(16,185,129,0.8)]"
+                                  title="Super Admin Online"
+                                />
+                              </div>
+                            </div>
                           </div>
-                          
-                          {/* Live Status Orb */}
-                          <div className="absolute -bottom-0.5 -right-0.5 flex items-center justify-center">
-                            {isSuperAdminCard && (
-                              <span className="animate-ping absolute inline-flex h-3.5 w-3.5 rounded-full bg-emerald-400 opacity-60" />
-                            )}
+                        ) : (
+                          <div className="relative p-[1.5px] rounded-2xl bg-surface-alt border border-line ring-1 ring-accent/20 group-hover:ring-accent/50 shadow-sm transition-all duration-300">
+                            <div className="w-13 h-13 rounded-[14px] overflow-hidden bg-surface-alt">
+                              <img
+                                src={member.avatar}
+                                alt={member.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
                             <span
-                              className="relative inline-flex w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-surface dark:ring-[#101217] shadow-xs"
-                              title={isSuperAdminCard ? "Super Admin Active" : "Active Member"}
+                              className="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-surface absolute -bottom-0.5 -right-0.5 shadow-xs"
+                              title="Active Member"
                             />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Name, Username & Phone */}
+                      <div className="space-y-1.5 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3
+                            onClick={() => {
+                              if (currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") {
+                                router.push(`/admin/members/${member.id}`);
+                              } else {
+                                openDirectChatWithUser(member.id);
+                              }
+                            }}
+                            className="text-base font-black text-ink group-hover:text-accent hover:underline transition-colors truncate tracking-tight cursor-pointer"
+                            title={currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN" ? "Click to view detailed member IPO history & PnL" : `Click to message @${mUsername}`}
+                          >
+                            {member.name}
+                          </h3>
+                          {isSuperAdminCard && (
+                            <span className="relative inline-flex items-center px-2.5 py-0.5 rounded-full bg-accent-soft text-accent border border-accent/35 text-[10px] font-mono font-bold tracking-wider uppercase shrink-0 overflow-hidden shadow-2xs">
+                              {/* Glass shimmer beam */}
+                              <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full animate-[shimmer_2.8s_infinite]" />
+                              <span className="relative z-10 flex items-center gap-1.5">
+                                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                                <span>SUPER ADMIN</span>
+                              </span>
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Username Tag & Phone Badge */}
+                        <div className="flex flex-wrap items-center gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => openDirectChatWithUser(member.id)}
+                            className="inline-flex items-center gap-1 text-xs font-sans font-semibold tracking-tight text-accent bg-accent-soft/40 hover:bg-accent-soft px-2.5 py-0.5 rounded-lg border border-accent/25 transition-all shadow-2xs cursor-pointer active:scale-95"
+                            title={`Click to chat with @${mUsername}`}
+                          >
+                            @{mUsername}
+                          </button>
+
+                          <div className="inline-flex items-center gap-1 text-[11px] font-sans font-medium text-ink-secondary bg-surface-alt/90 px-2.5 py-0.5 rounded-lg border border-line/80 shadow-2xs">
+                            <Phone size={11} className="text-ink-tertiary" /> {mPhone}
                           </div>
                         </div>
                       </div>
                     </div>
+                  </div>
 
-                    {/* Name, Username & Phone */}
-                    <div className="space-y-1">
-                      <div className="flex items-center gap-2">
-                        <h3
-                          onClick={() => {
-                            if (currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") {
-                              router.push(`/admin/members/${member.id}`);
-                            } else {
-                              openDirectChatWithUser(member.id);
-                            }
-                          }}
-                          className="text-base font-black text-ink group-hover:text-accent hover:underline transition-colors truncate tracking-tight cursor-pointer"
-                          title={currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN" ? "Click to view detailed member IPO history & PnL" : `Click to message @${mUsername}`}
-                        >
-                          {member.name}
-                        </h3>
+                  {/* Clean Stats Grid */}
+                  <div className="grid grid-cols-2 gap-2.5 pt-1">
+                    <div className="p-3 rounded-xl bg-surface-alt/80 dark:bg-[#141721] border border-line/70 group-hover:border-line transition-all space-y-1">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
+                        <TrendUp size={13} className="text-accent" />
+                        <span>IPOs Applied</span>
                       </div>
-
-                      {/* Username Tag & Phone Badge */}
-                      <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                        <button
-                          type="button"
-                          onClick={() => openDirectChatWithUser(member.id)}
-                          className="inline-flex items-center gap-1 text-xs font-sans font-semibold tracking-tight text-accent bg-accent-soft/40 hover:bg-accent-soft px-2.5 py-0.5 rounded-lg border border-accent/25 transition-all shadow-2xs cursor-pointer active:scale-95"
-                          title={`Click to chat with @${mUsername}`}
-                        >
-                          @{mUsername}
-                        </button>
-
-                        <div className="inline-flex items-center gap-1 text-[11px] font-sans font-medium text-ink-secondary bg-surface-alt/90 px-2.5 py-0.5 rounded-lg border border-line/80 shadow-2xs">
-                          <Phone size={11} className="text-ink-tertiary" /> {mPhone}
-                        </div>
-                      </div>
+                      <p className="text-base font-black font-sans text-ink">
+                        {appliedCount}{" "}
+                        <span className="text-xs text-ink-tertiary font-sans font-normal">
+                          {appliedCount === 1 ? "IPO" : "IPOs"}
+                        </span>
+                      </p>
                     </div>
 
-                    {/* Clean Stats Grid */}
-                    <div className="grid grid-cols-2 gap-2.5 pt-1.5">
-                      <div className="p-3 rounded-xl bg-surface-alt/80 dark:bg-[#141721] border border-line/70 group-hover:border-line transition-all space-y-1">
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
-                          <TrendUp size={13} className="text-accent" />
-                          <span>IPOs Applied</span>
-                        </div>
-                        <p className="text-base font-black font-sans text-ink">
-                          {appliedCount}{" "}
-                          <span className="text-xs text-ink-tertiary font-sans font-normal">
-                            {appliedCount === 1 ? "IPO" : "IPOs"}
-                          </span>
-                        </p>
+                    <div className="p-3 rounded-xl bg-surface-alt/80 dark:bg-[#141721] border border-line/70 group-hover:border-line transition-all space-y-1">
+                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
+                        <CalendarBlank size={13} className="text-ink-secondary" />
+                        <span>Member Since</span>
                       </div>
-
-                      <div className="p-3 rounded-xl bg-surface-alt/80 dark:bg-[#141721] border border-line/70 group-hover:border-line transition-all space-y-1">
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
-                          <CalendarBlank size={13} className="text-ink-secondary" />
-                          <span>Member Since</span>
-                        </div>
-                        <p className="text-xs font-bold text-ink truncate mt-0.5">
-                          {member.joinedAt || "Jan 2025"}
-                        </p>
-                      </div>
+                      <p className="text-xs font-bold text-ink truncate mt-0.5">
+                        {member.joinedAt || "Jan 2025"}
+                      </p>
                     </div>
                   </div>
                 </div>
 
                 {/* Footer Controls */}
-                <div className="px-5 pb-5 pt-3 border-t border-line/80 flex items-center justify-between text-xs">
+                <div className="pt-4 mt-4 border-t border-line/80 flex items-center justify-between text-xs">
                   <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
                     <ShieldCheck size={14} className="text-emerald-400" /> Verified Member
                   </span>
