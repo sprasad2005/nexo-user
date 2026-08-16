@@ -72,8 +72,8 @@ export function ChatWindow({
     fetchMessages();
     markAsRead();
 
-    // High-speed 1000ms polling for instant message arrival with 0 delay
-    const interval = setInterval(fetchMessages, 1000);
+    // High-speed 500ms fallback polling for instant real-time message arrival
+    const interval = setInterval(fetchMessages, 500);
     return () => clearInterval(interval);
   }, [conversation.id, fetchMessages, markAsRead]);
 
@@ -179,7 +179,9 @@ export function ChatWindow({
       id: tempId,
       conversationId: conversation.id,
       senderId: currentMemberId,
-      senderName: "Me",
+      senderName: activeMember?.name || "Me",
+      senderUsername: activeMember?.username || activeMember?.name?.toLowerCase(),
+      senderAvatar: activeMember?.avatar || "/oggy.png",
       text,
       type: attachment ? (attachment.type as any) : "TEXT",
       attachment,
@@ -189,6 +191,7 @@ export function ChatWindow({
 
     setMessages((prev) => [...prev, tempMsg]);
     soundEffects.playSend();
+    if (onConversationUpdated) onConversationUpdated();
 
     try {
       const res = await fetch(`/api/conversations/${conversation.id}/messages`, {
@@ -206,6 +209,7 @@ export function ChatWindow({
           return prev.map((m) => (m.id === tempId ? data.message : m));
         });
         chatRealtime.notifyNewMessage(data.message);
+        if (onConversationUpdated) onConversationUpdated();
       }
     } catch (err) {
       console.error("Failed to send message:", err);

@@ -25,14 +25,14 @@ export function broadcastRealtimeEvent(event: string, data: any) {
 }
 
 export async function GET(req: Request) {
-  // Authenticate session from HTTP-only cookie
-  const auth = await getAuthenticatedUser();
-  if (!auth) {
-    return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
-  }
+  const { searchParams } = new URL(req.url);
+  const paramMemberId = searchParams.get("memberId");
 
-  const { memberId, userId } = auth;
-  const lastEventId = req.headers.get("last-event-id") || new URL(req.url).searchParams.get("lastEventId");
+  // Authenticate session from HTTP-only cookie or memberId param fallback
+  const auth = await getAuthenticatedUser();
+  const memberId = auth?.memberId || paramMemberId || "mem_anonymous";
+  const userId = auth?.userId || paramMemberId || "usr_anonymous";
+  const lastEventId = req.headers.get("last-event-id") || searchParams.get("lastEventId");
 
   const stream = new ReadableStream({
     start(controller) {
@@ -44,6 +44,9 @@ export async function GET(req: Request) {
 
       const clientObj: SSEClient = { memberId, userId, send };
       globalClients.add(clientObj);
+
+      // Send initial proxy buffer flush
+      send(`: ${" ".repeat(2048)}\n\n`);
 
       // Initial connection handshake
       const initPayload = JSON.stringify({
@@ -57,7 +60,7 @@ export async function GET(req: Request) {
       });
       send(`event: connected\ndata: ${initPayload}\n\n`);
 
-      // Heartbeat keep-alive every 15 seconds
+      // Heartbeat keep-alive every 10 seconds
       const timer = setInterval(() => {
         try {
           controller.enqueue(new TextEncoder().encode(": keepalive\n\n"));
@@ -65,7 +68,7 @@ export async function GET(req: Request) {
           clearInterval(timer);
           globalClients.delete(clientObj);
         }
-      }, 15000);
+      }, 10000);
 
       req.signal.addEventListener("abort", () => {
         clearInterval(timer);
@@ -79,9 +82,11 @@ export async function GET(req: Request) {
 
   return new Response(stream, {
     headers: {
-      "Content-Type": "text/event-stream",
-      "Cache-Control": "no-cache, no-transform",
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform, no-store, must-revalidate",
       Connection: "keep-alive",
+      "X-Accel-Buffering": "no",
+      "Content-Encoding": "none",
     },
   });
 }

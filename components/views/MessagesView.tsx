@@ -75,7 +75,7 @@ export function MessagesView() {
 
   useEffect(() => {
     fetchConversations();
-    const interval = setInterval(fetchConversations, 2500);
+    const interval = setInterval(fetchConversations, 1000);
     return () => clearInterval(interval);
   }, [fetchConversations]);
 
@@ -87,7 +87,20 @@ export function MessagesView() {
 
   // Listen to real-time conversation updates & new messages
   useEffect(() => {
-    const unsubNewMsg = chatRealtime.on("message:new", () => {
+    const unsubNewMsg = chatRealtime.on("message:new", (msg: any) => {
+      if (msg?.conversationId) {
+        setConversations((prev) => {
+          return prev.map((c) =>
+            c.id === msg.conversationId
+              ? {
+                  ...c,
+                  lastMessage: msg.text || (msg.attachment ? `[${msg.attachment.type}]` : "New message"),
+                  lastMessageAt: msg.createdAt || new Date().toISOString(),
+                }
+              : c
+          );
+        });
+      }
       fetchConversations();
     });
 

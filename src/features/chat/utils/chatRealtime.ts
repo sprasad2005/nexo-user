@@ -72,7 +72,7 @@ class ChatRealtimeService {
     if (this.eventSource) return;
 
     try {
-      const sseUrl = `/api/realtime`;
+      const sseUrl = `/api/realtime?memberId=${encodeURIComponent(memberId)}`;
       this.eventSource = new EventSource(sseUrl);
 
       this.eventSource.onopen = () => {
