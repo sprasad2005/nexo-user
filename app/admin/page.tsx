@@ -9,14 +9,11 @@ import { AdminDataCache } from "@/lib/adminDataCache";
 
 export default function AdminPage() {
   const router = useRouter();
-  const [status, setStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">(() => {
-    if (typeof window !== "undefined") {
-      if (sessionStorage.getItem("nexo_admin_authenticated") === "true") {
-        return "AUTHORIZED";
-      }
-    }
-    return "AUTHORIZED";
-  });
+  // \u26a0 Do NOT use browser APIs (sessionStorage / typeof window) inside useState
+  // initializers — they produce different values on the server vs. the client and
+  // cause React hydration errors. Start with a stable default that is identical
+  // on both sides; the useEffect below will set the authoritative value.
+  const [status, setStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("LOADING");
 
   useEffect(() => {
     document.title = "NEXO- Admin";

@@ -62,18 +62,16 @@ const API_BASE_URL = "/api/ipos";
 const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
-  const [ipos, setIpos] = useState<IPOOpportunity[]>([]);
+  const [ipos, setIpos] = useState<IPOOpportunity[]>(() => {
+    return AdminDataCache.get<IPOOpportunity[]>("admin_ipos") || [];
+  });
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<Member>(defaultAdmin);
+  const [currentUser, setCurrentUser] = useState<Member>(() => {
+    return AdminDataCache.get<Member>("admin_current_user") || defaultAdmin;
+  });
 
-  // Hydrate from SWR / cache after mount
+  // Deduplicated Auth Fetcher
   useEffect(() => {
-    const cachedIpos = AdminDataCache.get<IPOOpportunity[]>("admin_ipos");
-    if (cachedIpos && cachedIpos.length > 0) setIpos(cachedIpos);
-
-    const cachedUser = AdminDataCache.get<Member>("admin_current_user");
-    if (cachedUser) setCurrentUser(cachedUser);
-
     AdminDataCache.fetchSWR(
       "admin_current_user",
       async () => {
@@ -83,20 +81,16 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           return {
             ...defaultAdmin,
             ...data.member,
-            role: data.user?.role || data.member?.role || defaultAdmin.role,
+            role: (data.user?.role || data.member.role || "ADMIN") as any,
           };
         }
         return defaultAdmin;
       },
       {
-        ttlMs: 60000,
-        onUpdate: (freshUser) => {
-          if (freshUser) setCurrentUser(freshUser);
-        },
+        ttlMs: 120000,
+        onUpdate: (freshUser) => setCurrentUser(freshUser),
       }
-    ).then((freshUser) => {
-      if (freshUser) setCurrentUser(freshUser);
-    });
+    ).then((u) => setCurrentUser(u));
   }, []);
 
   const refreshIpos = useCallback(async () => {

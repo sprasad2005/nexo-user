@@ -5,6 +5,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
     optimizePackageImports: [
+      "@phosphor-icons/react",
       "lucide-react",
       "recharts",
       "date-fns",

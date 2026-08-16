@@ -24,15 +24,21 @@ import { AdminDataCache } from "@/lib/adminDataCache";
 
 function AdminOverview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   const router = useRouter();
-  const [dashboardData, setDashboardData] = useState<any>(() => {
-    return AdminDataCache.get("admin_dashboard_summary") || null;
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(() => {
-    return !AdminDataCache.has("admin_dashboard_summary");
-  });
+  // ⚠ Never read localStorage/cache inside useState initializers — causes SSR/client
+  // hydration mismatch because the server has no window and returns a different value.
+  // Always start with a safe SSR-consistent default and apply cache in useEffect.
+  const [dashboardData, setDashboardData] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   useEffect(() => {
     let active = true;
+    // Immediately apply any cached data so returning visitors see instant content
+    const cached = AdminDataCache.get<any>("admin_dashboard_summary");
+    if (cached) {
+      setDashboardData(cached);
+      setIsLoading(false);
+    }
+
     AdminDataCache.fetchSWR(
       "admin_dashboard_summary",
       async () => {
@@ -167,7 +173,12 @@ function AdminDashboardContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams ? searchParams.get("tab") : null;
 
-  const [activeTab, setActiveTab] = useState(tabParam || "ipos");
+  // ⚠ Do NOT read window.location.search here — the server has no window, so the
+  // lazy initializer would return "ipos" on the server but the real tab on the client,
+  // causing a hydration mismatch in both the sidebar (active item) and the breadcrumb.
+  // tabParam from useSearchParams() is already available via Next.js and is applied
+  // consistently by the existing useEffect below.
+  const [activeTab, setActiveTab] = useState("ipos");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);

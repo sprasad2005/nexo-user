@@ -98,27 +98,27 @@ export function MembersView() {
       return {
         isFeatured: true,
         roleBadge: "SUPER ADMIN",
-        cardContainer: "bg-white dark:bg-[#0c121c] border-sky-300 dark:border-sky-500/40 hover:border-sky-400 shadow-md dark:shadow-[0_0_20px_rgba(14,165,233,0.12)]",
+        cardContainer: "bg-gradient-to-b from-sky-500/[0.03] via-white to-white dark:bg-gradient-to-b dark:from-[#0B1A28] dark:via-[#08131F] dark:to-[#050C14] border-sky-200/90 dark:border-sky-500/35 hover:border-sky-400/80 dark:hover:border-sky-400/60 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.05),0_1px_3px_rgba(0,0,0,0.03)] hover:shadow-[0_14px_30px_-6px_rgba(14,165,233,0.18),0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-sky-950/30",
         topAccent: "from-sky-400/0 via-sky-500 to-sky-400/0",
         avatarAura: "from-sky-500/20 via-blue-500/15 to-cyan-400/20 dark:from-sky-600/40 dark:via-blue-600/30 dark:to-cyan-400/40",
-        avatarRim: "from-sky-500 via-blue-500 to-cyan-400 shadow-[0_0_12px_rgba(14,165,233,0.25)] dark:shadow-[0_0_18px_rgba(14,165,233,0.35)]",
+        avatarRim: "from-sky-500 via-blue-500 to-cyan-400 shadow-[0_0_12px_rgba(14,165,233,0.25)] dark:shadow-[0_0_18px_rgba(14,165,233,0.35)] group-hover:shadow-[0_0_20px_rgba(56,189,248,0.45)]",
         statusPing: "bg-sky-400",
         statusDot: "bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.8)]",
-        badgePill: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-400 dark:border-sky-500/30 font-bold",
+        badgePill: "bg-sky-50 text-sky-700 border-sky-200/90 dark:bg-sky-500/15 dark:text-sky-400 dark:border-sky-500/30 font-bold",
         badgeDot: "bg-sky-500 dark:bg-sky-400",
-        nameHover: "text-slate-900 group-hover:text-sky-600 dark:text-white dark:group-hover:text-sky-400",
-        usernameTag: "text-sky-700 bg-sky-50 hover:bg-sky-100 border-sky-200 dark:text-sky-300 dark:bg-sky-500/15 dark:hover:bg-sky-500/25 dark:border-sky-500/30",
-        phoneTag: "text-slate-600 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-[#13161C] dark:border-[#1E232B]",
-        phoneIcon: "text-sky-600 dark:text-sky-400",
-        statsCard: "bg-slate-50 border-slate-200 dark:bg-[#13161C] dark:border-[#1E232B]",
+        nameHover: "text-slate-900 group-hover:text-sky-600 dark:text-slate-100 dark:group-hover:text-sky-400",
+        usernameTag: "text-sky-700 bg-sky-50/90 hover:bg-sky-100/90 border-sky-200/90 dark:text-sky-300 dark:bg-sky-500/15 dark:hover:bg-sky-500/25 dark:border-sky-500/30",
+        phoneTag: "text-slate-600 bg-slate-100/90 border-slate-200/80 dark:text-slate-300 dark:bg-sky-950/35 dark:border-sky-500/20",
+        phoneIcon: "text-sky-600 dark:text-sky-400/80",
+        statsCard: "bg-slate-50/90 hover:bg-slate-100/70 border-slate-200/70 dark:bg-[#0A1726]/80 dark:border-sky-500/20 dark:group-hover:border-sky-500/35 shadow-2xs dark:shadow-none",
         statsIcon: "text-sky-600 dark:text-sky-400",
-        statsVal: "text-slate-900 dark:text-white",
-        statsMuted: "text-slate-600 dark:text-slate-300",
-        footerBorder: "border-slate-100 dark:border-[#1E232B]",
-        verifiedBadge: "bg-sky-50 border-sky-200 text-sky-700 dark:bg-sky-500/10 dark:border-sky-500/30 dark:text-sky-400",
+        statsVal: "text-slate-900 dark:text-slate-100",
+        statsMuted: "text-slate-600 dark:text-slate-200",
+        footerBorder: "border-slate-100 dark:border-sky-500/20",
+        verifiedBadge: "bg-sky-50/90 border-sky-200/90 text-sky-700 dark:bg-sky-500/10 dark:border-sky-500/25 dark:text-sky-400",
         verifiedIcon: "text-sky-600 dark:text-sky-400",
-        messageBtn: "bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-sm shadow-sky-500/25",
-        youBadge: "bg-sky-50 border-sky-200 text-sky-700 dark:bg-[#13161C] dark:border-[#1E232B] dark:text-sky-300",
+        messageBtn: "bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-sm shadow-sky-500/25 dark:shadow-sky-950/40",
+        youBadge: "bg-sky-50 border-sky-200/90 text-sky-700 dark:bg-sky-950/50 dark:border-sky-500/30 dark:text-sky-300",
       };
     }
 
@@ -127,27 +127,27 @@ export function MembersView() {
       return {
         isFeatured: true,
         roleBadge: "CORE MEMBER",
-        cardContainer: "bg-white dark:bg-[#0c1713] border-emerald-300 dark:border-emerald-500/40 hover:border-emerald-400 shadow-md dark:shadow-[0_0_20px_rgba(16,185,129,0.12)]",
+        cardContainer: "bg-gradient-to-b from-emerald-500/[0.03] via-white to-white dark:bg-gradient-to-b dark:from-[#061A14] dark:via-[#051410] dark:to-[#040E0B] border-emerald-200/90 dark:border-emerald-500/35 hover:border-emerald-400/80 dark:hover:border-emerald-400/60 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.05),0_1px_3px_rgba(0,0,0,0.03)] hover:shadow-[0_14_30px_-6px_rgba(168,185,129,0.18),0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-emerald-950/30",
         topAccent: "from-teal-400/0 via-emerald-500 to-teal-400/0",
         avatarAura: "from-emerald-500/20 via-teal-500/15 to-cyan-400/20 dark:from-emerald-600/40 dark:via-teal-600/30 dark:to-cyan-400/40",
-        avatarRim: "from-emerald-500 via-teal-500 to-cyan-400 shadow-[0_0_12px_rgba(16,185,129,0.25)] dark:shadow-[0_0_18px_rgba(16,185,129,0.35)]",
+        avatarRim: "from-emerald-500 via-teal-500 to-cyan-400 shadow-[0_0_12px_rgba(168,185,129,0.25)] dark:shadow-[0_0_18px_rgba(168,185,129,0.35)] group-hover:shadow-[0_0_20px_rgba(20,184,166,0.45)]",
         statusPing: "bg-emerald-400",
         statusDot: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]",
-        badgePill: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 font-bold",
+        badgePill: "bg-emerald-50 text-emerald-700 border-emerald-200/90 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 font-bold",
         badgeDot: "bg-emerald-500 dark:bg-emerald-400",
-        nameHover: "text-slate-900 group-hover:text-emerald-600 dark:text-white dark:group-hover:text-emerald-400",
-        usernameTag: "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/15 dark:hover:bg-emerald-500/25 dark:border-emerald-500/30",
-        phoneTag: "text-slate-600 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-[#13161C] dark:border-[#1E232B]",
-        phoneIcon: "text-emerald-600 dark:text-emerald-400",
-        statsCard: "bg-slate-50 border-slate-200 dark:bg-[#13161C] dark:border-[#1E232B]",
+        nameHover: "text-slate-900 group-hover:text-emerald-600 dark:text-slate-100 dark:group-hover:text-emerald-400",
+        usernameTag: "text-emerald-700 bg-emerald-50/90 hover:bg-emerald-100/90 border-emerald-200/90 dark:text-emerald-300 dark:bg-emerald-500/15 dark:hover:bg-emerald-500/25 dark:border-emerald-500/30",
+        phoneTag: "text-slate-600 bg-slate-100/90 border-slate-200/80 dark:text-slate-300 dark:bg-emerald-950/35 dark:border-emerald-500/20",
+        phoneIcon: "text-emerald-600 dark:text-emerald-400/80",
+        statsCard: "bg-slate-50/90 hover:bg-slate-100/70 border-slate-200/70 dark:bg-[#07241B]/80 dark:border-emerald-500/20 dark:group-hover:border-emerald-500/35 shadow-2xs dark:shadow-none",
         statsIcon: "text-emerald-600 dark:text-emerald-400",
-        statsVal: "text-slate-900 dark:text-white",
-        statsMuted: "text-slate-600 dark:text-slate-300",
-        footerBorder: "border-slate-100 dark:border-[#1E232B]",
-        verifiedBadge: "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400",
+        statsVal: "text-slate-900 dark:text-slate-100",
+        statsMuted: "text-slate-600 dark:text-slate-200",
+        footerBorder: "border-slate-100 dark:border-emerald-500/20",
+        verifiedBadge: "bg-emerald-50/90 border-emerald-200/90 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/25 dark:text-emerald-400",
         verifiedIcon: "text-emerald-600 dark:text-emerald-400",
-        messageBtn: "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-sm shadow-emerald-500/25",
-        youBadge: "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-[#13161C] dark:border-[#1E232B] dark:text-emerald-300",
+        messageBtn: "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-sm shadow-emerald-500/25 dark:shadow-emerald-950/40",
+        youBadge: "bg-emerald-50 border-emerald-200/90 text-emerald-700 dark:bg-emerald-950/50 dark:border-emerald-500/30 dark:text-emerald-300",
       };
     }
 
@@ -156,27 +156,27 @@ export function MembersView() {
       return {
         isFeatured: true,
         roleBadge: member.role === "ADMIN" ? "CORE ADMIN" : "CORE MEMBER",
-        cardContainer: "bg-white dark:bg-[#140c1e] border-purple-300 dark:border-purple-500/40 hover:border-purple-400 shadow-md dark:shadow-[0_0_20px_rgba(168,85,247,0.12)]",
+        cardContainer: "bg-gradient-to-b from-purple-500/[0.03] via-white to-white dark:bg-gradient-to-b dark:from-[#130B1E] dark:via-[#0E0717] dark:to-[#09040F] border-purple-200/90 dark:border-purple-500/35 hover:border-purple-400/80 dark:hover:border-purple-400/60 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.05),0_1px_3px_rgba(0,0,0,0.03)] hover:shadow-[0_14px_30px_-6px_rgba(168,85,247,0.18),0_2px_8px_rgba(0,0,0,0.04)] dark:shadow-purple-950/30",
         topAccent: "from-purple-400/0 via-purple-500 to-purple-400/0",
         avatarAura: "from-purple-500/20 via-indigo-500/15 to-pink-400/20 dark:from-purple-600/40 dark:via-indigo-600/30 dark:to-pink-500/40",
-        avatarRim: "from-purple-500 via-indigo-500 to-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.25)] dark:shadow-[0_0_18px_rgba(168,85,247,0.35)]",
+        avatarRim: "from-purple-500 via-indigo-500 to-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.25)] dark:shadow-[0_0_18px_rgba(168,85,247,0.35)] group-hover:shadow-[0_0_20px_rgba(192,132,252,0.45)]",
         statusPing: "bg-purple-400",
         statusDot: "bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]",
-        badgePill: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-400 dark:border-purple-500/30 font-bold",
+        badgePill: "bg-purple-50 text-purple-700 border-purple-200/90 dark:bg-purple-500/15 dark:text-purple-400 dark:border-purple-500/30 font-bold",
         badgeDot: "bg-purple-500 dark:bg-purple-400",
-        nameHover: "text-slate-900 group-hover:text-purple-600 dark:text-white dark:group-hover:text-purple-400",
-        usernameTag: "text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200 dark:text-purple-300 dark:bg-purple-500/15 dark:hover:bg-purple-500/25 dark:border-purple-500/30",
-        phoneTag: "text-slate-600 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-[#13161C] dark:border-[#1E232B]",
-        phoneIcon: "text-purple-600 dark:text-purple-400",
-        statsCard: "bg-slate-50 border-slate-200 dark:bg-[#13161C] dark:border-[#1E232B]",
+        nameHover: "text-slate-900 group-hover:text-purple-600 dark:text-slate-100 dark:group-hover:text-purple-400",
+        usernameTag: "text-purple-700 bg-purple-50/90 hover:bg-purple-100/90 border-purple-200/90 dark:text-purple-300 dark:bg-purple-500/15 dark:hover:bg-purple-500/25 dark:border-purple-500/30",
+        phoneTag: "text-slate-600 bg-slate-100/90 border-slate-200/80 dark:text-slate-300 dark:bg-purple-950/35 dark:border-purple-500/20",
+        phoneIcon: "text-purple-600 dark:text-purple-400/80",
+        statsCard: "bg-slate-50/90 hover:bg-slate-100/70 border-slate-200/70 dark:bg-[#12081C]/80 dark:border-purple-500/20 dark:group-hover:border-purple-500/35 shadow-2xs dark:shadow-none",
         statsIcon: "text-purple-600 dark:text-purple-400",
-        statsVal: "text-slate-900 dark:text-white",
-        statsMuted: "text-slate-600 dark:text-slate-300",
-        footerBorder: "border-slate-100 dark:border-[#1E232B]",
-        verifiedBadge: "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-500/10 dark:border-purple-500/30 dark:text-purple-400",
+        statsVal: "text-slate-900 dark:text-slate-100",
+        statsMuted: "text-slate-600 dark:text-slate-200",
+        footerBorder: "border-slate-100 dark:border-purple-500/20",
+        verifiedBadge: "bg-purple-50/90 border-purple-200/90 text-purple-700 dark:bg-purple-500/10 dark:border-purple-500/25 dark:text-purple-400",
         verifiedIcon: "text-purple-600 dark:text-purple-400",
-        messageBtn: "bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white shadow-sm shadow-purple-500/25",
-        youBadge: "bg-purple-50 border-purple-200 text-purple-700 dark:bg-[#13161C] dark:border-[#1E232B] dark:text-purple-300",
+        messageBtn: "bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white shadow-sm shadow-purple-500/25 dark:shadow-purple-950/40",
+        youBadge: "bg-purple-50 border-purple-200/90 text-purple-700 dark:bg-purple-950/50 dark:border-purple-500/30 dark:text-purple-300",
       };
     }
 
@@ -184,27 +184,27 @@ export function MembersView() {
     return {
       isFeatured: false,
       roleBadge: member.role === "ADMIN" ? "ADMIN" : "MEMBER",
-      cardContainer: "bg-white dark:bg-[#0d0f14] border-slate-200 dark:border-[#1E232B] hover:border-slate-400 dark:hover:border-[#2E3542] shadow-md",
-      topAccent: "from-blue-500/0 via-blue-500 to-blue-500/0",
+      cardContainer: "bg-white dark:bg-[#101217] border-slate-200/90 dark:border-line/80 hover:border-blue-400/80 dark:hover:border-accent/40 shadow-[0_2px_12px_-2px_rgba(0,0,0,0.05),0_1px_3px_rgba(0,0,0,0.03)] hover:shadow-[0_14px_30px_-6px_rgba(0,0,0,0.08)] dark:hover:shadow-accent/5",
+      topAccent: "from-blue-500/0 via-blue-500 to-blue-500/0 dark:from-accent/0 dark:via-accent dark:to-accent/0",
       avatarAura: "",
       avatarRim: "",
       statusPing: "bg-emerald-400",
       statusDot: "bg-emerald-500",
-      badgePill: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-bold",
-      badgeDot: "bg-blue-500 dark:bg-slate-400",
-      nameHover: "text-slate-900 group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400",
-      usernameTag: "text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 dark:text-slate-300 dark:bg-[#13161C] dark:border-[#1E232B]",
-      phoneTag: "text-slate-600 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-[#13161C] dark:border-[#1E232B]",
-      phoneIcon: "text-slate-500 dark:text-slate-400",
-      statsCard: "bg-slate-50 border-slate-200 dark:bg-[#13161C] dark:border-[#1E232B]",
-      statsIcon: "text-blue-600 dark:text-slate-400",
-      statsVal: "text-slate-900 dark:text-white",
-      statsMuted: "text-slate-600 dark:text-slate-300",
-      footerBorder: "border-slate-100 dark:border-[#1E232B]",
-      verifiedBadge: "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-slate-800/40 dark:border-slate-700 dark:text-slate-300",
+      badgePill: "bg-blue-50 text-blue-700 border-blue-200/90 dark:bg-accent-soft dark:text-accent dark:border-accent/20 font-bold",
+      badgeDot: "bg-blue-500 dark:bg-accent",
+      nameHover: "text-slate-900 group-hover:text-blue-600 dark:text-ink dark:group-hover:text-accent",
+      usernameTag: "text-blue-700 bg-blue-50/90 hover:bg-blue-100/90 border-blue-200/90 dark:text-accent dark:bg-accent-soft/40 dark:hover:bg-accent-soft dark:border-accent/25",
+      phoneTag: "text-slate-600 bg-slate-100/90 border-slate-200/80 dark:text-ink-secondary dark:bg-surface-alt/90 dark:border-line/80",
+      phoneIcon: "text-slate-500 dark:text-ink-tertiary",
+      statsCard: "bg-slate-50/90 hover:bg-slate-100/70 border-slate-200/70 dark:bg-[#141721] dark:border-line/70 dark:group-hover:border-line shadow-2xs dark:shadow-none",
+      statsIcon: "text-blue-600 dark:text-accent",
+      statsVal: "text-slate-900 dark:text-ink",
+      statsMuted: "text-slate-600 dark:text-ink-tertiary",
+      footerBorder: "border-slate-100 dark:border-line/80",
+      verifiedBadge: "bg-emerald-50/90 border-emerald-200/90 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/25 dark:text-emerald-400",
       verifiedIcon: "text-emerald-600 dark:text-emerald-400",
-      messageBtn: "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm shadow-blue-500/25",
-      youBadge: "bg-slate-100 border-slate-200 text-slate-700 dark:bg-[#13161C] dark:border-[#1E232B] dark:text-slate-300",
+      messageBtn: "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm shadow-blue-500/25 dark:bg-accent dark:hover:bg-accent-hover dark:shadow-accent/25",
+      youBadge: "bg-slate-100 border-slate-200/90 text-slate-700 dark:bg-surface-alt/90 dark:border-line/80 dark:text-ink-tertiary",
     };
   };
 
@@ -402,23 +402,23 @@ export function MembersView() {
       </div>
 
       {/* Filter & Search Bar */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-[#0D0F12] border border-slate-200 dark:border-[#1E232B] p-2.5 rounded-2xl shadow-sm font-sans select-none">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white/95 dark:bg-[#11131A]/90 backdrop-blur-md border border-slate-200/90 dark:border-line/80 p-2.5 rounded-2xl shadow-[0_2px_10px_-2px_rgba(0,0,0,0.04)] focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/15 transition-all font-sans select-none">
         <div className="relative flex-1">
           <MagnifyingGlass
             size={18}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-blue-600 dark:text-accent"
           />
           <input
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search member by name, @username, or phone number..."
-            className="w-full pl-10 pr-9 py-2 bg-slate-50 dark:bg-[#13161C] border border-slate-200 dark:border-[#252931] rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-blue-500 font-sans transition-all"
+            className="w-full pl-10 pr-9 py-2 bg-slate-50/90 dark:bg-[#151821] border border-slate-200/80 dark:border-line/70 rounded-xl text-xs sm:text-sm text-slate-900 dark:text-ink placeholder:text-slate-400 dark:placeholder:text-ink-tertiary focus:outline-none font-sans transition-all"
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-white cursor-pointer transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-700 hover:bg-slate-200/60 dark:text-ink-tertiary dark:hover:text-ink dark:hover:bg-surface-hover cursor-pointer transition-colors"
               title="Clear search"
             >
               <X size={14} />
@@ -427,15 +427,15 @@ export function MembersView() {
         </div>
 
         {/* Role Filter Tabs */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#13161C] p-1 rounded-xl border border-slate-200 dark:border-[#252931] shrink-0 font-sans">
+        <div className="flex items-center gap-1 bg-slate-100/90 dark:bg-[#151821] p-1 rounded-xl border border-slate-200/80 dark:border-line/70 shrink-0 font-sans">
           {(["ALL", "SUPER_ADMIN", "MEMBER"] as const).map((tab) => (
             <button
               key={tab}
               onClick={() => setRoleFilter(tab)}
               className={`px-3.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                 roleFilter === tab
-                  ? "bg-blue-600 text-white font-extrabold shadow-sm"
-                  : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-semibold hover:bg-slate-200/50 dark:hover:bg-[#1E232B]"
+                  ? "bg-blue-600 dark:bg-accent text-white font-extrabold shadow-sm shadow-blue-500/25"
+                  : "text-slate-500 hover:text-slate-900 dark:text-ink-tertiary dark:hover:text-ink font-semibold hover:bg-slate-200/50 dark:hover:bg-surface-hover/50"
               }`}
             >
               {tab === "ALL" ? "All" : tab === "SUPER_ADMIN" ? "Super Admin" : "Members"}
