@@ -23,10 +23,41 @@ export async function GET(req: Request) {
     const client = await clientPromise;
     const db = client.db(DB_NAME);
 
-    // Fetch users and members concurrently in parallel
+    // Fetch users and members concurrently in parallel with lean projections
     const [users, initialMembers] = await Promise.all([
-      db.collection<UserDocument>("users").find({}, { projection: { passwordHash: 0 } }).toArray(),
-      db.collection<MemberDocument>("members").find({}).toArray(),
+      db.collection<UserDocument>("users").find({}, {
+        projection: {
+          id: 1,
+          memberId: 1,
+          username: 1,
+          email: 1,
+          role: 1,
+          status: 1,
+          emailVerified: 1,
+          mustChangePassword: 1,
+          lastLoginAt: 1,
+          createdAt: 1,
+          phone: 1,
+        },
+      }).toArray(),
+      db.collection<MemberDocument>("members").find({}, {
+        projection: {
+          id: 1,
+          name: 1,
+          displayName: 1,
+          username: 1,
+          email: 1,
+          avatar: 1,
+          role: 1,
+          status: 1,
+          panMasked: 1,
+          phone: 1,
+          defaultContribution: 1,
+          joinedAt: 1,
+          createdAt: 1,
+          isVerified: 1,
+        },
+      }).toArray(),
     ]);
     let members = initialMembers;
 

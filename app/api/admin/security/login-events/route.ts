@@ -28,21 +28,39 @@ export async function GET() {
 
     const client = await clientPromise;
     const db = client.db(DB_NAME);
-    
-    // Fetch login events from the activities collection
-    const loginEvents = await db.collection("activities")
-      .find({
-        eventType: { 
-          $in: [
-            "LOGIN_SUCCESS", 
-            "ADMIN_LOGIN_SUCCESS", 
-            "LOGIN_FAILED", 
-            "ADMIN_LOGIN_FAILED",
-            "LOGOUT",
-            "ADMIN_LOGOUT"
-          ] 
+
+    // Fetch login events with projection
+    const loginEvents = await db
+      .collection("activities")
+      .find(
+        {
+          eventType: {
+            $in: [
+              "LOGIN_SUCCESS",
+              "ADMIN_LOGIN_SUCCESS",
+              "LOGIN_FAILED",
+              "ADMIN_LOGIN_FAILED",
+              "LOGOUT",
+              "ADMIN_LOGOUT",
+            ],
+          },
+        },
+        {
+          projection: {
+            id: 1,
+            eventType: 1,
+            category: 1,
+            severity: 1,
+            actorName: 1,
+            actorUsername: 1,
+            actorRole: 1,
+            ipAddress: 1,
+            createdAt: 1,
+            userAgent: 1,
+            metadata: 1,
+          },
         }
-      })
+      )
       .sort({ createdAt: -1 })
       .limit(50)
       .toArray();
@@ -50,7 +68,7 @@ export async function GET() {
     // Map and sanitize failed login attempts to prevent user enumeration
     const sanitizedEvents = loginEvents.map((event) => {
       const isFailed = event.eventType === "LOGIN_FAILED" || event.eventType === "ADMIN_LOGIN_FAILED";
-      
+
       return {
         id: event.id,
         eventType: event.eventType,
@@ -63,15 +81,21 @@ export async function GET() {
         ipAddress: event.ipAddress || "127.0.0.1",
         createdAt: event.createdAt,
         success: !isFailed,
-        context: event.eventType.startsWith("ADMIN") ? "ADMIN" : "MEMBER"
+        context: event.eventType?.startsWith("ADMIN") ? "ADMIN" : "MEMBER",
       };
     });
 
-    return NextResponse.json({
-      success: true,
-      loginEvents: sanitizedEvents
-    });
-
+    return NextResponse.json(
+      {
+        success: true,
+        loginEvents: sanitizedEvents,
+      },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=5, stale-while-revalidate=15",
+        },
+      }
+    );
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message || "Internal Server Error" }, { status: 500 });
   }

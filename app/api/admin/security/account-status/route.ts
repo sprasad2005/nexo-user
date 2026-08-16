@@ -28,27 +28,39 @@ export async function GET() {
 
     const client = await clientPromise;
     const db = client.db(DB_NAME);
+    const usersCol = db.collection("users");
+    const membersCol = db.collection("members");
 
-    // 1. Counts of accounts by statuses
-    const activeCount = await db.collection("users").countDocuments({ status: "ACTIVE" });
-    const suspendedCount = await db.collection("users").countDocuments({ status: "SUSPENDED" });
-    const disabledCount = await db.collection("users").countDocuments({ status: "DISABLED" });
-    const passwordResetRequiredCount = await db.collection("users").countDocuments({ mustChangePassword: true });
-    
-    // Email verified status comes from user model as well
-    const emailUnverifiedCount = await db.collection("users").countDocuments({ emailVerified: false });
+    // Parallel execution of all counts and list queries in a single Promise.all batch
+    const [
+      activeCount,
+      suspendedCount,
+      disabledCount,
+      passwordResetRequiredCount,
+      emailUnverifiedCount,
+      suspendedUsers,
+      passwordRequiredUsers,
+      allMembers,
+    ] = await Promise.all([
+      usersCol.countDocuments({ status: "ACTIVE" }),
+      usersCol.countDocuments({ status: "SUSPENDED" }),
+      usersCol.countDocuments({ status: "DISABLED" }),
+      usersCol.countDocuments({ mustChangePassword: true }),
+      usersCol.countDocuments({ emailVerified: false }),
+      usersCol
+        .find({ status: "SUSPENDED" }, { projection: { memberId: 1, role: 1, updatedAt: 1 } })
+        .limit(50)
+        .toArray(),
+      usersCol
+        .find({ mustChangePassword: true }, { projection: { memberId: 1, role: 1 } })
+        .limit(10)
+        .toArray(),
+      membersCol
+        .find({}, { projection: { id: 1, name: 1, username: 1, avatar: 1 } })
+        .toArray(),
+    ]);
 
-    // 2. Fetch details of suspended accounts
-    const suspendedUsers = await db.collection("users")
-      .find({ status: "SUSPENDED" })
-      .toArray();
-
-    const suspendedMemberIds = suspendedUsers.map((u) => u.memberId);
-    const suspendedMembers = await db.collection("members")
-      .find({ id: { $in: suspendedMemberIds } })
-      .toArray();
-
-    const memberMap = new Map(suspendedMembers.map((m) => [m.id, m]));
+    const memberMap = new Map(allMembers.map((m) => [m.id, m]));
 
     const suspendedAccounts = suspendedUsers.map((u) => {
       const m = memberMap.get(u.memberId);
@@ -59,47 +71,40 @@ export async function GET() {
         avatar: m?.avatar || "/oggy.png",
         role: u.role,
         suspendedAt: u.updatedAt || new Date(),
-        reason: "Administrative Action"
+        reason: "Administrative Action",
       };
     });
 
-    // 3. Fetch accounts requiring password change (limit to 10 for overview list)
-    const passwordRequiredUsers = await db.collection("users")
-      .find({ mustChangePassword: true })
-      .limit(10)
-      .toArray();
-
-    const pwdMemberIds = passwordRequiredUsers.map((u) => u.memberId);
-    const pwdMembers = await db.collection("members")
-      .find({ id: { $in: pwdMemberIds } })
-      .toArray();
-
-    const pwdMemberMap = new Map(pwdMembers.map((m) => [m.id, m]));
-
     const passwordRequiredAccounts = passwordRequiredUsers.map((u) => {
-      const m = pwdMemberMap.get(u.memberId);
+      const m = memberMap.get(u.memberId);
       return {
         id: u.memberId,
         name: m?.name || "Unknown",
         username: m?.username || "unknown",
         avatar: m?.avatar || "/oggy.png",
-        role: u.role
+        role: u.role,
       };
     });
 
-    return NextResponse.json({
-      success: true,
-      metrics: {
-        active: activeCount,
-        suspended: suspendedCount,
-        disabled: disabledCount,
-        passwordChangeRequired: passwordResetRequiredCount,
-        emailUnverified: emailUnverifiedCount
+    return NextResponse.json(
+      {
+        success: true,
+        metrics: {
+          active: activeCount,
+          suspended: suspendedCount,
+          disabled: disabledCount,
+          passwordChangeRequired: passwordResetRequiredCount,
+          emailUnverified: emailUnverifiedCount,
+        },
+        suspendedAccounts,
+        passwordRequiredAccounts,
       },
-      suspendedAccounts,
-      passwordRequiredAccounts
-    });
-
+      {
+        headers: {
+          "Cache-Control": "private, max-age=10, stale-while-revalidate=30",
+        },
+      }
+    );
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message || "Internal Server Error" }, { status: 500 });
   }

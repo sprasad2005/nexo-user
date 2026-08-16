@@ -17,18 +17,18 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const client = await clientPromise;
     const db = client.db(DB_NAME);
 
-    // Fetch member flexibly by id, username, or email
-    let member = await db.collection<MemberDocument>("members").findOne({
-      $or: [{ id: memberId }, { username: memberId }, { email: memberId }]
-    });
+    // Fetch member and user in parallel
+    const [foundMember, foundUser] = await Promise.all([
+      db.collection<MemberDocument>("members").findOne({
+        $or: [{ id: memberId }, { username: memberId }, { email: memberId }],
+      }),
+      db.collection<UserDocument>("users").findOne({
+        $or: [{ id: memberId }, { memberId: memberId }, { username: memberId }],
+      }),
+    ]);
 
-    let user = member
-      ? await db.collection<UserDocument>("users").findOne({
-          $or: [{ memberId: member.id }, { id: member.id }, { username: (member as any).username }]
-        })
-      : await db.collection<UserDocument>("users").findOne({
-          $or: [{ id: memberId }, { memberId: memberId }, { username: memberId }]
-        });
+    let member = foundMember;
+    let user = foundUser;
 
     if (!member && !user) {
       return NextResponse.json({ success: false, error: "Member not found." }, { status: 404 });
@@ -177,6 +177,11 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
       },
       portfolio,
       applications: appsResolved,
+    },
+    {
+      headers: {
+        "Cache-Control": "private, max-age=5, stale-while-revalidate=15",
+      },
     });
   } catch (err: any) {
     console.error("GET /api/admin/members/[id] error:", err);
