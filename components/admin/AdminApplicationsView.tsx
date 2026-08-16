@@ -64,6 +64,12 @@ export function AdminApplicationsView() {
     ipoName: string;
   } | null>(null);
 
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Default to active IPO or first IPO with applications if not set
   useEffect(() => {
     if (!selectedIpoId && ipos.length > 0) {
@@ -118,6 +124,8 @@ export function AdminApplicationsView() {
 
   // Expanded applications list where each PAN Card / lot has its own row and unique serial number
   const expandedApplications = useMemo(() => {
+    if (!isMounted) return [];
+
     let rawList: any[] = [];
     if (fetchedApps.length > 0) {
       rawList = [...fetchedApps];
@@ -157,7 +165,7 @@ export function AdminApplicationsView() {
     });
 
     return result;
-  }, [fetchedApps, selectedIpo]);
+  }, [fetchedApps, selectedIpo, isMounted]);
 
   // Filtered Applications by Search & Status
   const filteredApplications = useMemo(() => {
@@ -186,6 +194,9 @@ export function AdminApplicationsView() {
 
   // Metrics Summary
   const metrics = useMemo(() => {
+    if (!isMounted) {
+      return { total: 0, awaiting: 0, allotted: 0, notAllotted: 0, totalCapital: 0, totalLots: 0 };
+    }
     const total = expandedApplications.length;
     const awaiting = expandedApplications.filter((a) => (a.allotmentStatus || a.status) === "AWAITING" || (a.allotmentStatus || a.status) === "PENDING").length;
     const allotted = expandedApplications.filter((a) => (a.allotmentStatus || a.status) === "ALLOTTED").length;
@@ -194,7 +205,7 @@ export function AdminApplicationsView() {
     const totalLots = expandedApplications.reduce((sum, a) => sum + (a.lotCount || a.lotsApplied || 1), 0);
 
     return { total, awaiting, allotted, notAllotted, totalCapital, totalLots };
-  }, [expandedApplications]);
+  }, [expandedApplications, isMounted]);
 
   const togglePanReveal = (appId: string) => {
     setRevealedPans((prev) => ({ ...prev, [appId]: !prev[appId] }));
