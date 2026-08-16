@@ -315,14 +315,25 @@ export function MembersView() {
             const mUsername = member.username || member.name.toLowerCase();
             const mPhone = member.phone || "+91 98200 12345";
             const appliedCount = getAppliedIpoCount(member);
+            const isSuperAdminCard = member.role === "SUPER_ADMIN" || member.username === "ankitgod";
 
             return (
               <div
                 key={member.id}
-                className="group relative bg-gradient-to-b from-surface via-surface-alt/60 to-surface-alt/90 dark:from-[#11131A] dark:to-[#0D0E14] border border-line/80 hover:border-accent/40 rounded-2xl p-5 transition-all duration-300 hover:shadow-2xl hover:shadow-accent/10 hover:-translate-y-1 flex flex-col justify-between overflow-hidden font-sans"
+                className={`group relative rounded-2xl p-5 transition-all duration-300 flex flex-col justify-between overflow-hidden font-sans ${
+                  isSuperAdminCard
+                    ? "bg-gradient-to-b from-[#19150E] via-[#121318] to-[#0D0E13] border-2 border-amber-500/40 hover:border-amber-400/80 shadow-xl shadow-amber-950/20 hover:shadow-2xl hover:shadow-amber-500/15 hover:-translate-y-1.5"
+                    : "bg-gradient-to-b from-surface via-surface-alt/60 to-surface-alt/90 dark:from-[#11131A] dark:to-[#0D0E14] border border-line/80 hover:border-accent/40 hover:shadow-2xl hover:shadow-accent/10 hover:-translate-y-1"
+                }`}
               >
                 {/* Glowing Top Edge Accent */}
-                <div className="absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent/0 via-accent/60 to-accent/0 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                <div
+                  className={`absolute top-0 left-0 right-0 h-1 transition-all duration-300 ${
+                    isSuperAdminCard
+                      ? "bg-gradient-to-r from-amber-500/0 via-amber-400 to-amber-500/0 opacity-100 shadow-sm shadow-amber-400/50"
+                      : "bg-gradient-to-r from-accent/0 via-accent/60 to-accent/0 opacity-0 group-hover:opacity-100"
+                  }`}
+                />
 
                 <div className="space-y-4">
                   {/* Top Profile Header */}
@@ -333,11 +344,19 @@ export function MembersView() {
                         <img
                           src={member.avatar}
                           alt={member.name}
-                          className="w-13 h-13 rounded-2xl object-cover ring-2 ring-accent/30 group-hover:ring-accent/60 bg-surface-alt transition-all duration-300 shadow-md"
+                          className={`w-13 h-13 rounded-2xl object-cover transition-all duration-300 shadow-md ${
+                            isSuperAdminCard
+                              ? "ring-2 ring-amber-400 group-hover:ring-amber-300 shadow-amber-500/20"
+                              : "ring-2 ring-accent/30 group-hover:ring-accent/60 bg-surface-alt"
+                          }`}
                         />
                         <span
-                          className="w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-surface absolute -bottom-0.5 -right-0.5 shadow-xs"
-                          title="Active Member"
+                          className={`w-3.5 h-3.5 rounded-full ring-2 absolute -bottom-0.5 -right-0.5 shadow-xs ${
+                            isSuperAdminCard
+                              ? "bg-amber-400 ring-[#19150E] shadow-amber-400/50"
+                              : "bg-emerald-500 ring-surface"
+                          }`}
+                          title={isSuperAdminCard ? "Super Admin" : "Active Member"}
                         />
                       </div>
 
@@ -352,16 +371,21 @@ export function MembersView() {
                                 openDirectChatWithUser(member.id);
                               }
                             }}
-                            className="text-base font-black text-ink group-hover:text-accent hover:underline transition-colors truncate tracking-tight cursor-pointer"
+                            className={`text-base font-black transition-colors truncate tracking-tight cursor-pointer ${
+                              isSuperAdminCard
+                                ? "text-amber-100 hover:text-amber-300 hover:underline"
+                                : "text-ink group-hover:text-accent hover:underline"
+                            }`}
                             title={currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN" ? "Click to view detailed member IPO history & PnL" : `Click to message @${mUsername}`}
                           >
                             {member.name}
                           </h3>
-                          {member.role === "SUPER_ADMIN" ? (
-                            <span className="px-2 py-0.5 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30 text-[10px] font-mono font-extrabold tracking-wider uppercase shrink-0 flex items-center gap-1">
-                              <Crown size={11} className="text-purple-400" /> Super Admin
+                          {isSuperAdminCard && (
+                            <span className="px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-500/25 via-amber-400/20 to-amber-600/15 text-amber-300 border border-amber-400/60 text-[10px] font-mono font-black tracking-wider uppercase shrink-0 flex items-center gap-1 shadow-xs shadow-amber-500/25">
+                              <Crown size={12} weight="fill" className="text-amber-400 animate-pulse" />
+                              <span>SUPER ADMIN</span>
                             </span>
-                          ) : null}
+                          )}
                         </div>
 
                         {/* Username Tag & Phone Badge */}
@@ -369,14 +393,22 @@ export function MembersView() {
                           <button
                             type="button"
                             onClick={() => openDirectChatWithUser(member.id)}
-                            className="inline-flex items-center gap-1 text-xs font-sans font-semibold tracking-tight text-accent bg-accent-soft/40 hover:bg-accent-soft px-2.5 py-0.5 rounded-lg border border-accent/25 transition-all shadow-2xs cursor-pointer active:scale-95"
+                            className={`inline-flex items-center gap-1 text-xs font-sans font-semibold tracking-tight px-2.5 py-0.5 rounded-lg border transition-all shadow-2xs cursor-pointer active:scale-95 ${
+                              isSuperAdminCard
+                                ? "text-amber-300 bg-amber-500/15 hover:bg-amber-500/25 border-amber-500/35"
+                                : "text-accent bg-accent-soft/40 hover:bg-accent-soft border-accent/25"
+                            }`}
                             title={`Click to chat with @${mUsername}`}
                           >
                             @{mUsername}
                           </button>
 
-                          <div className="inline-flex items-center gap-1 text-[11px] font-sans font-medium text-ink-secondary bg-surface-alt/90 px-2.5 py-0.5 rounded-lg border border-line/80 shadow-2xs">
-                            <Phone size={11} className="text-ink-tertiary" /> {mPhone}
+                          <div className={`inline-flex items-center gap-1 text-[11px] font-sans font-medium px-2.5 py-0.5 rounded-lg border shadow-2xs ${
+                            isSuperAdminCard
+                              ? "text-amber-200/80 bg-amber-950/40 border-amber-500/25"
+                              : "text-ink-secondary bg-surface-alt/90 border-line/80"
+                          }`}>
+                            <Phone size={11} className={isSuperAdminCard ? "text-amber-400/70" : "text-ink-tertiary"} /> {mPhone}
                           </div>
                         </div>
                       </div>
@@ -385,12 +417,16 @@ export function MembersView() {
 
                   {/* Clean Stats Grid */}
                   <div className="grid grid-cols-2 gap-2.5 pt-1">
-                    <div className="p-3 rounded-xl bg-surface-alt/80 dark:bg-[#141721] border border-line/70 group-hover:border-line transition-all space-y-1">
+                    <div className={`p-3 rounded-xl border transition-all space-y-1 ${
+                      isSuperAdminCard
+                        ? "bg-amber-950/20 dark:bg-[#1C1813]/80 border-amber-500/25 group-hover:border-amber-500/40"
+                        : "bg-surface-alt/80 dark:bg-[#141721] border border-line/70 group-hover:border-line"
+                    }`}>
                       <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
-                        <TrendUp size={13} className="text-accent" />
+                        <TrendUp size={13} className={isSuperAdminCard ? "text-amber-400" : "text-accent"} />
                         <span>IPOs Applied</span>
                       </div>
-                      <p className="text-base font-black font-sans text-ink">
+                      <p className={`text-base font-black font-sans ${isSuperAdminCard ? "text-amber-100" : "text-ink"}`}>
                         {appliedCount}{" "}
                         <span className="text-xs text-ink-tertiary font-sans font-normal">
                           {appliedCount === 1 ? "IPO" : "IPOs"}
@@ -398,12 +434,16 @@ export function MembersView() {
                       </p>
                     </div>
 
-                    <div className="p-3 rounded-xl bg-surface-alt/80 dark:bg-[#141721] border border-line/70 group-hover:border-line transition-all space-y-1">
+                    <div className={`p-3 rounded-xl border transition-all space-y-1 ${
+                      isSuperAdminCard
+                        ? "bg-amber-950/20 dark:bg-[#1C1813]/80 border-amber-500/25 group-hover:border-amber-500/40"
+                        : "bg-surface-alt/80 dark:bg-[#141721] border border-line/70 group-hover:border-line"
+                    }`}>
                       <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
-                        <CalendarBlank size={13} className="text-ink-secondary" />
+                        <CalendarBlank size={13} className={isSuperAdminCard ? "text-amber-400" : "text-ink-secondary"} />
                         <span>Member Since</span>
                       </div>
-                      <p className="text-xs font-bold text-ink truncate mt-0.5">
+                      <p className={`text-xs font-bold truncate mt-0.5 ${isSuperAdminCard ? "text-amber-200" : "text-ink"}`}>
                         {member.joinedAt || "Jan 2025"}
                       </p>
                     </div>
@@ -411,25 +451,41 @@ export function MembersView() {
                 </div>
 
                 {/* Footer Controls */}
-                <div className="pt-4 mt-4 border-t border-line/80 flex items-center justify-between text-xs">
-                  <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
-                    <ShieldCheck size={14} className="text-emerald-400" /> Verified Member
-                  </span>
+                <div className={`pt-4 mt-4 border-t flex items-center justify-between text-xs ${
+                  isSuperAdminCard ? "border-amber-500/20" : "border-line/80"
+                }`}>
+                  {isSuperAdminCard ? (
+                    <span className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-amber-500/20 to-amber-600/10 border border-amber-400/40 text-amber-300 text-xs font-bold flex items-center gap-1.5 shadow-xs shadow-amber-500/10">
+                      <Crown size={14} weight="fill" className="text-amber-400" /> Platform Owner
+                    </span>
+                  ) : (
+                    <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
+                      <ShieldCheck size={14} className="text-emerald-400" /> Verified Member
+                    </span>
+                  )}
 
                   <div className="flex items-center gap-1.5">
                     {member.id === currentUser?.id ? (
-                      <span className="px-3 py-1 rounded-xl bg-surface-alt/90 border border-line/80 text-ink-tertiary font-bold text-xs">
+                      <span className={`px-3 py-1 rounded-xl font-bold text-xs border ${
+                        isSuperAdminCard
+                          ? "bg-amber-950/40 border-amber-500/30 text-amber-300"
+                          : "bg-surface-alt/90 border-line/80 text-ink-tertiary"
+                      }`}>
                         You
                       </span>
                     ) : (
                       <button
                         onClick={() => openDirectChatWithUser(member.id)}
-                        className="px-3.5 py-1.5 rounded-xl bg-accent text-white hover:bg-accent-hover font-bold text-xs shadow-xs shadow-accent/25 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                        className={`px-3.5 py-1.5 rounded-xl font-bold text-xs shadow-xs transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${
+                          isSuperAdminCard
+                            ? "bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black shadow-amber-500/30"
+                            : "bg-accent text-white hover:bg-accent-hover shadow-accent/25"
+                        }`}
                         title={`Message @${mUsername}`}
                       >
                         <ChatCircleDots size={14} weight="bold" />
                         <span>Message</span>
-                        <span className="text-white/80 font-sans font-normal">→</span>
+                        <span className="opacity-80 font-sans font-normal">→</span>
                       </button>
                     )}
                   </div>
