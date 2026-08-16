@@ -135,28 +135,35 @@ export async function POST(req: Request) {
       }
 
       // Always query applications by ipoId or targetIpoName
-      const dbApps = await db.collection("applications").find({
-        $or: [
-          { ipoId: ipoId },
-          { ipoName: { $regex: new RegExp(`^${targetIpoName}$`, "i") } }
-        ]
-      }).toArray();
+      const dbApps = await db
+        .collection("applications")
+        .find({
+          $or: [
+            { ipoId: ipoId },
+            { ipoName: { $regex: new RegExp(`^${targetIpoName}$`, "i") } },
+          ],
+        })
+        .toArray();
 
-      for (const app of dbApps) {
-        const allottedIndices = getAllottedIndices(app);
-        const isAllotted = allottedIndices.length > 0;
-
-        await db.collection("applications").updateOne(
-          { _id: app._id },
-          {
-            $set: {
-              allotmentStatus: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
-              status: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
-              allottedIndices,
-              updatedAt: finalizedDate,
-            }
-          }
-        );
+      if (dbApps.length > 0) {
+        const bulkOps = dbApps.map((app) => {
+          const allottedIndices = getAllottedIndices(app);
+          const isAllotted = allottedIndices.length > 0;
+          return {
+            updateOne: {
+              filter: { _id: app._id },
+              update: {
+                $set: {
+                  allotmentStatus: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
+                  status: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
+                  allottedIndices,
+                  updatedAt: finalizedDate,
+                },
+              },
+            },
+          };
+        });
+        await db.collection("applications").bulkWrite(bulkOps, { ordered: false });
       }
 
       if (dbIpo) {
@@ -169,7 +176,7 @@ export async function POST(req: Request) {
               allotmentFinalizedBy: adminName,
               status: "ALLOTMENT_OUT",
               updatedAt: finalizedDate,
-            }
+            },
           }
         );
       }

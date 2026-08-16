@@ -247,6 +247,37 @@ export async function POST(req: NextRequest) {
       });
       writeSharedIpos(updated);
 
+      try {
+        const client = await clientPromise;
+        const db = client.db(DB_NAME);
+        const currentMetrics = data.metrics || {};
+        const issueSizeVal = data.issueSize !== undefined ? data.issueSize : currentMetrics.issueSize;
+        const formattedIssueSize = typeof issueSizeVal === "number" ? `₹${issueSizeVal.toLocaleString("en-IN")} Cr` : String(issueSizeVal || "—");
+
+        await db.collection("ipos").updateOne(
+          { $or: [{ id: ipoId }, { _id: ipoId as any }] },
+          {
+            $set: {
+              ...(data.name ? { name: data.name.trim(), company: data.name.trim() } : {}),
+              ...(data.description ? { thesis: data.description.trim() } : {}),
+              ...(data.registrarUrl !== undefined ? { registrarUrl: data.registrarUrl.trim() } : {}),
+              ...(data.status ? { status: data.status } : {}),
+              "metrics.issueSize": formattedIssueSize,
+              ...(data.minInvestment !== undefined ? { "metrics.minInvestment": Number(data.minInvestment) } : {}),
+              ...(data.gmpPercent !== undefined ? { "metrics.gmpPercent": Number(data.gmpPercent) } : {}),
+              ...(data.openDate ? { "metrics.openDate": data.openDate.trim() } : {}),
+              ...(data.closeDate ? { "metrics.closeDate": data.closeDate.trim() } : {}),
+              ...(data.allotmentDate ? { "metrics.allotmentDate": data.allotmentDate.trim() } : {}),
+              ...(data.listingDate ? { "metrics.listingDate": data.listingDate.trim() } : {}),
+              ...(data.fundUnblockDate ? { "metrics.fundUnblockDate": data.fundUnblockDate.trim() } : {}),
+              updatedAt: new Date(),
+            },
+          }
+        );
+      } catch (dbErr) {
+        console.warn("MongoDB updateIpo error:", dbErr);
+      }
+
       await logActivity({
         eventType: "IPO_UPDATED",
         category: "PRODUCT",
