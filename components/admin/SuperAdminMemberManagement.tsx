@@ -426,15 +426,15 @@ export function SuperAdminMemberManagement() {
       </div>
 
       {/* ── SEARCH & FILTER CONTROLS ── */}
-      <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl p-4 shadow-2xs flex flex-col sm:flex-row items-center justify-between gap-4">
+      <div className="bg-[#0D0F12] border border-[#1E232B] rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
         <div className="relative w-full sm:w-80">
-          <MagnifyingGlass size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400 dark:text-[#626A75]" />
+          <MagnifyingGlass size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
             placeholder="Search name, username, email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] text-xs font-semibold text-slate-900 dark:text-[#F5F7FA] placeholder:text-slate-400 dark:placeholder:text-[#626A75] focus:outline-none focus:border-blue-600 dark:focus:border-[#6B93FF]"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-[#13161C] border border-[#252931] text-xs font-semibold text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
           />
         </div>
 
@@ -443,7 +443,7 @@ export function SuperAdminMemberManagement() {
           <select
             value={roleFilter}
             onChange={(e) => setRoleFilter(e.target.value as any)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-700 dark:text-[#AEB5C0] focus:outline-none"
+            className="px-3.5 py-2.5 rounded-xl bg-[#13161C] border border-[#252931] text-xs font-bold text-slate-300 focus:outline-none cursor-pointer"
           >
             <option value="ALL">All Roles</option>
             <option value="SUPER_ADMIN">Super Admin Only</option>
@@ -454,7 +454,7 @@ export function SuperAdminMemberManagement() {
           <select
             value={statusFilter}
             onChange={(e) => setStatusFilter(e.target.value as any)}
-            className="px-3 py-2 rounded-xl bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-700 dark:text-[#AEB5C0] focus:outline-none"
+            className="px-3.5 py-2.5 rounded-xl bg-[#13161C] border border-[#252931] text-xs font-bold text-slate-300 focus:outline-none cursor-pointer"
           >
             <option value="ALL">All Statuses</option>
             <option value="ACTIVE">Active Only</option>
@@ -464,18 +464,18 @@ export function SuperAdminMemberManagement() {
       </div>
 
       {/* ── MEMBERS DIRECTORY TABLE ── */}
-      <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-3xl overflow-hidden shadow-2xs">
-        <div className="p-4 sm:p-5 border-b border-slate-100 dark:border-[#1B1E23] bg-slate-50/50 dark:bg-[#14161A] flex items-center justify-between">
-          <h3 className="text-xs font-extrabold text-slate-800 dark:text-[#F5F7FA] uppercase tracking-wider">
-            System Accounts Directory ({filteredMembers.length})
+      <div className="bg-[#0D0F12] border border-[#1E232B] rounded-2xl overflow-hidden shadow-2xl">
+        <div className="p-4 sm:p-5 border-b border-[#1E232B] bg-[#0D0F12] flex items-center justify-between">
+          <h3 className="text-xs font-black text-slate-200 uppercase tracking-wider">
+            SYSTEM ACCOUNTS DIRECTORY ({filteredMembers.length})
           </h3>
         </div>
 
         {filteredMembers.length === 0 ? (
           <div className="p-12 text-center space-y-2">
-            <Users size={36} className="text-slate-300 dark:text-[#626A75] mx-auto" />
-            <h4 className="text-sm font-bold text-slate-700 dark:text-[#F5F7FA]">No Members Found</h4>
-            <p className="text-xs text-slate-500 dark:text-[#858D99]">
+            <Users size={36} className="text-slate-500 mx-auto" />
+            <h4 className="text-sm font-bold text-slate-300">No Members Found</h4>
+            <p className="text-xs text-slate-500">
               Try adjusting your search query or status filter.
             </p>
           </div>
@@ -483,21 +483,20 @@ export function SuperAdminMemberManagement() {
           <div className="overflow-x-auto">
             <table className="w-full text-left text-xs sm:text-sm">
               <thead>
-                <tr className="border-b border-slate-200 dark:border-[#252931] bg-slate-50 dark:bg-[#14161A] text-slate-500 dark:text-[#626A75] uppercase text-[10px] font-extrabold tracking-wider">
-                  <th className="p-4">User</th>
-                  <th className="p-4">Username & Password</th>
-                  <th className="p-4">Role</th>
-                  <th className="p-4">Status</th>
-                  <th className="p-4 text-right">Actions</th>
+                <tr className="border-b border-[#1E232B] bg-[#0D0F12] text-slate-400 uppercase text-[10px] font-extrabold tracking-wider">
+                  <th className="p-4">USER</th>
+                  <th className="p-4">USERNAME &amp; PASSWORD</th>
+                  <th className="p-4">ROLE</th>
+                  <th className="p-4">STATUS</th>
+                  <th className="p-4 text-right">ACTIONS</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-[#1B1E23] font-medium">
+              <tbody className="divide-y divide-[#1E232B] font-medium">
                 {filteredMembers.map((m) => {
                   const isSuspended = m.status === "SUSPENDED";
-                  const isAdminRole = m.role === "ADMIN" || m.role === "SUPER_ADMIN";
 
                   return (
-                    <tr key={m.id} className="hover:bg-slate-50/70 dark:hover:bg-[#14161A] transition-colors">
+                    <tr key={m.id} className="hover:bg-[#13161C]/70 transition-colors">
                       {/* User Info */}
                       <td className="p-4">
                         <div
@@ -508,13 +507,13 @@ export function SuperAdminMemberManagement() {
                           <img
                             src={m.avatar || "/oggy.png"}
                             alt={m.name}
-                            className="w-10 h-10 rounded-2xl object-cover border border-slate-200 dark:border-[#252931] shrink-0 group-hover/user:ring-2 group-hover/user:ring-blue-500/50 transition-all"
+                            className="w-10 h-10 rounded-xl object-cover border border-[#252931] shrink-0 group-hover/user:border-blue-500 transition-all"
                           />
                           <div className="min-w-0">
-                            <h4 className="font-extrabold text-slate-900 dark:text-[#F5F7FA] group-hover/user:text-blue-600 dark:group-hover/user:text-[#6B93FF] transition-colors truncate">
+                            <h4 className="font-extrabold text-white group-hover/user:text-blue-400 transition-colors truncate">
                               {m.name}
                             </h4>
-                            <p className="text-xs text-slate-500 dark:text-[#858D99] truncate">
+                            <p className="text-xs text-slate-400 truncate">
                               {m.email}
                             </p>
                           </div>
@@ -523,11 +522,11 @@ export function SuperAdminMemberManagement() {
 
                       {/* Username & Password */}
                       <td className="p-4 font-mono">
-                        <div className="text-xs font-bold text-slate-800 dark:text-[#F5F7FA]">
+                        <div className="text-xs font-bold text-white">
                           @{m.username || m.name.toLowerCase()}
                         </div>
-                        <div className="text-[11px] text-slate-400 dark:text-[#626A75]">
-                          Pass: <span className="text-slate-600 dark:text-[#AEB5C0] font-semibold">{m.password || "••••••••"}</span>
+                        <div className="text-[11px] text-slate-400">
+                          Pass: <span className="text-slate-300 font-semibold">{m.password || "••••••••"}</span>
                         </div>
                       </td>
 
@@ -535,10 +534,10 @@ export function SuperAdminMemberManagement() {
                       <td className="p-4">
                         <div className="flex items-center gap-1.5">
                           <span
-                            className={`px-2.5 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider font-mono ${
+                            className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider font-mono ${
                               m.role === "SUPER_ADMIN"
-                                ? "bg-amber-50 dark:bg-[#302714] text-amber-600 dark:text-[#F3B85B] border border-amber-200 dark:border-[#F3B85B]/30"
-                                : "bg-slate-100 dark:bg-[#1D2026] text-slate-600 dark:text-[#AEB5C0] border border-slate-200 dark:border-[#343943]"
+                                ? "bg-[#241A0B] text-[#F3B85B] border border-[#F3B85B]/40 shadow-[0_0_10px_rgba(243,184,91,0.15)]"
+                                : "bg-[#151821] text-[#9AA2B1] border border-[#252931]"
                             }`}
                           >
                             {m.role === "SUPER_ADMIN" ? "SUPER ADMIN" : "MEMBER"}
@@ -550,29 +549,29 @@ export function SuperAdminMemberManagement() {
                       <td className="p-4">
                         <button
                           onClick={() => handleToggleStatus(m)}
-                          className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-all ${
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-all ${
                             isSuspended
-                              ? "bg-rose-50 dark:bg-[#32191B] text-rose-600 dark:text-[#FF6B6B] border border-rose-200 dark:border-[#FF6B6B]/30 hover:bg-rose-100"
-                              : "bg-emerald-50 dark:bg-[#102C22] text-emerald-700 dark:text-[#32C98B] border border-emerald-200 dark:border-[#32C98B]/20 hover:bg-emerald-100"
+                              ? "bg-[#32191B] text-[#FF6B6B] border border-[#FF6B6B]/30 hover:bg-[#3D1E20]"
+                              : "bg-[#0B2117] text-[#32C98B] border border-[#32C98B]/30 hover:bg-[#102D20]"
                           }`}
                         >
                           <span
                             className={`w-1.5 h-1.5 rounded-full ${
-                              isSuspended ? "bg-rose-500" : "bg-emerald-500 animate-pulse"
+                              isSuspended ? "bg-rose-500" : "bg-emerald-400"
                             }`}
                           />
                           <span>{isSuspended ? "SUSPENDED" : "ACTIVE"}</span>
                         </button>
                       </td>
 
-                      {/* Action Dropdown / Action Buttons */}
+                      {/* Action Buttons */}
                       <td className="p-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
                           {/* View Full History & Profits */}
                           <button
                             onClick={() => router.push(`/admin/members/${m.id}`)}
                             title="View Detailed IPO History, Lots & Profits"
-                            className="p-2 rounded-xl text-slate-500 dark:text-[#AEB5C0] hover:text-blue-600 dark:hover:text-[#6B93FF] hover:bg-slate-100 dark:hover:bg-[#1D2026] transition-colors cursor-pointer"
+                            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#1E232B] transition-colors cursor-pointer"
                           >
                             <Eye size={16} />
                           </button>
@@ -580,7 +579,7 @@ export function SuperAdminMemberManagement() {
                           <button
                             onClick={() => handleOpenPermissions(m)}
                             title="Manage Permissions"
-                            className="p-2 rounded-xl text-slate-500 dark:text-[#AEB5C0] hover:text-blue-600 dark:hover:text-[#6B93FF] hover:bg-slate-100 dark:hover:bg-[#1D2026] transition-colors cursor-pointer"
+                            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#1E232B] transition-colors cursor-pointer"
                           >
                             <Shield size={16} />
                           </button>
@@ -589,7 +588,7 @@ export function SuperAdminMemberManagement() {
                           <button
                             onClick={() => setActivityMember(m)}
                             title="View User Activity"
-                            className="p-2 rounded-xl text-slate-500 dark:text-[#AEB5C0] hover:text-emerald-600 dark:hover:text-[#32C98B] hover:bg-slate-100 dark:hover:bg-[#1D2026] transition-colors cursor-pointer"
+                            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#1E232B] transition-colors cursor-pointer"
                           >
                             <ClockCountdown size={16} />
                           </button>
@@ -602,7 +601,7 @@ export function SuperAdminMemberManagement() {
                                 setCustomResetPass(m.password || "");
                               }}
                               title="Reset Password"
-                              className="p-2 rounded-xl text-slate-500 dark:text-[#AEB5C0] hover:text-amber-600 dark:hover:text-[#F3B85B] hover:bg-slate-100 dark:hover:bg-[#1D2026] transition-colors cursor-pointer"
+                              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#1E232B] transition-colors cursor-pointer"
                             >
                               <Key size={16} />
                             </button>
@@ -612,7 +611,7 @@ export function SuperAdminMemberManagement() {
                           <button
                             onClick={() => handleRevokeSessions(m)}
                             title="Revoke Sessions"
-                            className="p-2 rounded-xl text-slate-500 dark:text-[#AEB5C0] hover:text-rose-600 dark:hover:text-[#FF6B6B] hover:bg-slate-100 dark:hover:bg-[#1D2026] transition-colors cursor-pointer"
+                            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#1E232B] transition-colors cursor-pointer"
                           >
                             <LockKey size={16} />
                           </button>
@@ -621,7 +620,7 @@ export function SuperAdminMemberManagement() {
                           <button
                             onClick={() => handleAssignRole(m, m.role === "ADMIN" ? "MEMBER" : "ADMIN")}
                             title={m.role === "ADMIN" ? "Demote to Member" : "Promote to Admin"}
-                            className="px-2.5 py-1 rounded-xl text-[11px] font-bold border border-slate-200 dark:border-[#343943] bg-slate-50 dark:bg-[#14161A] text-slate-700 dark:text-[#AEB5C0] hover:bg-slate-100 dark:hover:bg-[#1D2026] cursor-pointer"
+                            className="px-3 py-1 rounded-lg text-xs font-semibold border border-[#252931] bg-[#151821] text-slate-300 hover:bg-[#1E232B] hover:text-white transition-colors cursor-pointer"
                           >
                             {m.role === "ADMIN" ? "Demote" : "Promote"}
                           </button>
