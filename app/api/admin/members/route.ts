@@ -113,7 +113,19 @@ export async function GET(req: Request) {
     }
 
     // Sort
+    const getPriority = (m: any): number => {
+      const u = (m.username || m.name || "").toLowerCase().trim();
+      if (m.role === "SUPER_ADMIN" || u === "ankitgod" || u === "ankit") return 1;
+      if (u === "aanikett" || u.startsWith("aaniket") || u === "aniket") return 2;
+      if (u === "shivam_p" || u.startsWith("shivam")) return 3;
+      return 4;
+    };
+
     merged.sort((a, b) => {
+      const pA = getPriority(a);
+      const pB = getPriority(b);
+      if (pA !== pB) return pA - pB;
+
       if (sortBy === "last_login") {
         const timeA = a.lastLoginAt ? new Date(a.lastLoginAt).getTime() : 0;
         const timeB = b.lastLoginAt ? new Date(b.lastLoginAt).getTime() : 0;

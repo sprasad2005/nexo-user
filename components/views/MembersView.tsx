@@ -89,9 +89,9 @@ export function MembersView() {
     return members.filter((m) => m.role === "SUPER_ADMIN").length;
   }, [members]);
 
-  // Filtered members list
+  // Filtered and sorted members list
   const filteredMembers = useMemo(() => {
-    return members.filter((member) => {
+    const list = members.filter((member) => {
       const mUsername = member.username || member.name.toLowerCase();
       const mPhone = member.phone || "";
       const matchesSearch =
@@ -101,10 +101,33 @@ export function MembersView() {
 
       const matchesRole =
         roleFilter === "ALL" ||
-        (roleFilter === "SUPER_ADMIN" && member.role === "SUPER_ADMIN") ||
-        (roleFilter === "MEMBER" && member.role === "MEMBER");
+        (roleFilter === "SUPER_ADMIN" && (member.role === "SUPER_ADMIN" || member.username === "ankitgod")) ||
+        (roleFilter === "MEMBER" && member.role !== "SUPER_ADMIN" && member.username !== "ankitgod");
 
       return matchesSearch && matchesRole;
+    });
+
+    // Custom deterministic sort:
+    // 1. Super Admin (Ankit / ankitgod / role === 'SUPER_ADMIN') always top priority
+    // 2. Profile with username 'aanikett' (or starts with 'aaniket' / name 'Aniket') 2nd
+    // 3. Profile with username 'shivam_p' (or starts with 'shivam' / name 'Shivam') 3rd
+    // 4. Followed by all other members in alphabetical order
+    return [...list].sort((a, b) => {
+      const getPriority = (m: Member): number => {
+        const u = (m.username || m.name || "").toLowerCase().trim();
+        if (m.role === "SUPER_ADMIN" || u === "ankitgod" || u === "ankit") return 1;
+        if (u === "aanikett" || u.startsWith("aaniket") || u === "aniket") return 2;
+        if (u === "shivam_p" || u.startsWith("shivam")) return 3;
+        return 4;
+      };
+
+      const pA = getPriority(a);
+      const pB = getPriority(b);
+
+      if (pA !== pB) {
+        return pA - pB;
+      }
+      return (a.name || "").localeCompare(b.name || "");
     });
   }, [members, searchQuery, roleFilter]);
 
