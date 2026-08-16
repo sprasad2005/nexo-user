@@ -546,18 +546,30 @@ export function MembersView() {
 
                   {/* Clean Stats Grid */}
                   <div className="grid grid-cols-2 gap-2.5 pt-1">
-                    <div className={`p-3 rounded-xl border transition-all space-y-1 ${theme.statsCard}`}>
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
-                        <TrendUp size={13} className={theme.statsIcon} />
-                        <span>IPOs Applied</span>
+                    {theme.roleBadge === "SUPER ADMIN" || member.role === "SUPER_ADMIN" ? (
+                      <div className={`p-3 rounded-xl border transition-all space-y-1 ${theme.statsCard}`}>
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
+                          <ShieldCheck size={13} className={theme.statsIcon} />
+                          <span>Platform Role</span>
+                        </div>
+                        <p className={`text-xs font-extrabold font-sans truncate mt-0.5 ${theme.statsVal}`}>
+                          Super Admin
+                        </p>
                       </div>
-                      <p className={`text-base font-black font-sans ${theme.statsVal}`}>
-                        {appliedCount}{" "}
-                        <span className="text-xs text-ink-tertiary font-sans font-normal">
-                          {appliedCount === 1 ? "IPO" : "IPOs"}
-                        </span>
-                      </p>
-                    </div>
+                    ) : (
+                      <div className={`p-3 rounded-xl border transition-all space-y-1 ${theme.statsCard}`}>
+                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
+                          <TrendUp size={13} className={theme.statsIcon} />
+                          <span>IPOs Applied</span>
+                        </div>
+                        <p className={`text-base font-black font-sans ${theme.statsVal}`}>
+                          {appliedCount}{" "}
+                          <span className="text-xs text-ink-tertiary font-sans font-normal">
+                            {appliedCount === 1 ? "IPO" : "IPOs"}
+                          </span>
+                        </p>
+                      </div>
+                    )}
 
                     <div className={`p-3 rounded-xl border transition-all space-y-1 ${theme.statsCard}`}>
                       <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
