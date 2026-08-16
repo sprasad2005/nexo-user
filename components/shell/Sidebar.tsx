@@ -63,21 +63,21 @@ export function Sidebar() {
 
   const activeUser = sessionUser || members[0];
 
-  const workspaceNav = [
+  const workspaceNav: { id: string; label: string; icon: any; badge?: number }[] = [
     { id: "dashboard", label: "Home", icon: SquaresFour },
-    { id: "ipos", label: "IPO Workspace", icon: TrendUp, badge: ipos.length },
+    { id: "ipos", label: "IPO Workspace", icon: TrendUp },
     { id: "applications", label: "Applications", icon: Files },
     { id: "portfolio", label: "Portfolio", icon: ChartPie },
     { id: "messages", label: "Messages", icon: ChatCircleDots, badge: unreadMessageCount },
   ];
 
-  const groupNav = [
+  const groupNav: { id: string; label: string; icon: any; badge?: number }[] = [
     { id: "members", label: "Group Members", icon: Users, badge: members.length },
   ];
 
-  const mobileNav = [
+  const mobileNav: { id: string; label: string; icon: any; badge?: number }[] = [
     { id: "dashboard", label: "Home", icon: SquaresFour },
-    { id: "ipos", label: "IPOs", icon: TrendUp, badge: ipos.length },
+    { id: "ipos", label: "IPOs", icon: TrendUp },
     { id: "applications", label: "Apps", icon: Files },
     { id: "portfolio", label: "Portfolio", icon: ChartPie },
     { id: "more", label: "More", icon: DotsThree },
