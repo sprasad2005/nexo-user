@@ -619,6 +619,10 @@ export function ApplyIPOModal({ ipo, isOpen, onClose }: ApplyIPOModalProps) {
                           type="text"
                           required
                           maxLength={10}
+                          autoCapitalize="characters"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          autoComplete="off"
                           placeholder={`e.g. ABCDE274${(idx % 9) + 1}D`}
                           value={pan}
                           onChange={(e) => handlePanChange(idx, e.target.value)}

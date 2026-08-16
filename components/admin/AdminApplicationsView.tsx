@@ -1337,6 +1337,10 @@ export function AdminApplicationsView() {
                           type="text"
                           maxLength={10}
                           required
+                          autoCapitalize="characters"
+                          autoCorrect="off"
+                          spellCheck={false}
+                          autoComplete="off"
                           placeholder="ABCDE1234F"
                           value={pan}
                           onChange={(e) => {

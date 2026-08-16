@@ -713,10 +713,15 @@ export function SuperAdminMemberManagement() {
                   <label className="block text-slate-700 dark:text-[#AEB5C0] mb-1 font-extrabold">PAN Card Number</label>
                   <input
                     type="text"
+                    maxLength={10}
+                    autoCapitalize="characters"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    autoComplete="off"
                     placeholder="ABCDE1234F"
                     value={newMemberPan}
                     onChange={(e) => setNewMemberPan(e.target.value.toUpperCase())}
-                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs font-mono font-bold text-slate-900 dark:text-[#F5F7FA] focus:outline-none"
+                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs font-mono font-bold uppercase text-slate-900 dark:text-[#F5F7FA] focus:outline-none"
                   />
                 </div>
               </div>
