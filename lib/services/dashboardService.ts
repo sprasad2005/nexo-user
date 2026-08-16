@@ -69,7 +69,12 @@ export async function getDashboardSummary(): Promise<DashboardSummaryDTO> {
     iposCol.countDocuments({ isHidden: { $ne: true } }),
     iposCol.countDocuments({ isHidden: { $ne: true }, isArchived: { $ne: true } }),
     appsCol.countDocuments({}),
-    appsCol.countDocuments({ allotmentStatus: "ALLOTTED" }),
+    appsCol.countDocuments({
+      $or: [
+        { allotmentStatus: { $in: ["ALLOTTED", "allotted"] } },
+        { status: { $in: ["ALLOTTED", "allotted"] } },
+      ],
+    }),
     sessionsCol.countDocuments({ revokedAt: null, expiresAt: { $gt: now } }),
     activitiesCol.countDocuments({ category: "SECURITY", severity: { $in: ["HIGH", "CRITICAL", "WARN"] } }),
     activitiesCol

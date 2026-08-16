@@ -142,7 +142,10 @@ export function AdminIPOManagement({
     [visibleIpos]
   );
   const totalAllottedApps = useMemo(
-    () => allApplications.filter((a: any) => a.allotmentStatus === "ALLOTTED").length,
+    () =>
+      allApplications.filter(
+        (a: any) => String(a.allotmentStatus || a.status || "").toUpperCase() === "ALLOTTED"
+      ).length,
     [allApplications]
   );
   const totalRealizedProfit = useMemo(
