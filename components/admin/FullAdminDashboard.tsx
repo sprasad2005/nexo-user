@@ -20,28 +20,49 @@ import { AdminApplicationsView } from "./AdminApplicationsView";
 import { AdminSecurityView } from "./AdminSecurityView";
 import { MessagesTab } from "@/src/features/admin/components/MessagesTab";
 import { UserCircle, Gear, SignOut } from "@phosphor-icons/react";
+import { AdminDataCache } from "@/lib/adminDataCache";
 
 function AdminOverview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   const router = useRouter();
-  const [security, setSecurity] = useState<any>(null);
-  const [recentEvents, setRecentEvents] = useState<any[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [dashboardData, setDashboardData] = useState<any>(() => {
+    return AdminDataCache.get("admin_dashboard_summary") || null;
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    return !AdminDataCache.has("admin_dashboard_summary");
+  });
 
   useEffect(() => {
     let active = true;
-    Promise.all([
-      fetch("/api/admin/security/summary").then(r => r.json()),
-      fetch("/api/admin/activity?limit=5").then(r => r.json())
-    ]).then(([secData, actData]) => {
-      if (!active) return;
-      if (secData.success) setSecurity(secData.summary);
-      if (actData.success) setRecentEvents(actData.activities || []);
-      setIsLoading(false);
-    }).catch(() => {
-      if (active) setIsLoading(false);
-    });
-    return () => { active = false; };
+    AdminDataCache.fetchSWR(
+      "admin_dashboard_summary",
+      async () => {
+        const res = await fetch("/api/admin/dashboard");
+        const json = await res.json();
+        return json.success ? json.data : null;
+      },
+      {
+        ttlMs: 15000,
+        onUpdate: (data) => {
+          if (active && data) setDashboardData(data);
+        },
+      }
+    )
+      .then((data) => {
+        if (!active) return;
+        if (data) setDashboardData(data);
+        setIsLoading(false);
+      })
+      .catch(() => {
+        if (active) setIsLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
   }, []);
+
+  const stats = dashboardData?.stats;
+  const recentEvents = dashboardData?.recentActivities || [];
 
   return (
     <div className="space-y-6 select-none font-sans">
@@ -72,15 +93,15 @@ function AdminOverview({ setActiveTab }: { setActiveTab: (tab: string) => void }
               <div className="space-y-2.5 text-xs text-slate-600 dark:text-[#AEB5C0] font-semibold">
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse"></span>
-                  <span><strong>{security?.activeSessions ?? 0}</strong> Active Sessions</span>
+                  <span><strong>{stats?.activeSessions ?? 0}</strong> Active Sessions</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
-                  <span><strong>{security?.activeAdmins ?? 0}</strong> Admins Online</span>
+                  <span><strong>{stats?.activeMembers ?? 0}</strong> Active Members</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <span className="w-1.5 h-1.5 rounded-full bg-rose-500"></span>
-                  <span><strong>{security?.alerts?.length ?? 0}</strong> Critical Alerts requiring check</span>
+                  <span><strong>{stats?.securityAlerts ?? 0}</strong> Security Alerts</span>
                 </div>
               </div>
             )}
@@ -111,7 +132,7 @@ function AdminOverview({ setActiveTab }: { setActiveTab: (tab: string) => void }
               <p className="text-slate-400 text-xs py-4 text-center">No recent activity logs.</p>
             ) : (
               <div className="space-y-2.5">
-                {recentEvents.map((evt) => {
+                {recentEvents.map((evt: any) => {
                   const date = new Date(evt.createdAt);
                   const timeStr = date.toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", hour12: true });
                   return (
