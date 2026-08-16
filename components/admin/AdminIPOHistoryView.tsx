@@ -68,19 +68,31 @@ export function AdminIPOHistoryView() {
     const list: any[] = [];
     const seenNames = new Set<string>();
 
+    const DUMMY_MOCK_NAMES = new Set([
+      "dhoot transmission",
+      "tata technologies",
+      "hexaware tech",
+      "swiggy limited",
+      "ntpc green energy",
+      "veritas pharma sciences",
+      "ather energy",
+      "bajaj housing",
+    ]);
+
     // 1. From ipos state (COMPLETED, LISTED, SOLD, or has profitDistribution / allotmentFinalized)
     ipos.forEach((ipo) => {
       const dist = ipo.profitDistribution;
       const isCompleted =
-        ipo.status === "COMPLETED" ||
-        (ipo as any).isCompleted ||
-        ipo.status === "LISTED" ||
-        ipo.status === "SOLD" ||
-        Boolean(dist) ||
-        Boolean((ipo as any).allotmentFinalized);
+        !ipo.isHidden &&
+        (ipo.status === "COMPLETED" ||
+          (ipo as any).isCompleted ||
+          ipo.status === "LISTED" ||
+          ipo.status === "SOLD" ||
+          Boolean(dist) ||
+          Boolean((ipo as any).allotmentFinalized));
 
-      if (isCompleted) {
-        const nameLower = ipo.name.trim().toLowerCase();
+      const nameLower = ipo.name?.trim().toLowerCase();
+      if (isCompleted && nameLower && !DUMMY_MOCK_NAMES.has(nameLower)) {
         seenNames.add(nameLower);
 
         const totalProfit =
@@ -160,8 +172,8 @@ export function AdminIPOHistoryView() {
 
     // 2. From listed track records (including Lalitha Jwellers, xyz, jhgjhg)
     listedIpos.forEach((item) => {
-      const nameLower = item.name.trim().toLowerCase();
-      if (!seenNames.has(nameLower)) {
+      const nameLower = item.name?.trim().toLowerCase();
+      if (nameLower && !DUMMY_MOCK_NAMES.has(nameLower) && !seenNames.has(nameLower)) {
         seenNames.add(nameLower);
         list.push({
           id: item.id || `listed_${item.name}`,

@@ -63,6 +63,15 @@ export async function GET(req: NextRequest) {
     try {
       const client = await clientPromise;
       const db = client.db(DB_NAME);
+      
+      // Purge any legacy dummy mock seed IPOs
+      await db.collection("ipos").deleteMany({
+        $or: [
+          { id: { $in: ["ipo_1", "ipo_2", "ipo_3", "ipo_4", "ipo_6", "ipo_ntpc", "ipo_veritas", "ipo_tata_tech"] } },
+          { name: { $in: ["Dhoot Transmission", "Tata Technologies", "Hexaware Tech", "Swiggy Limited", "NTPC Green Energy", "Veritas Pharma Sciences", "Ather Energy", "Bajaj Housing"] } },
+        ],
+      });
+
       const dbIpos = await db.collection("ipos").find({}).sort({ _id: -1 }).toArray();
       if (Array.isArray(dbIpos) && dbIpos.length > 0) {
         allIpos = dbIpos.map((item: any) => ({
@@ -75,7 +84,7 @@ export async function GET(req: NextRequest) {
         // Cache to local file
         writeSharedIpos(allIpos);
       } else if (allIpos.length > 0) {
-        // Seed MongoDB from shared_ipos.json on first connection
+        // Seed MongoDB from shared_ipos.json
         try {
           await db.collection("ipos").insertMany(
             allIpos.map((item: any) => ({
