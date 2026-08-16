@@ -75,7 +75,14 @@ export async function GET() {
       return (a.name || "").localeCompare(b.name || "");
     });
 
-    return NextResponse.json({ success: true, members });
+    return NextResponse.json(
+      { success: true, members },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=5, stale-while-revalidate=15",
+        },
+      }
+    );
   } catch (err: any) {
     console.warn("GET /api/members MongoDB unavailable, returning mock members fallback.");
     const fallback = [...MOCK_MEMBERS].sort((a: any, b: any) => {

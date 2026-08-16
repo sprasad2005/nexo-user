@@ -42,7 +42,31 @@ export async function GET() {
     try {
       const client = await clientPromise;
       const col = client.db(DB).collection<IPOApplicationDocument>(COL);
-      dbApps = await col.find({}).sort({ createdAt: -1 }).toArray();
+      dbApps = await col
+        .find(
+          {},
+          {
+            projection: {
+              id: 1,
+              ipoId: 1,
+              ipoName: 1,
+              memberId: 1,
+              applicantName: 1,
+              applicationNumber: 1,
+              panMasked: 1,
+              lotCount: 1,
+              lotsApplied: 1,
+              allotmentStatus: 1,
+              fundingStructure: 1,
+              totalContribution: 1,
+              participants: 1,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+          }
+        )
+        .sort({ createdAt: -1 })
+        .toArray();
     } catch (_e) {
       console.warn("GET /api/applications MongoDB fetch optional.");
     }
