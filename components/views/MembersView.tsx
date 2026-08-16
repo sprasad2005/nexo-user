@@ -102,6 +102,8 @@ export function MembersView() {
         topAccent: "from-teal-400/0 via-emerald-500 to-teal-400/0",
         avatarAura: "from-emerald-600/40 via-teal-600/30 to-cyan-400/40",
         avatarRim: "from-emerald-500 via-teal-500 to-cyan-400 shadow-[0_0_18px_rgba(16,185,129,0.35)] group-hover:shadow-[0_0_26px_rgba(20,184,166,0.5)]",
+        statusPing: "bg-emerald-400",
+        statusDot: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]",
         badgePill: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
         badgeDot: "bg-emerald-400",
         nameHover: "text-slate-100 group-hover:text-emerald-400",
@@ -113,6 +115,9 @@ export function MembersView() {
         statsVal: "text-slate-100",
         statsMuted: "text-slate-200",
         footerBorder: "border-emerald-500/20",
+        verifiedBadge: "bg-emerald-500/10 border-emerald-500/25 text-emerald-400",
+        verifiedIcon: "text-emerald-400",
+        messageBtn: "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs shadow-emerald-950/40",
         youBadge: "bg-emerald-950/50 border-emerald-500/30 text-emerald-300",
       };
     }
@@ -126,6 +131,8 @@ export function MembersView() {
         topAccent: "from-sky-400/0 via-sky-400 to-sky-400/0",
         avatarAura: "from-sky-600/40 via-blue-600/30 to-cyan-400/40",
         avatarRim: "from-sky-500 via-blue-500 to-cyan-400 shadow-[0_0_18px_rgba(14,165,233,0.35)] group-hover:shadow-[0_0_26px_rgba(56,189,248,0.5)]",
+        statusPing: "bg-sky-400",
+        statusDot: "bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.8)]",
         badgePill: "bg-sky-500/15 text-sky-400 border-sky-500/30",
         badgeDot: "bg-sky-400",
         nameHover: "text-slate-100 group-hover:text-sky-400",
@@ -137,6 +144,9 @@ export function MembersView() {
         statsVal: "text-slate-100",
         statsMuted: "text-slate-200",
         footerBorder: "border-sky-500/20",
+        verifiedBadge: "bg-sky-500/10 border-sky-500/25 text-sky-400",
+        verifiedIcon: "text-sky-400",
+        messageBtn: "bg-sky-500 hover:bg-sky-400 text-white shadow-xs shadow-sky-950/40",
         youBadge: "bg-sky-950/50 border-sky-500/30 text-sky-300",
       };
     }
@@ -150,6 +160,8 @@ export function MembersView() {
         topAccent: "from-purple-500/0 via-purple-500/50 to-purple-500/0",
         avatarAura: "",
         avatarRim: "from-purple-500/70 to-indigo-500/70 shadow-xs",
+        statusPing: "bg-purple-400",
+        statusDot: "bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]",
         badgePill: "bg-purple-500/10 text-purple-400 border-purple-500/25",
         badgeDot: "bg-purple-400",
         nameHover: "text-ink group-hover:text-purple-400",
@@ -161,7 +173,10 @@ export function MembersView() {
         statsVal: "text-ink",
         statsMuted: "text-ink-tertiary",
         footerBorder: "border-line/80",
-        youBadge: "bg-surface-alt/90 border-line/80 text-ink-tertiary",
+        verifiedBadge: "bg-purple-500/10 border-purple-500/25 text-purple-400",
+        verifiedIcon: "text-purple-400",
+        messageBtn: "bg-purple-600 hover:bg-purple-500 text-white shadow-xs shadow-purple-950/40",
+        youBadge: "bg-purple-950/50 border-purple-500/30 text-purple-300",
       };
     }
 
@@ -173,6 +188,8 @@ export function MembersView() {
       topAccent: "from-accent/0 via-accent to-accent/0",
       avatarAura: "",
       avatarRim: "",
+      statusPing: "bg-emerald-400",
+      statusDot: "bg-emerald-500",
       badgePill: "bg-accent-soft text-accent border-accent/20",
       badgeDot: "bg-accent",
       nameHover: "text-ink group-hover:text-accent",
@@ -184,6 +201,9 @@ export function MembersView() {
       statsVal: "text-ink",
       statsMuted: "text-ink-tertiary",
       footerBorder: "border-line/80",
+      verifiedBadge: "bg-emerald-500/10 border-emerald-500/25 text-emerald-400",
+      verifiedIcon: "text-emerald-400",
+      messageBtn: "bg-accent hover:bg-accent-hover text-white shadow-xs shadow-accent/25",
       youBadge: "bg-surface-alt/90 border-line/80 text-ink-tertiary",
     };
   };
@@ -472,9 +492,9 @@ export function MembersView() {
 
                               {/* Live Status Orb with Radar Ping */}
                               <div className="absolute -bottom-1 -right-1 flex items-center justify-center">
-                                <span className="animate-ping absolute inline-flex h-3.5 w-3.5 rounded-full bg-emerald-400 opacity-75" />
+                                <span className={`animate-ping absolute inline-flex h-3.5 w-3.5 rounded-full ${theme.statusPing} opacity-75`} />
                                 <span
-                                  className="relative inline-flex w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-[#0F1117] shadow-[0_0_8px_rgba(16,185,129,0.8)]"
+                                  className={`relative inline-flex w-3.5 h-3.5 rounded-full ${theme.statusDot} ring-2 ring-[#0F1117]`}
                                   title={`${member.name} Online`}
                                 />
                               </div>
@@ -585,8 +605,8 @@ export function MembersView() {
 
                 {/* Footer Controls */}
                 <div className={`pt-4 mt-4 border-t flex items-center justify-between text-xs ${theme.footerBorder}`}>
-                  <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
-                    <ShieldCheck size={14} className="text-emerald-400" /> Verified Member
+                  <span className={`px-2.5 py-1 rounded-lg border text-xs font-semibold flex items-center gap-1.5 shadow-2xs ${theme.verifiedBadge}`}>
+                    <ShieldCheck size={14} className={theme.verifiedIcon} /> Verified Member
                   </span>
 
                   <div className="flex items-center gap-1.5">
@@ -597,7 +617,7 @@ export function MembersView() {
                     ) : (
                       <button
                         onClick={() => openDirectChatWithUser(member.id)}
-                        className="px-3.5 py-1.5 rounded-xl bg-accent text-white hover:bg-accent-hover font-bold text-xs shadow-xs shadow-accent/25 transition-all cursor-pointer flex items-center gap-1.5 active:scale-95"
+                        className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${theme.messageBtn}`}
                         title={`Message @${mUsername}`}
                       >
                         <ChatCircleDots size={14} weight="bold" />
