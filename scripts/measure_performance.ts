@@ -148,7 +148,23 @@ async function runBenchmark() {
   console.log(`   - Parallel Query Execution Time: ${allotDuration.toFixed(2)}ms`);
   console.log(`   - Transferred Payload Size: ${allotPayloadSize} KB`);
 
-  // 8. Unified Dashboard Service Pipeline
+  // 8. User Panel Applications & Ledger Pipeline
+  const startUserPipe = performance.now();
+  const sampleUser = (await db.collection("members").findOne({ role: "MEMBER" })) as any;
+  const sampleUserId = sampleUser?.id || "mem_1";
+  const [userApps, userTxns, userNotifs] = await Promise.all([
+    db.collection("applications").find({ $or: [{ memberId: sampleUserId }, { "participants.memberId": sampleUserId }] }, { projection: { id: 1, ipoId: 1, applicantName: 1, allotmentStatus: 1, totalContribution: 1, lotCount: 1 } }).toArray(),
+    db.collection("transactions").find({ memberId: sampleUserId }).sort({ createdAt: -1 }).limit(25).toArray(),
+    db.collection("notifications").find({ $or: [{ memberId: sampleUserId }, { isGlobal: true }] }).sort({ createdAt: -1 }).limit(20).toArray(),
+  ]);
+  const userPipeDuration = performance.now() - startUserPipe;
+  const userPipePayloadSize = (JSON.stringify({ userApps, userTxns, userNotifs }).length / 1024).toFixed(2);
+  console.log(`\n📊 [User Panel Pipeline (Member ID: ${sampleUserId})]:`);
+  console.log(`   - Parallel User Scopes: Applications (${userApps.length}), Transactions (${userTxns.length}), Notifications (${userNotifs.length})`);
+  console.log(`   - Query Execution Time: ${userPipeDuration.toFixed(2)}ms`);
+  console.log(`   - Transferred Payload Size: ${userPipePayloadSize} KB`);
+
+  // 9. Unified Dashboard Service Pipeline
   const startDash = performance.now();
   const { getDashboardSummary } = await import("../lib/services/dashboardService");
   const dashData = await getDashboardSummary();

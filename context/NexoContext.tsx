@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import {
   IPOOpportunity,
   Member,
@@ -591,28 +591,6 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       .finally(() => {
         setIsAuthLoaded(true);
       });
-
-    // Fetch latest profile from MongoDB and sync into currentUser state
-    getProfile()
-      .then(({ profile }) => {
-        if (profile) {
-          setCurrentUser((prev) => {
-            if (!prev) return prev;
-            const updated: Member = {
-              ...prev,
-              name: profile.name || profile.displayName || prev.name,
-              email: profile.email || prev.email,
-              phone: profile.phone || prev.phone,
-              avatar: profile.avatar || prev.avatar,
-            };
-            try {
-              localStorage.setItem("nexo_session_user", JSON.stringify(updated));
-            } catch {}
-            return updated;
-          });
-        }
-      })
-      .catch((err) => console.error("MongoDB profile fetch error:", err));
 
     refreshMembers();
     refreshIpos();
@@ -1747,151 +1725,240 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
+  const openDirectChatWithUser = useCallback(async (targetMemberId: string) => {
+    try {
+      const activeId = currentUser?.id || "mem_1";
+      if (targetMemberId === activeId) {
+        setActiveTab("messages");
+        return;
+      }
+
+      setActiveConversationId(targetMemberId);
+      setActiveTab("messages");
+
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentMemberId: activeId, targetMemberId, type: "DIRECT" }),
+      });
+      const data = await res.json();
+      if (data?.success && data.conversation) {
+        setActiveConversationId(data.conversation.id);
+      }
+    } catch (err) {
+      console.error("Failed to open direct chat:", err);
+      setActiveTab("messages");
+    }
+  }, [currentUser, setActiveConversationId, setActiveTab]);
+
+  const openIpoGroupChat = useCallback(async (ipoId: string, ipoTitle?: string) => {
+    try {
+      const activeId = currentUser?.id || "mem_1";
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ currentMemberId: activeId, ipoId, title: ipoTitle || "IPO Chat", type: "IPO" }),
+      });
+      const data = await res.json();
+      if (data?.success && data.conversation) {
+        setActiveConversationId(data.conversation.id);
+      } else {
+        setActiveConversationId(`conv_ipo_${ipoId}`);
+      }
+      setActiveTab("messages");
+    } catch (err) {
+      console.error("Failed to open IPO group chat:", err);
+      setActiveTab("messages");
+    }
+  }, [currentUser, setActiveConversationId, setActiveTab]);
+
+  const deleteTransaction = useCallback((txnId: string) => {
+    const txn = transactions.find((t) => t.id === txnId);
+    if (!txn) return;
+    // Reverse balance deduction for SOLO
+    if (txn.type === "SOLO") {
+      setIndividualSavings((prev) => prev + txn.amount);
+      setUserContributions((prev) => {
+        const updated = { ...prev };
+        const existing = updated[txn.ipoId] ?? 0;
+        updated[txn.ipoId] = Math.max(0, existing - txn.amount);
+        return updated;
+      });
+    }
+    setTransactions((prev) => prev.filter((t) => t.id !== txnId));
+  }, [transactions]);
+
+  const clearTransactions = useCallback(() => {
+    setTransactions([]);
+  }, []);
+
+  const updateTransaction = useCallback((_txnId: string, _data: any) => {}, []);
+  const addApplicationToIpo = useCallback((_ipoId: any, _appData: any) => {}, []);
+
+  const contextValue = useMemo<NexoContextType>(() => ({
+    isAuthenticated,
+    isAuthLoaded,
+    currentUser,
+    currentMember: currentUser || members[0],
+    login,
+    logout,
+    authError,
+    setAuthError,
+    activeTab,
+    setActiveTab,
+    currentUserRole,
+    setCurrentUserRole,
+    ipos,
+    setIpos,
+    members,
+    activities,
+    actionItems,
+    dismissActionItem,
+    notifications,
+    sendBroadcastNotification,
+    refreshNotifications,
+    deleteNotification,
+    markAllNotificationsRead,
+    portfolioSummary,
+    individualSavings,
+    updateIndividualSavings,
+    userContributions,
+    updateUserContribution,
+    transactions,
+    clearTransactions,
+    deleteTransaction,
+    updateTransaction,
+    selectedIpo,
+    openIpoDetail,
+    closeIpoDetail,
+    isApplicationModalOpen,
+    activeApplicationIpo,
+    applicationModalIpo: activeApplicationIpo,
+    openApplicationModal,
+    closeApplicationModal,
+    isAddIpoModalOpen,
+    openAddIpoModal,
+    closeAddIpoModal,
+    addNewIpo,
+    searchQuery,
+    setSearchQuery,
+    revealedPans,
+    togglePanReveal,
+    createApplication,
+    addApplicationToIpo,
+    updateIpoStatus,
+    updateIpo,
+    updateApplicationStatus,
+    updateRegistrarUrl,
+    updateApplication,
+    deleteApplication,
+    listedIpos,
+    addListedIpo,
+    deleteListedIpo,
+    createIPO,
+    removeIPO,
+    refreshIpos,
+    isLoading,
+    isPremiumUser,
+    activePlan,
+    isPremiumModalOpen,
+    openPremiumModal,
+    closePremiumModal,
+    activatePremiumPlan,
+    updateCurrentUser,
+    addMember,
+    updateMember,
+    deleteMember,
+    unreadMessageCount,
+    activeConversationId,
+    setActiveConversationId,
+    openDirectChatWithUser,
+    openIpoGroupChat,
+    isSidebarCollapsed,
+    toggleSidebar,
+    isUserLogoutModalOpen,
+    openUserLogoutModal,
+    closeUserLogoutModal,
+  }), [
+    isAuthenticated,
+    isAuthLoaded,
+    currentUser,
+    members,
+    login,
+    logout,
+    authError,
+    activeTab,
+    setActiveTab,
+    currentUserRole,
+    ipos,
+    activities,
+    actionItems,
+    dismissActionItem,
+    notifications,
+    sendBroadcastNotification,
+    refreshNotifications,
+    deleteNotification,
+    markAllNotificationsRead,
+    portfolioSummary,
+    individualSavings,
+    updateIndividualSavings,
+    userContributions,
+    updateUserContribution,
+    transactions,
+    clearTransactions,
+    deleteTransaction,
+    updateTransaction,
+    selectedIpo,
+    openIpoDetail,
+    closeIpoDetail,
+    isApplicationModalOpen,
+    activeApplicationIpo,
+    openApplicationModal,
+    closeApplicationModal,
+    isAddIpoModalOpen,
+    openAddIpoModal,
+    closeAddIpoModal,
+    addNewIpo,
+    searchQuery,
+    revealedPans,
+    togglePanReveal,
+    createApplication,
+    addApplicationToIpo,
+    updateIpoStatus,
+    updateIpo,
+    updateApplicationStatus,
+    updateRegistrarUrl,
+    updateApplication,
+    deleteApplication,
+    listedIpos,
+    addListedIpo,
+    deleteListedIpo,
+    createIPO,
+    removeIPO,
+    refreshIpos,
+    isLoading,
+    isPremiumUser,
+    activePlan,
+    isPremiumModalOpen,
+    openPremiumModal,
+    closePremiumModal,
+    activatePremiumPlan,
+    updateCurrentUser,
+    addMember,
+    updateMember,
+    deleteMember,
+    unreadMessageCount,
+    activeConversationId,
+    setActiveConversationId,
+    openDirectChatWithUser,
+    openIpoGroupChat,
+    isSidebarCollapsed,
+    toggleSidebar,
+    isUserLogoutModalOpen,
+  ]);
+
   return (
-    <NexoContext.Provider
-      value={{
-        isAuthenticated,
-        isAuthLoaded,
-        currentUser,
-        currentMember: currentUser || members[0],
-        login,
-        logout,
-        authError,
-        setAuthError,
-        activeTab,
-        setActiveTab,
-        currentUserRole,
-        setCurrentUserRole,
-        ipos,
-        setIpos,
-        members,
-        activities,
-        actionItems,
-        dismissActionItem,
-        notifications,
-        sendBroadcastNotification,
-        refreshNotifications,
-        deleteNotification,
-        markAllNotificationsRead,
-        portfolioSummary,
-        individualSavings,
-        updateIndividualSavings,
-        userContributions,
-        updateUserContribution,
-        transactions,
-        clearTransactions: () => setTransactions([]),
-        deleteTransaction: (txnId: string) => {
-          const txn = transactions.find((t) => t.id === txnId);
-          if (!txn) return;
-          // Reverse balance deduction for SOLO
-          if (txn.type === "SOLO") {
-            setIndividualSavings((prev) => prev + txn.amount);
-            setUserContributions((prev) => {
-              const updated = { ...prev };
-              const existing = updated[txn.ipoId] ?? 0;
-              updated[txn.ipoId] = Math.max(0, existing - txn.amount);
-              return updated;
-            });
-          }
-          setTransactions((prev) => prev.filter((t) => t.id !== txnId));
-        },
-        updateTransaction: (_txnId: string, _data: any) => {},
-        selectedIpo,
-        openIpoDetail,
-        closeIpoDetail,
-        isApplicationModalOpen,
-        activeApplicationIpo,
-        applicationModalIpo: activeApplicationIpo,
-        openApplicationModal,
-        closeApplicationModal,
-        isAddIpoModalOpen,
-        openAddIpoModal,
-        closeAddIpoModal,
-        addNewIpo,
-        searchQuery,
-        setSearchQuery,
-        revealedPans,
-        togglePanReveal,
-        createApplication,
-        addApplicationToIpo: (_ipoId, _appData) => {},
-        updateIpoStatus,
-        updateIpo,
-        updateApplicationStatus,
-        updateRegistrarUrl,
-        updateApplication,
-        deleteApplication,
-        listedIpos,
-        addListedIpo,
-        deleteListedIpo,
-        createIPO,
-        removeIPO,
-        refreshIpos,
-        isLoading,
-        isPremiumUser,
-        activePlan,
-        isPremiumModalOpen,
-        openPremiumModal,
-        closePremiumModal,
-        activatePremiumPlan,
-        updateCurrentUser,
-        addMember,
-        updateMember,
-        deleteMember,
-        unreadMessageCount,
-        activeConversationId,
-        setActiveConversationId,
-        openDirectChatWithUser: async (targetMemberId: string) => {
-          try {
-            const activeId = currentUser?.id || "mem_1";
-            if (targetMemberId === activeId) {
-              setActiveTab("messages");
-              return;
-            }
-
-            setActiveConversationId(targetMemberId);
-            setActiveTab("messages");
-
-            const res = await fetch("/api/conversations", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ currentMemberId: activeId, targetMemberId, type: "DIRECT" }),
-            });
-            const data = await res.json();
-            if (data?.success && data.conversation) {
-              setActiveConversationId(data.conversation.id);
-            }
-          } catch (err) {
-            console.error("Failed to open direct chat:", err);
-            setActiveTab("messages");
-          }
-        },
-        openIpoGroupChat: async (ipoId: string, ipoTitle?: string) => {
-          try {
-            const activeId = currentUser?.id || "mem_1";
-            const res = await fetch("/api/conversations", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ currentMemberId: activeId, ipoId, title: ipoTitle || "IPO Chat", type: "IPO" }),
-            });
-            const data = await res.json();
-            if (data?.success && data.conversation) {
-              setActiveConversationId(data.conversation.id);
-            } else {
-              setActiveConversationId(`conv_ipo_${ipoId}`);
-            }
-            setActiveTab("messages");
-          } catch (err) {
-            console.error("Failed to open IPO group chat:", err);
-            setActiveTab("messages");
-          }
-        },
-        isSidebarCollapsed,
-        toggleSidebar,
-        isUserLogoutModalOpen,
-        openUserLogoutModal,
-        closeUserLogoutModal,
-      }}
-    >
+    <NexoContext.Provider value={contextValue}>
       {children}
       <UserLogoutModal isOpen={isUserLogoutModalOpen} onClose={closeUserLogoutModal} />
       <LoginSuccessModal isOpen={isLoginSuccessOpen} onClose={() => setIsLoginSuccessOpen(false)} user={currentUser} />

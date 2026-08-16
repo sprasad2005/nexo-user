@@ -36,15 +36,29 @@ function readSharedIpos(): any[] {
    GET /api/applications
    Fetches all saved IPO application responses from MongoDB & shared_ipos.json.
  * ──────────────────────────────────────────────────────────────── */
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const memberId = searchParams.get("memberId");
+    const ipoId = searchParams.get("ipoId");
+
+    const query: any = {};
+    if (ipoId) query.ipoId = ipoId;
+    if (memberId) {
+      query.$or = [
+        { memberId },
+        { "participants.memberId": memberId },
+        { userId: memberId },
+      ];
+    }
+
     let dbApps: any[] = [];
     try {
       const client = await clientPromise;
       const col = client.db(DB).collection<IPOApplicationDocument>(COL);
       dbApps = await col
         .find(
-          {},
+          query,
           {
             projection: {
               id: 1,
