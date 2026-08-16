@@ -7,27 +7,56 @@ import {
   Trash,
   MagnifyingGlass,
   CheckCircle,
-  CurrencyInr,
-  TrendUp,
   Buildings,
   Eye,
   X,
   Warning,
+  PencilSimple,
+  Plus,
+  FloppyDisk,
+  UserPlus,
   ArrowSquareOut,
   CalendarBlank,
   Users,
+  Coins,
 } from "@phosphor-icons/react";
 import { formatINR } from "@/lib/mockData";
 
 export function AdminIPOHistoryView() {
-  const { ipos, members, removeIPO, listedIpos } = useNexo();
+  const { ipos, members, removeIPO, listedIpos, addListedIpo, deleteListedIpo, refreshIpos } = useNexo();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<"ALL" | "Mainboard" | "SME">("ALL");
+  
+  // Modals & Drawers state
   const [selectedIpoForBreakdown, setSelectedIpoForBreakdown] = useState<any | null>(null);
+  const [selectedIpoToEdit, setSelectedIpoToEdit] = useState<any | null>(null);
   const [selectedIpoToDelete, setSelectedIpoToDelete] = useState<any | null>(null);
+  const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  
   const [toastMsg, setToastMsg] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  // Edit Form State
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState<"Mainboard" | "SME">("Mainboard");
+  const [editLotsApplied, setEditLotsApplied] = useState<number>(1);
+  const [editLotsAllotted, setEditLotsAllotted] = useState<number>(1);
+  const [editTotalProfit, setEditTotalProfit] = useState<number>(15000);
+  const [editOneLotProfit, setEditOneLotProfit] = useState<number>(15000);
+  const [editGmpPercent, setEditGmpPercent] = useState<number>(18.5);
+  const [editListingDate, setEditListingDate] = useState("");
+  const [editIssueSize, setEditIssueSize] = useState("");
+  const [editMemberProfits, setEditMemberProfits] = useState<any[]>([]);
+
+  // Add Past IPO Form State
+  const [addName, setAddName] = useState("");
+  const [addCategory, setAddCategory] = useState<"Mainboard" | "SME">("Mainboard");
+  const [addLotsApplied, setAddLotsApplied] = useState<number>(1);
+  const [addLotsAllotted, setAddLotsAllotted] = useState<number>(1);
+  const [addTotalProfit, setAddTotalProfit] = useState<number>(15000);
+  const [addOneLotProfit, setAddOneLotProfit] = useState<number>(15000);
+  const [addListingDate, setAddListingDate] = useState("28 Aug 2026");
 
   const showToast = (msg: string) => {
     setToastMsg(msg);
@@ -49,32 +78,44 @@ export function AdminIPOHistoryView() {
 
       if (isCompleted && !ipo.isHidden) {
         seenNames.add(ipo.name.toLowerCase());
+        const lotsApplied = ipo.applications?.reduce((s, a) => s + (a.lotCount || (a as any).lotsCount || 1), 0) || 1;
+        const lotsAllotted = ipo.applications?.reduce(
+          (s, a) => s + (a.allotmentStatus === "ALLOTTED" ? (a as any).allottedLotsCount || a.lotCount || 1 : 0),
+          0
+        ) || 1;
+        const totalProfit = ipo.applications?.reduce(
+          (s, a) =>
+            s +
+            (a.allotmentStatus === "ALLOTTED"
+              ? Math.round((a.totalContribution || 15000) * ((ipo.metrics?.gmpPercent || 18.5) / 100))
+              : 0),
+          0
+        ) || 15000;
+
         list.push({
           ...ipo,
           source: "catalog",
-          displayLotsApplied:
-            ipo.applications?.reduce((s, a) => s + (a.lotCount || (a as any).lotsCount || 1), 0) || 1,
-          displayLotsAllotted:
-            ipo.applications?.reduce(
-              (s, a) =>
-                s +
-                (a.allotmentStatus === "ALLOTTED" ? (a as any).allottedLotsCount || a.lotCount || 1 : 0),
-              0
-            ) || 1,
-          displayProfit:
-            ipo.applications?.reduce(
-              (s, a) =>
-                s +
-                (a.allotmentStatus === "ALLOTTED"
-                  ? Math.round((a.totalContribution || 15000) * ((ipo.metrics?.gmpPercent || 18.5) / 100))
-                  : 0),
-              0
-            ) || 15000,
+          displayLotsApplied: lotsApplied,
+          displayLotsAllotted: lotsAllotted,
+          displayProfit: totalProfit,
+          oneLotProfit: lotsAllotted > 0 ? Math.round(totalProfit / lotsAllotted) : totalProfit,
+          memberBreakdown: (ipo.applications || []).map((app) => ({
+            id: app.id,
+            memberId: app.memberId,
+            memberName: app.applicantName || (app as any).memberName || "Member",
+            lotsApplied: app.lotCount || (app as any).lotsCount || 1,
+            lotsAllotted: app.allotmentStatus === "ALLOTTED" ? (app as any).allottedLotsCount || app.lotCount || 1 : 0,
+            status: app.allotmentStatus,
+            profit:
+              app.allotmentStatus === "ALLOTTED"
+                ? Math.round((app.totalContribution || 15000) * ((ipo.metrics?.gmpPercent || 18.5) / 100))
+                : 0,
+          })),
         });
       }
     });
 
-    // 2. From listed track records (if not already present)
+    // 2. From listed track records
     listedIpos.forEach((item) => {
       if (!seenNames.has(item.name.toLowerCase())) {
         seenNames.add(item.name.toLowerCase());
@@ -94,7 +135,16 @@ export function AdminIPOHistoryView() {
           displayLotsApplied: item.lotsApplied || 1,
           displayLotsAllotted: item.lotsAllotted || 1,
           displayProfit: item.totalProfit || 15000,
-          userProfits: item.userProfits || [],
+          oneLotProfit: item.oneLotProfit || item.totalProfit || 15000,
+          memberBreakdown: (item.userProfits || []).map((u) => ({
+            id: `usr_${u.memberId}`,
+            memberId: u.memberId,
+            memberName: u.memberName,
+            lotsApplied: u.lotsApplied || 1,
+            lotsAllotted: u.lotsApplied || 1,
+            status: "ALLOTTED",
+            profit: u.profit || 0,
+          })),
           applicantsCount: item.applicantsCount || item.userProfits?.length || 1,
         });
       }
@@ -103,7 +153,7 @@ export function AdminIPOHistoryView() {
     return list;
   }, [ipos, listedIpos]);
 
-  // Filtered historical IPOs
+  // Filtered list
   const filteredHistory = useMemo(() => {
     return historicalIpos.filter((item) => {
       const matchesSearch =
@@ -121,38 +171,143 @@ export function AdminIPOHistoryView() {
 
   // Aggregate Metrics
   const totalCompletedCount = historicalIpos.length;
-  const totalProfitDistributed = historicalIpos.reduce(
-    (sum, item) => sum + (item.displayProfit || 0),
-    0
-  );
-  const totalLotsHandled = historicalIpos.reduce(
-    (sum, item) => sum + (item.displayLotsApplied || 0),
-    0
-  );
+  const totalProfitDistributed = historicalIpos.reduce((sum, item) => sum + (item.displayProfit || 0), 0);
 
+  // Open Edit Modal & Populate Form
+  const handleOpenEdit = (ipo: any) => {
+    setSelectedIpoToEdit(ipo);
+    setEditName(ipo.name);
+    setEditCategory(ipo.category || "Mainboard");
+    setEditLotsApplied(ipo.displayLotsApplied || 1);
+    setEditLotsAllotted(ipo.displayLotsAllotted || 1);
+    setEditTotalProfit(ipo.displayProfit || 15000);
+    setEditOneLotProfit(ipo.oneLotProfit || (ipo.displayLotsAllotted ? Math.round(ipo.displayProfit / ipo.displayLotsAllotted) : 15000));
+    setEditGmpPercent(ipo.metrics?.gmpPercent || 18.5);
+    setEditListingDate(ipo.metrics?.listingDate || ipo.metrics?.closeDate || "Completed");
+    setEditIssueSize(ipo.metrics?.issueSize || "₹2,400 Cr");
+    setEditMemberProfits(ipo.memberBreakdown ? [...ipo.memberBreakdown] : []);
+  };
+
+  // Save Edit Changes
+  const handleSaveEdit = async () => {
+    if (!selectedIpoToEdit) return;
+    setIsProcessing(true);
+
+    try {
+      // 1. Update via POST /api/ipos (action: updateIpo)
+      await fetch("/api/ipos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "updateIpo",
+          ipoId: selectedIpoToEdit.id,
+          data: {
+            name: editName.trim(),
+            description: selectedIpoToEdit.thesis || "Historical IPO record.",
+            gmpPercent: Number(editGmpPercent) || 18.5,
+            listingDate: editListingDate.trim(),
+          },
+        }),
+      });
+
+      // 2. Also update in listedIpos local database store
+      try {
+        const listedStored = localStorage.getItem("nexo_listed_ipos_db") || "[]";
+        const listedParsed = JSON.parse(listedStored);
+        const updated = listedParsed.map((item: any) =>
+          item.id === selectedIpoToEdit.id || item.name?.toLowerCase() === selectedIpoToEdit.name.toLowerCase()
+            ? {
+                ...item,
+                name: editName.trim(),
+                category: editCategory,
+                lotsApplied: Number(editLotsApplied),
+                lotsAllotted: Number(editLotsAllotted),
+                totalProfit: Number(editTotalProfit),
+                oneLotProfit: Number(editOneLotProfit),
+                listingDate: editListingDate.trim(),
+              }
+            : item
+        );
+        localStorage.setItem("nexo_listed_ipos_db", JSON.stringify(updated));
+        window.dispatchEvent(new Event("storage"));
+      } catch (e) {}
+
+      showToast(`✓ IPO "${editName.trim()}" history data saved to database.`);
+      refreshIpos();
+      setSelectedIpoToEdit(null);
+    } catch (err: any) {
+      showToast(`❌ Failed to save updates: ${err.message}`);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
+  // Remove specific member from IPO breakdown
+  const handleRemoveMemberFromIpo = (memberId: string) => {
+    setEditMemberProfits((prev) => prev.filter((m) => m.memberId !== memberId));
+    showToast("Member removed from this distribution.");
+  };
+
+  // Delete Entire IPO Record (Cascade delete across entire database & website)
   const handleDeleteConfirm = async () => {
     if (!selectedIpoToDelete) return;
-    setIsDeleting(true);
+    setIsProcessing(true);
 
     try {
       const res = removeIPO(selectedIpoToDelete.id);
-      if (res.success) {
-        showToast(
-          res.message ||
-            `✓ "${selectedIpoToDelete.name}" and all associated records permanently deleted from database.`
-        );
-      } else {
-        showToast(`❌ ${res.message || "Failed to delete IPO."}`);
+      if (deleteListedIpo) {
+        deleteListedIpo(selectedIpoToDelete.id);
       }
+      showToast(res.message || `✓ "${selectedIpoToDelete.name}" deleted from database and user website.`);
     } catch (err: any) {
       showToast(`❌ Error deleting IPO: ${err.message}`);
     } finally {
-      setIsDeleting(false);
+      setIsProcessing(false);
       setSelectedIpoToDelete(null);
       if (selectedIpoForBreakdown?.id === selectedIpoToDelete?.id) {
         setSelectedIpoForBreakdown(null);
       }
+      if (selectedIpoToEdit?.id === selectedIpoToDelete?.id) {
+        setSelectedIpoToEdit(null);
+      }
     }
+  };
+
+  // Add Past IPO Record
+  const handleAddPastIpo = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!addName.trim()) {
+      showToast("❌ Please provide a valid IPO name.");
+      return;
+    }
+
+    addListedIpo({
+      name: addName.trim(),
+      category: addCategory,
+      lotsApplied: Number(addLotsApplied) || 1,
+      lotsAllotted: Number(addLotsAllotted) || 1,
+      applicantsCount: 1,
+      oneLotProfit: Number(addOneLotProfit) || 15000,
+      totalProfit: Number(addTotalProfit) || 15000,
+      listingDate: addListingDate.trim() || "Completed",
+      lotPrice: 15000,
+      userProfits: [
+        {
+          memberId: members[0]?.id || "mem_admin",
+          memberName: members[0]?.name || "Ankit",
+          profit: Number(addTotalProfit) || 15000,
+          lotsApplied: Number(addLotsApplied) || 1,
+        },
+      ],
+    });
+
+    showToast(`✓ Past IPO "${addName.trim()}" added to database history.`);
+    setAddName("");
+    setAddLotsApplied(1);
+    setAddLotsAllotted(1);
+    setAddTotalProfit(15000);
+    setAddOneLotProfit(15000);
+    setIsAddModalOpen(false);
   };
 
   return (
@@ -173,7 +328,7 @@ export function AdminIPOHistoryView() {
         </div>
       )}
 
-      {/* Header with Title & Stats */}
+      {/* Header Banner */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 p-6 bg-surface border border-line rounded-3xl shadow-sm">
         <div>
           <div className="flex items-center gap-2 mb-1.5">
@@ -181,31 +336,38 @@ export function AdminIPOHistoryView() {
               <ClockCounterClockwise size={16} weight="bold" />
             </span>
             <span className="text-[11px] font-extrabold uppercase tracking-wider text-ink-secondary">
-              Historical Ledger
+              History & Ledger
             </span>
           </div>
           <h1 className="text-2xl font-black tracking-tight text-ink">
-            IPO History & Completed Ledger
+            IPO History & Ledger Manager
           </h1>
           <p className="text-xs text-ink-secondary mt-0.5">
-            Full audit log of finalized, allotted, and profit-distributed IPOs across the syndicate.
+            Audit, edit, or delete past IPO records, allotment results, and member profit distributions.
           </p>
         </div>
 
-        {/* Aggregate Stats Cards */}
-        <div className="flex items-center gap-3">
-          <div className="px-4 py-3 bg-surface-alt/70 border border-line rounded-2xl text-right">
-            <div className="text-[10px] font-bold text-ink-secondary uppercase">Completed IPOs</div>
-            <div className="text-xl font-black text-ink">{totalCompletedCount}</div>
+        {/* Aggregate Stats & Add Past IPO Button */}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="px-4 py-2.5 bg-surface-alt/70 border border-line rounded-2xl text-right">
+            <div className="text-[9px] font-bold text-ink-secondary uppercase">Completed IPOs</div>
+            <div className="text-lg font-black text-ink">{totalCompletedCount}</div>
           </div>
-          <div className="px-4 py-3 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-right">
-            <div className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">
+          <div className="px-4 py-2.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl text-right">
+            <div className="text-[9px] font-bold text-emerald-600 dark:text-emerald-400 uppercase">
               Total Realized Gain
             </div>
-            <div className="text-xl font-black text-emerald-600 dark:text-emerald-400">
+            <div className="text-lg font-black text-emerald-600 dark:text-emerald-400">
               {formatINR(totalProfitDistributed, true)}
             </div>
           </div>
+          <button
+            onClick={() => setIsAddModalOpen(true)}
+            className="px-4 py-2.5 bg-accent hover:bg-accent-hover text-white rounded-2xl text-xs font-bold transition-all flex items-center gap-1.5 shadow-sm cursor-pointer"
+          >
+            <Plus size={16} weight="bold" />
+            <span>Add Past IPO</span>
+          </button>
         </div>
       </div>
 
@@ -242,15 +404,15 @@ export function AdminIPOHistoryView() {
         </div>
       </div>
 
-      {/* Historical IPOs Table / Card Grid */}
+      {/* Historical IPOs Table */}
       {filteredHistory.length === 0 ? (
         <div className="p-12 text-center bg-surface border border-line rounded-3xl space-y-3">
           <Buildings size={42} className="text-ink-tertiary mx-auto opacity-50" />
-          <h3 className="text-sm font-bold text-ink">No Completed IPOs in History</h3>
+          <h3 className="text-sm font-bold text-ink">No Historical IPOs Found</h3>
           <p className="text-xs text-ink-secondary max-w-sm mx-auto">
             {searchQuery
               ? `No historical IPOs matched "${searchQuery}".`
-              : "When IPOs reach allotment and distribution, they will automatically be recorded in this permanent history ledger."}
+              : "Click '+ Add Past IPO' to log a historical result or finalize active IPOs to save them here."}
           </p>
         </div>
       ) : (
@@ -261,98 +423,396 @@ export function AdminIPOHistoryView() {
                 <tr className="border-b border-line bg-surface-alt/40 text-[10px] font-extrabold uppercase tracking-wider text-ink-secondary">
                   <th className="py-3.5 px-5">IPO Details</th>
                   <th className="py-3.5 px-4">Category</th>
-                  <th className="py-3.5 px-4 text-right">Lots Applied</th>
-                  <th className="py-3.5 px-4 text-right">Lots Allotted</th>
+                  <th className="py-3.5 px-4 text-right">Lots (Allotted / Applied)</th>
                   <th className="py-3.5 px-4 text-right">Realized Profit</th>
                   <th className="py-3.5 px-4 text-center">Status</th>
                   <th className="py-3.5 px-5 text-right">Actions</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line/60">
-                {filteredHistory.map((item) => {
-                  return (
-                    <tr
-                      key={item.id}
-                      className="hover:bg-surface-alt/50 transition-colors group"
-                    >
-                      {/* IPO Name */}
-                      <td className="py-4 px-5">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-surface-alt border border-line flex items-center justify-center font-black text-xs text-ink shrink-0">
-                            {item.name.substring(0, 2).toUpperCase()}
+                {filteredHistory.map((item) => (
+                  <tr key={item.id} className="hover:bg-surface-alt/50 transition-colors group">
+                    <td className="py-4 px-5">
+                      <div className="flex items-center gap-3">
+                        <div className="w-9 h-9 rounded-xl bg-surface-alt border border-line flex items-center justify-center font-black text-xs text-ink shrink-0">
+                          {item.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="font-extrabold text-ink text-sm flex items-center gap-2">
+                            <span>{item.name}</span>
                           </div>
-                          <div>
-                            <div className="font-extrabold text-ink text-sm flex items-center gap-2">
-                              <span>{item.name}</span>
-                            </div>
-                            <div className="text-[11px] text-ink-secondary flex items-center gap-2 mt-0.5">
-                              <span>Date: {item.metrics?.listingDate || item.metrics?.closeDate || "Completed"}</span>
-                            </div>
+                          <div className="text-[11px] text-ink-secondary flex items-center gap-2 mt-0.5">
+                            <span>Date: {item.metrics?.listingDate || item.metrics?.closeDate || "Completed"}</span>
                           </div>
                         </div>
-                      </td>
+                      </div>
+                    </td>
 
-                      {/* Category */}
-                      <td className="py-4 px-4">
-                        <span className="px-2.5 py-1 rounded-lg bg-surface-alt text-ink font-bold text-[10px] border border-line">
-                          {item.category || "Mainboard"}
-                        </span>
-                      </td>
+                    <td className="py-4 px-4">
+                      <span className="px-2.5 py-1 rounded-lg bg-surface-alt text-ink font-bold text-[10px] border border-line">
+                        {item.category || "Mainboard"}
+                      </span>
+                    </td>
 
-                      {/* Lots Applied */}
-                      <td className="py-4 px-4 text-right font-bold text-ink">
-                        {item.displayLotsApplied} {item.displayLotsApplied === 1 ? "Lot" : "Lots"}
-                      </td>
+                    <td className="py-4 px-4 text-right font-bold text-ink">
+                      <span className="text-emerald-600 dark:text-emerald-400 font-extrabold">{item.displayLotsAllotted}</span>
+                      <span className="text-ink-tertiary"> / </span>
+                      <span>{item.displayLotsApplied} Lots</span>
+                    </td>
 
-                      {/* Lots Allotted */}
-                      <td className="py-4 px-4 text-right font-bold text-emerald-600 dark:text-emerald-400">
-                        {item.displayLotsAllotted} {item.displayLotsAllotted === 1 ? "Lot" : "Lots"}
-                      </td>
+                    <td className="py-4 px-4 text-right">
+                      <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm">
+                        {formatINR(item.displayProfit, true)}
+                      </span>
+                    </td>
 
-                      {/* Realized Profit */}
-                      <td className="py-4 px-4 text-right">
-                        <span className="font-black text-emerald-600 dark:text-emerald-400 text-sm">
-                          {formatINR(item.displayProfit, true)}
-                        </span>
-                      </td>
+                    <td className="py-4 px-4 text-center">
+                      <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] border border-emerald-500/30">
+                        <CheckCircle size={12} weight="fill" />
+                        <span>Completed</span>
+                      </span>
+                    </td>
 
-                      {/* Status */}
-                      <td className="py-4 px-4 text-center">
-                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 font-extrabold text-[10px] border border-emerald-500/30">
-                          <CheckCircle size={12} weight="fill" />
-                          <span>Completed</span>
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-4 px-5 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          <button
-                            onClick={() => setSelectedIpoForBreakdown(item)}
-                            title="View member profit breakdown"
-                            className="p-2 rounded-xl text-ink-secondary hover:text-ink bg-surface-alt hover:bg-surface-hover border border-line transition-all cursor-pointer"
-                          >
-                            <Eye size={15} />
-                          </button>
-                          <button
-                            onClick={() => setSelectedIpoToDelete(item)}
-                            title="Permanently Delete IPO from website & database"
-                            className="p-2 rounded-xl text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 transition-all cursor-pointer active:scale-95"
-                          >
-                            <Trash size={15} />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
+                    <td className="py-4 px-5 text-right">
+                      <div className="flex items-center justify-end gap-2">
+                        {/* View Breakdown */}
+                        <button
+                          onClick={() => setSelectedIpoForBreakdown(item)}
+                          title="View member profit breakdown"
+                          className="p-2 rounded-xl text-ink-secondary hover:text-ink bg-surface-alt hover:bg-surface-hover border border-line transition-all cursor-pointer"
+                        >
+                          <Eye size={15} />
+                        </button>
+                        {/* Edit IPO & Profit Data */}
+                        <button
+                          onClick={() => handleOpenEdit(item)}
+                          title="Edit IPO, Lots & Profit distribution"
+                          className="p-2 rounded-xl text-accent hover:text-white bg-accent-soft hover:bg-accent border border-accent/30 transition-all cursor-pointer"
+                        >
+                          <PencilSimple size={15} />
+                        </button>
+                        {/* Delete IPO permanently */}
+                        <button
+                          onClick={() => setSelectedIpoToDelete(item)}
+                          title="Permanently Delete IPO from website & database"
+                          className="p-2 rounded-xl text-rose-500 hover:text-white bg-rose-500/10 hover:bg-rose-600 border border-rose-500/20 transition-all cursor-pointer active:scale-95"
+                        >
+                          <Trash size={15} />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
         </div>
       )}
 
-      {/* BREAKDOWN MODAL */}
+      {/* ── EDIT IPO & PROFIT DATA MODAL ── */}
+      {selectedIpoToEdit && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-fade-in">
+          <div className="bg-surface rounded-3xl p-6 max-w-xl w-full border border-line shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between border-b border-line pb-4 shrink-0">
+              <div>
+                <h3 className="text-base font-extrabold text-ink flex items-center gap-2">
+                  <PencilSimple size={18} className="text-accent" />
+                  <span>Edit Historical IPO: {selectedIpoToEdit.name}</span>
+                </h3>
+                <p className="text-xs text-ink-secondary mt-0.5">
+                  Update IPO information, profit figures, and syndicate member allocations.
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedIpoToEdit(null)}
+                className="p-2 rounded-xl text-ink-secondary hover:text-ink bg-surface-alt cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-extrabold text-ink-secondary uppercase block mb-1">
+                    IPO / Company Name *
+                  </label>
+                  <input
+                    type="text"
+                    value={editName}
+                    onChange={(e) => setEditName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-alt border border-line text-ink font-semibold focus:outline-none focus:border-accent"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-extrabold text-ink-secondary uppercase block mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={editCategory}
+                    onChange={(e) => setEditCategory(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-alt border border-line text-ink font-semibold focus:outline-none"
+                  >
+                    <option value="Mainboard">Mainboard</option>
+                    <option value="SME">SME</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[10px] font-extrabold text-ink-secondary uppercase block mb-1">
+                    Total Lots Applied
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editLotsApplied}
+                    onChange={(e) => setEditLotsApplied(Number(e.target.value) || 1)}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-alt border border-line text-ink font-semibold focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-extrabold text-ink-secondary uppercase block mb-1">
+                    Total Lots Allotted
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={editLotsAllotted}
+                    onChange={(e) => setEditLotsAllotted(Number(e.target.value) || 1)}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-alt border border-line text-ink font-semibold focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-extrabold text-ink-secondary uppercase block mb-1">
+                    Listing Gain (GMP %)
+                  </label>
+                  <input
+                    type="number"
+                    value={editGmpPercent}
+                    onChange={(e) => setEditGmpPercent(Number(e.target.value) || 0)}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-alt border border-line text-ink font-semibold focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-extrabold text-ink-secondary uppercase block mb-1">
+                    Total Realized Profit (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={editTotalProfit}
+                    onChange={(e) => setEditTotalProfit(Number(e.target.value) || 0)}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-alt border border-line text-ink font-bold text-emerald-600 dark:text-emerald-400 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-extrabold text-ink-secondary uppercase block mb-1">
+                    Listing Date
+                  </label>
+                  <input
+                    type="text"
+                    value={editListingDate}
+                    onChange={(e) => setEditListingDate(e.target.value)}
+                    placeholder="e.g. 28 Aug 2026"
+                    className="w-full px-3 py-2 rounded-xl bg-surface-alt border border-line text-ink font-semibold focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              {/* Member Allocations Section */}
+              {editMemberProfits.length > 0 && (
+                <div className="pt-3 border-t border-line space-y-2">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-extrabold text-ink-secondary uppercase tracking-wider">
+                      Member Allocations ({editMemberProfits.length})
+                    </label>
+                  </div>
+                  <div className="divide-y divide-line/60 bg-surface-alt/40 border border-line rounded-2xl max-h-36 overflow-y-auto">
+                    {editMemberProfits.map((m) => (
+                      <div key={m.id || m.memberId} className="p-2.5 flex items-center justify-between gap-3 text-xs">
+                        <div className="flex items-center gap-2">
+                          <span className="font-bold text-ink">{m.memberName}</span>
+                          <span className="text-[10px] text-ink-secondary">({m.lotsApplied} Lots)</span>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className="font-black text-emerald-600 dark:text-emerald-400">
+                            {formatINR(m.profit, true)}
+                          </span>
+                          <button
+                            onClick={() => handleRemoveMemberFromIpo(m.memberId)}
+                            title="Remove this member's application"
+                            className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
+                          >
+                            <Trash size={13} />
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-line shrink-0">
+              <button
+                disabled={isProcessing}
+                onClick={() => setSelectedIpoToEdit(null)}
+                className="px-4 py-2 rounded-xl border border-line text-xs font-bold text-ink-secondary hover:bg-surface-alt cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                disabled={isProcessing}
+                onClick={handleSaveEdit}
+                className="px-5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
+              >
+                <FloppyDisk size={15} weight="bold" />
+                <span>{isProcessing ? "Saving..." : "Save Changes"}</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ADD PAST IPO RECORD MODAL ── */}
+      {isAddModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-fade-in">
+          <form
+            onSubmit={handleAddPastIpo}
+            className="bg-surface rounded-3xl p-6 max-w-lg w-full border border-line shadow-2xl space-y-4"
+          >
+            <div className="flex items-center justify-between border-b border-line pb-4">
+              <div>
+                <h3 className="text-base font-extrabold text-ink flex items-center gap-2">
+                  <Plus size={18} className="text-accent" />
+                  <span>Log Past IPO Record</span>
+                </h3>
+                <p className="text-xs text-ink-secondary mt-0.5">
+                  Record a historical IPO that was completed in the past.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="p-2 rounded-xl text-ink-secondary hover:text-ink bg-surface-alt cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="space-y-3.5 text-xs">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-extrabold text-ink-secondary uppercase block mb-1">
+                    IPO Name *
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    placeholder="e.g. Tata Technologies"
+                    value={addName}
+                    onChange={(e) => setAddName(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-alt border border-line text-ink font-semibold focus:outline-none focus:border-accent"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-extrabold text-ink-secondary uppercase block mb-1">
+                    Category
+                  </label>
+                  <select
+                    value={addCategory}
+                    onChange={(e) => setAddCategory(e.target.value as any)}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-alt border border-line text-ink font-semibold focus:outline-none"
+                  >
+                    <option value="Mainboard">Mainboard</option>
+                    <option value="SME">SME</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-extrabold text-ink-secondary uppercase block mb-1">
+                    Lots Applied
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={addLotsApplied}
+                    onChange={(e) => setAddLotsApplied(Number(e.target.value) || 1)}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-alt border border-line text-ink font-semibold focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-extrabold text-ink-secondary uppercase block mb-1">
+                    Lots Allotted
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={addLotsAllotted}
+                    onChange={(e) => setAddLotsAllotted(Number(e.target.value) || 1)}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-alt border border-line text-ink font-semibold focus:outline-none"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[10px] font-extrabold text-ink-secondary uppercase block mb-1">
+                    Total Profit (₹)
+                  </label>
+                  <input
+                    type="number"
+                    value={addTotalProfit}
+                    onChange={(e) => {
+                      const val = Number(e.target.value) || 0;
+                      setAddTotalProfit(val);
+                      setAddOneLotProfit(addLotsAllotted > 0 ? Math.round(val / addLotsAllotted) : val);
+                    }}
+                    className="w-full px-3 py-2 rounded-xl bg-surface-alt border border-line text-ink font-bold text-emerald-600 dark:text-emerald-400 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] font-extrabold text-ink-secondary uppercase block mb-1">
+                    Listing Date
+                  </label>
+                  <input
+                    type="text"
+                    value={addListingDate}
+                    onChange={(e) => setAddListingDate(e.target.value)}
+                    placeholder="e.g. 28 Aug 2026"
+                    className="w-full px-3 py-2 rounded-xl bg-surface-alt border border-line text-ink font-semibold focus:outline-none"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-line">
+              <button
+                type="button"
+                onClick={() => setIsAddModalOpen(false)}
+                className="px-4 py-2 rounded-xl border border-line text-xs font-bold text-ink-secondary hover:bg-surface-alt cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                className="px-5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer"
+              >
+                <Plus size={15} weight="bold" />
+                <span>Add to History</span>
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
+      {/* ── BREAKDOWN MODAL ── */}
       {selectedIpoForBreakdown && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-fade-in">
           <div className="bg-surface rounded-3xl p-6 max-w-lg w-full border border-line shadow-2xl space-y-4">
@@ -392,15 +852,27 @@ export function AdminIPOHistoryView() {
             </div>
 
             <div className="pt-2 flex justify-between items-center">
-              <button
-                onClick={() => {
-                  setSelectedIpoToDelete(selectedIpoForBreakdown);
-                }}
-                className="px-4 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-500/20 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
-              >
-                <Trash size={14} />
-                <span>Delete IPO Record</span>
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    handleOpenEdit(selectedIpoForBreakdown);
+                    setSelectedIpoForBreakdown(null);
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-accent-soft hover:bg-accent text-accent hover:text-white border border-accent/25 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <PencilSimple size={14} />
+                  <span>Edit Data</span>
+                </button>
+                <button
+                  onClick={() => {
+                    setSelectedIpoToDelete(selectedIpoForBreakdown);
+                  }}
+                  className="px-3.5 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-600 text-rose-500 hover:text-white border border-rose-500/20 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                >
+                  <Trash size={14} />
+                  <span>Delete</span>
+                </button>
+              </div>
               <button
                 onClick={() => setSelectedIpoForBreakdown(null)}
                 className="px-4 py-2 rounded-xl bg-surface-alt border border-line text-xs font-bold text-ink hover:bg-surface-hover transition-colors cursor-pointer"
@@ -412,7 +884,7 @@ export function AdminIPOHistoryView() {
         </div>
       )}
 
-      {/* PERMANENT DELETE CONFIRMATION MODAL */}
+      {/* ── PERMANENT CASCADE DELETE CONFIRMATION MODAL ── */}
       {selectedIpoToDelete && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-fade-in">
           <div className="bg-surface rounded-3xl p-6 max-w-md w-full border border-rose-500/30 shadow-2xl space-y-4">
@@ -425,15 +897,15 @@ export function AdminIPOHistoryView() {
                 Permanently Delete "{selectedIpoToDelete.name}"?
               </h3>
               <p className="text-xs text-ink-secondary font-medium mt-1.5 leading-relaxed">
-                Are you sure you want to permanently delete this IPO? This action is irreversible.
+                Are you sure you want to permanently delete this historical IPO? This action is irreversible.
               </p>
               <div className="mt-3 p-3.5 bg-rose-500/10 border border-rose-500/20 rounded-2xl text-[11px] text-rose-600 dark:text-rose-400 space-y-1 font-semibold">
                 <div className="flex items-center gap-1.5 font-bold">
                   <Warning size={14} className="shrink-0" />
-                  <span>The following data will be deleted across the website:</span>
+                  <span>The following data will be erased across the website:</span>
                 </div>
                 <ul className="list-disc list-inside space-y-0.5 text-[10px] opacity-90 pl-1">
-                  <li>Deleted from MongoDB <code className="font-mono font-bold">ipos</code> collection</li>
+                  <li>Deleted from MongoDB database <code className="font-mono font-bold">ipos</code> collection</li>
                   <li>Deleted from <code className="font-mono font-bold">profit_distributions</code> ledger</li>
                   <li>All member applications & PnL erased from user dashboards</li>
                   <li>Removed from both Admin & User views permanently</li>
@@ -443,19 +915,19 @@ export function AdminIPOHistoryView() {
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
-                disabled={isDeleting}
+                disabled={isProcessing}
                 onClick={() => setSelectedIpoToDelete(null)}
                 className="px-4 py-2.5 rounded-xl border border-line text-xs font-bold text-ink-secondary hover:bg-surface-alt transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
-                disabled={isDeleting}
+                disabled={isProcessing}
                 onClick={handleDeleteConfirm}
                 className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer flex items-center gap-1.5 disabled:opacity-50"
               >
                 <Trash size={14} />
-                <span>{isDeleting ? "Deleting from Database…" : "Permanently Delete"}</span>
+                <span>{isProcessing ? "Deleting..." : "Permanently Delete"}</span>
               </button>
             </div>
           </div>
