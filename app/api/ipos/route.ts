@@ -58,9 +58,24 @@ export async function OPTIONS() {
 
 export async function GET(req: NextRequest) {
   try {
-    const allIpos = readSharedIpos();
-    const url = new URL(req.url);
-    const isAdmin = url.searchParams.get("admin") === "true";
+    let allIpos = readSharedIpos();
+
+    try {
+      const client = await clientPromise;
+      const db = client.db(DB_NAME);
+      const dbIpos = await db.collection("ipos").find({ isHidden: { $ne: true } }).sort({ _id: -1 }).toArray();
+      if (Array.isArray(dbIpos) && dbIpos.length > 0) {
+        allIpos = dbIpos.map((item: any) => ({
+          ...item,
+          id: item.id || String(item._id),
+          _id: undefined,
+        }));
+        // Cache to local file
+        writeSharedIpos(allIpos);
+      }
+    } catch (dbErr) {
+      // Fallback to local file if MongoDB is offline
+    }
 
     return NextResponse.json({ success: true, ipos: allIpos }, { headers: corsHeaders });
   } catch (err: any) {
@@ -304,6 +319,18 @@ export async function POST(req: NextRequest) {
     const updated = [newIpo, ...allIpos];
     writeSharedIpos(updated);
 
+    try {
+      const client = await clientPromise;
+      const db = client.db(DB_NAME);
+      await db.collection("ipos").updateOne(
+        { id: newIpo.id },
+        { $set: newIpo },
+        { upsert: true }
+      );
+    } catch (dbErr) {
+      console.warn("MongoDB insert optional fallback:", dbErr);
+    }
+
     await logActivity({
       eventType: "IPO_CREATED",
       category: "PRODUCT",
@@ -364,6 +391,17 @@ export async function DELETE(req: NextRequest) {
     );
 
     writeSharedIpos(updated);
+
+    try {
+      const client = await clientPromise;
+      const db = client.db(DB_NAME);
+      await db.collection("ipos").updateOne(
+        { $or: [{ id }, { _id: id as any }] },
+        { $set: { isHidden: true } }
+      );
+    } catch (dbErr) {
+      console.warn("MongoDB delete optional fallback:", dbErr);
+    }
 
     await logActivity({
       eventType: "IPO_ARCHIVED",
