@@ -1,15 +1,15 @@
 [
   {
-    "id": "ipo_1786889805483",
-    "addedAt": "2026-08-16T14:16:45.492Z",
+    "id": "ipo_1786892582320",
+    "addedAt": "2026-08-16T15:03:02.321Z",
     "applications": [],
     "category": "Mainboard",
     "combinedCapital": 0,
-    "company": "newipo",
-    "createdAt": "2026-08-16T14:16:45.492Z",
+    "company": "xyz",
+    "createdAt": "2026-08-16T15:03:02.321Z",
     "createdBy": "Shivam Prasad",
     "isHidden": false,
-    "logo": "NE",
+    "logo": "XY",
     "metrics": {
       "issueSize": "₹2,400 Cr",
       "priceBand": {
@@ -25,20 +25,51 @@
       "listingDate": "04 Sep 2026",
       "fundUnblockDate": "02 Sep 2026"
     },
-    "name": "newipo",
+    "name": "xyz",
     "participantsCount": 0,
     "recommendation": "APPLY",
-    "status": "APPLICATION_OPEN",
-    "thesis": "2"
+    "status": "ALLOTMENT_OUT",
+    "thesis": "ekrjgekn",
+    "allotmentFinalized": true,
+    "allotmentFinalizedAt": "2026-08-16T15:04:38.135Z",
+    "allotmentFinalizedBy": "Ankit",
+    "updatedAt": "2026-08-16T16:11:12.627Z",
+    "profitDistribution": {
+      "totalProfit": 20000,
+      "totalLots": 2,
+      "allottedLots": 2,
+      "oneLotProfit": 10000,
+      "publishedAt": "2026-08-16T16:11:12.226Z",
+      "memberPayouts": [
+        {
+          "memberId": "mem_1786882705813",
+          "name": "@bhushan",
+          "pan": "IKXPP8988P",
+          "contribution": 22500,
+          "lots": 1.5,
+          "profit": 15000
+        },
+        {
+          "memberId": "mem_1786680225463",
+          "name": "@user",
+          "pan": "IKXPP8989P",
+          "contribution": 7500,
+          "lots": 0.5,
+          "profit": 5000
+        }
+      ]
+    }
   },
   {
-    "id": "ipo_1786888737846",
+    "id": "ipo_1786891439249",
+    "addedAt": "2026-08-16T14:43:59.249Z",
     "applications": [],
     "category": "Mainboard",
     "combinedCapital": 0,
-    "company": "ship",
+    "company": "Shiprocket",
+    "createdAt": "2026-08-16T14:43:59.249Z",
     "createdBy": "Shivam Prasad",
-    "isHidden": false,
+    "isHidden": true,
     "logo": "SH",
     "metrics": {
       "issueSize": "₹2,400 Cr",
@@ -55,23 +86,23 @@
       "listingDate": "04 Sep 2026",
       "fundUnblockDate": "02 Sep 2026"
     },
-    "name": "ship",
+    "name": "Shiprocket",
     "participantsCount": 0,
     "recommendation": "APPLY",
     "status": "APPLICATION_OPEN",
-    "thesis": "sksk",
-    "addedAt": "2026-08-16T13:58:57.846Z",
-    "createdAt": "2026-08-16T13:58:57.846Z"
+    "thesis": "NEW IPO"
   },
   {
-    "id": "ipo_1786888253346",
+    "id": "ipo_1786891398930",
+    "addedAt": "2026-08-16T14:43:18.931Z",
     "applications": [],
     "category": "Mainboard",
     "combinedCapital": 0,
-    "company": "offf",
+    "company": "Shiprocket",
+    "createdAt": "2026-08-16T14:43:18.931Z",
     "createdBy": "Shivam Prasad",
-    "isHidden": false,
-    "logo": "OF",
+    "isHidden": true,
+    "logo": "SH",
     "metrics": {
       "issueSize": "₹2,400 Cr",
       "priceBand": {
@@ -87,13 +118,11 @@
       "listingDate": "04 Sep 2026",
       "fundUnblockDate": "02 Sep 2026"
     },
-    "name": "offf",
+    "name": "Shiprocket",
     "participantsCount": 0,
     "recommendation": "APPLY",
     "status": "APPLICATION_OPEN",
-    "thesis": "dsmn mdn",
-    "addedAt": "2026-08-16T13:50:53.346Z",
-    "createdAt": "2026-08-16T13:50:53.346Z"
+    "thesis": "NEW IPO"
   },
   {
     "id": "ipo_1786887825226",
@@ -133,7 +162,284 @@
     },
     "updatedAt": "2026-08-16T13:48:27.071Z",
     "addedAt": "2026-08-16T13:43:45.226Z",
-    "createdAt": "2026-08-16T13:43:45.226Z"
+    "createdAt": "2026-08-16T14:42:39.094Z"
+  },
+  {
+    "id": "ipo_1786887825226",
+    "applications": [],
+    "category": "Mainboard",
+    "combinedCapital": 0,
+    "company": "jhgjhg",
+    "createdBy": "Shivam Prasad",
+    "isHidden": true,
+    "logo": "JH",
+    "metrics": {
+      "issueSize": "₹2,400 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 18.5,
+      "openDate": "18 Aug 2026",
+      "closeDate": "28 Aug 2026",
+      "allotmentDate": "01 Sep 2026",
+      "listingDate": "04 Sep 2026",
+      "fundUnblockDate": "02 Sep 2026"
+    },
+    "name": "jhgjhg",
+    "participantsCount": 0,
+    "recommendation": "APPLY",
+    "status": "APPLICATION_OPEN",
+    "thesis": "gvhgv",
+    "profitDistribution": {
+      "totalProfit": 430000,
+      "totalLots": 2,
+      "allottedLots": 2,
+      "oneLotProfit": 215000,
+      "publishedAt": "2026-08-16T13:48:26.950Z"
+    },
+    "updatedAt": "2026-08-16T13:48:27.071Z",
+    "addedAt": "2026-08-16T13:43:45.226Z",
+    "createdAt": "2026-08-16T14:42:33.010Z"
+  },
+  {
+    "id": "ipo_1786889805483",
+    "addedAt": "2026-08-16T14:16:45.492Z",
+    "applications": [],
+    "category": "Mainboard",
+    "combinedCapital": 0,
+    "company": "newipo",
+    "createdAt": "2026-08-16T14:16:45.492Z",
+    "createdBy": "Shivam Prasad",
+    "isHidden": true,
+    "logo": "NE",
+    "metrics": {
+      "issueSize": "₹2,400 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 18.5,
+      "openDate": "18 Aug 2026",
+      "closeDate": "28 Aug 2026",
+      "allotmentDate": "01 Sep 2026",
+      "listingDate": "04 Sep 2026",
+      "fundUnblockDate": "02 Sep 2026"
+    },
+    "name": "newipo",
+    "participantsCount": 0,
+    "recommendation": "APPLY",
+    "status": "APPLICATION_OPEN",
+    "thesis": "2"
+  },
+  {
+    "id": "ipo_1786888737846",
+    "applications": [],
+    "category": "Mainboard",
+    "combinedCapital": 0,
+    "company": "ship",
+    "createdBy": "Shivam Prasad",
+    "isHidden": true,
+    "logo": "SH",
+    "metrics": {
+      "issueSize": "₹2,400 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 18.5,
+      "openDate": "18 Aug 2026",
+      "closeDate": "28 Aug 2026",
+      "allotmentDate": "01 Sep 2026",
+      "listingDate": "04 Sep 2026",
+      "fundUnblockDate": "02 Sep 2026"
+    },
+    "name": "ship",
+    "participantsCount": 0,
+    "recommendation": "APPLY",
+    "status": "APPLICATION_OPEN",
+    "thesis": "sksk",
+    "addedAt": "2026-08-16T13:58:57.846Z",
+    "createdAt": "2026-08-16T13:58:57.846Z"
+  },
+  {
+    "id": "ipo_1786888328015",
+    "applications": [],
+    "category": "Mainboard",
+    "combinedCapital": 0,
+    "company": "tata",
+    "createdBy": "Shivam Prasad",
+    "isHidden": true,
+    "logo": "TA",
+    "metrics": {
+      "issueSize": "₹2,400 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 18.5,
+      "openDate": "1 Aug 2026",
+      "closeDate": "2 Aug 2026",
+      "allotmentDate": "3 Sep 2026",
+      "listingDate": "4 Sep 2026",
+      "fundUnblockDate": "9 Sep 2026"
+    },
+    "name": "tata",
+    "participantsCount": 0,
+    "recommendation": "APPLY",
+    "status": "APPLICATION_OPEN",
+    "thesis": "djdjn",
+    "addedAt": "2026-08-16T13:52:08.015Z",
+    "createdAt": "2026-08-16T13:52:08.015Z"
+  },
+  {
+    "id": "ipo_1786888325722",
+    "applications": [],
+    "category": "Mainboard",
+    "combinedCapital": 0,
+    "company": "tata",
+    "createdBy": "Shivam Prasad",
+    "isHidden": true,
+    "logo": "TA",
+    "metrics": {
+      "issueSize": "₹2,400 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 18.5,
+      "openDate": "1 Aug 2026",
+      "closeDate": "2 Aug 2026",
+      "allotmentDate": "3 Sep 2026",
+      "listingDate": "4 Sep 2026",
+      "fundUnblockDate": "9 Sep 2026"
+    },
+    "name": "tata",
+    "participantsCount": 0,
+    "recommendation": "APPLY",
+    "status": "APPLICATION_OPEN",
+    "thesis": "djdjn",
+    "addedAt": "2026-08-16T13:52:05.722Z",
+    "createdAt": "2026-08-16T13:52:05.722Z"
+  },
+  {
+    "id": "ipo_1786888253346",
+    "applications": [],
+    "category": "Mainboard",
+    "combinedCapital": 0,
+    "company": "offf",
+    "createdBy": "Shivam Prasad",
+    "isHidden": true,
+    "logo": "OF",
+    "metrics": {
+      "issueSize": "₹2,400 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 18.5,
+      "openDate": "18 Aug 2026",
+      "closeDate": "28 Aug 2026",
+      "allotmentDate": "01 Sep 2026",
+      "listingDate": "04 Sep 2026",
+      "fundUnblockDate": "02 Sep 2026"
+    },
+    "name": "offf",
+    "participantsCount": 0,
+    "recommendation": "APPLY",
+    "status": "APPLICATION_OPEN",
+    "thesis": "dsmn mdn",
+    "addedAt": "2026-08-16T13:50:53.346Z",
+    "createdAt": "2026-08-16T13:50:53.346Z"
+  },
+  {
+    "id": "ipo_1786887825226",
+    "applications": [],
+    "category": "Mainboard",
+    "combinedCapital": 0,
+    "company": "jhgjhg",
+    "createdBy": "Shivam Prasad",
+    "isHidden": true,
+    "logo": "JH",
+    "metrics": {
+      "issueSize": "₹2,400 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 18.5,
+      "openDate": "18 Aug 2026",
+      "closeDate": "28 Aug 2026",
+      "allotmentDate": "01 Sep 2026",
+      "listingDate": "04 Sep 2026",
+      "fundUnblockDate": "02 Sep 2026"
+    },
+    "name": "jhgjhg",
+    "participantsCount": 0,
+    "recommendation": "APPLY",
+    "status": "ALLOTMENT_OUT",
+    "thesis": "gvhgv",
+    "profitDistribution": {
+      "totalProfit": 10000,
+      "totalLots": 5,
+      "allottedLots": 2,
+      "oneLotProfit": 2000,
+      "publishedAt": "2026-08-16T16:12:12.198Z",
+      "memberPayouts": [
+        {
+          "memberId": "mem_1786713174555",
+          "name": "@krish",
+          "pan": "IKXPP8988X",
+          "contribution": 37500,
+          "lots": 2.5,
+          "profit": 5000
+        },
+        {
+          "memberId": "mem_1786684116726",
+          "name": "@user2",
+          "pan": "IKXPP8888P",
+          "contribution": 15000,
+          "lots": 1,
+          "profit": 2000
+        },
+        {
+          "memberId": "mem_1786680225463",
+          "name": "@bhushan",
+          "pan": "IKXPP8888P",
+          "contribution": 7500,
+          "lots": 0.5,
+          "profit": 1000
+        },
+        {
+          "memberId": "mem_1786882705813",
+          "name": "@bhushan",
+          "pan": "IKXPP8988P",
+          "contribution": 15000,
+          "lots": 1,
+          "profit": 2000
+        }
+      ]
+    },
+    "updatedAt": "2026-08-16T16:12:12.299Z",
+    "addedAt": "2026-08-16T13:43:45.226Z",
+    "createdAt": "2026-08-16T13:43:45.226Z",
+    "allotmentFinalized": true,
+    "allotmentFinalizedAt": "2026-08-16T16:06:38.147Z",
+    "allotmentFinalizedBy": "Ankit"
   },
   {
     "id": "ipo_6",
@@ -170,7 +476,8 @@
     "applications": [],
     "createdAt": "2026-08-13T10:27:21.709Z",
     "updatedAt": "2026-08-13T10:27:21.709Z",
-    "addedAt": "2026-08-13T10:27:21.709Z"
+    "addedAt": "2026-08-13T10:27:21.709Z",
+    "isHidden": true
   },
   {
     "id": "ipo_5",
@@ -254,7 +561,8 @@
     ],
     "createdAt": "2026-08-13T10:27:21.709Z",
     "updatedAt": "2026-08-13T10:27:21.709Z",
-    "addedAt": "2026-08-13T10:27:21.709Z"
+    "addedAt": "2026-08-13T10:27:21.709Z",
+    "isHidden": true
   },
   {
     "id": "ipo_4",
@@ -328,7 +636,8 @@
     ],
     "createdAt": "2026-08-13T10:27:21.709Z",
     "updatedAt": "2026-08-13T10:27:21.709Z",
-    "addedAt": "2026-08-13T10:27:21.709Z"
+    "addedAt": "2026-08-13T10:27:21.709Z",
+    "isHidden": true
   },
   {
     "id": "ipo_3",
@@ -395,7 +704,8 @@
     ],
     "createdAt": "2026-08-13T10:27:21.709Z",
     "updatedAt": "2026-08-13T10:27:21.709Z",
-    "addedAt": "2026-08-13T10:27:21.709Z"
+    "addedAt": "2026-08-13T10:27:21.709Z",
+    "isHidden": true
   },
   {
     "id": "ipo_2",
@@ -481,7 +791,8 @@
     ],
     "createdAt": "2026-08-13T10:27:21.709Z",
     "updatedAt": "2026-08-13T10:27:21.709Z",
-    "addedAt": "2026-08-13T10:27:21.709Z"
+    "addedAt": "2026-08-13T10:27:21.709Z",
+    "isHidden": true
   },
   {
     "id": "ipo_1",
@@ -522,7 +833,8 @@
     "allotmentFinalized": true,
     "allotmentFinalizedAt": "2026-08-15T07:19:05.972Z",
     "allotmentFinalizedBy": "Ankit",
-    "addedAt": "2026-08-13T10:27:21.709Z"
+    "addedAt": "2026-08-13T10:27:21.709Z",
+    "isHidden": true
   },
   {
     "id": "ipo_ntpc",
@@ -559,7 +871,8 @@
     "applications": [],
     "createdAt": "2026-08-13T10:27:21.709Z",
     "updatedAt": "2026-08-13T10:27:21.709Z",
-    "addedAt": "2026-08-13T10:27:21.709Z"
+    "addedAt": "2026-08-13T10:27:21.709Z",
+    "isHidden": true
   },
   {
     "id": "ipo_veritas",
@@ -603,7 +916,8 @@
     "applications": [],
     "createdAt": "2026-08-13T10:27:21.709Z",
     "updatedAt": "2026-08-13T10:27:21.709Z",
-    "addedAt": "2026-08-13T10:27:21.709Z"
+    "addedAt": "2026-08-13T10:27:21.709Z",
+    "isHidden": true
   },
   {
     "id": "ipo_tata_tech",
@@ -736,6 +1050,7 @@
     "allotmentFinalized": true,
     "allotmentFinalizedAt": "2026-08-14T14:47:43.142Z",
     "allotmentFinalizedBy": "Ankit",
-    "addedAt": "2026-08-13T10:27:21.709Z"
+    "addedAt": "2026-08-13T10:27:21.709Z",
+    "isHidden": true
   }
 ]

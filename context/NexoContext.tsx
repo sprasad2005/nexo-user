@@ -17,6 +17,7 @@ import {
   RecommendationType,
   Transaction,
   ListedIPO,
+  ListedIPOUserProfit,
 } from "@/types/nexo";
 import {
   MOCK_IPOS,
@@ -282,35 +283,25 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
         apiIpos = ipoRes.map((raw: any) => (raw.metrics ? raw : mapIPOToOpportunity(raw)));
       }
 
-      let extraLocal: IPOOpportunity[] = [];
-      let hiddenLocal: string[] = [];
-      let profitDists: Record<string, any> = {};
-      let localApps: Record<string, Application[]> = {};
-
-      try {
-        extraLocal = JSON.parse(localStorage.getItem("nexo_local_admin_ipos") || "[]");
-        hiddenLocal = JSON.parse(localStorage.getItem("nexo_local_hidden_ipos") || "[]");
-        profitDists = JSON.parse(localStorage.getItem("nexo_shared_profit_dists") || "{}");
-        localApps = JSON.parse(localStorage.getItem("nexo_local_applications") || "{}");
-      } catch (e) {}
+      // Cleanup any legacy mock storage keys
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.removeItem("nexo_local_admin_ipos");
+          localStorage.removeItem("nexo_ipos");
+        } catch {}
+      }
 
       const dbApplications: any[] = (appRes?.success && Array.isArray(appRes.applications)) ? appRes.applications : [];
 
+      // Map strictly from database
       const mergedMap = new Map<string, IPOOpportunity>();
-      apiIpos.forEach((ipo: IPOOpportunity) => mergedMap.set(ipo.id, ipo));
-      extraLocal.forEach((ipo) => {
-        if (!mergedMap.has(ipo.id)) {
+      apiIpos.forEach((ipo: IPOOpportunity) => {
+        if (ipo && ipo.id) {
           mergedMap.set(ipo.id, ipo);
-        } else if (ipo.isHidden) {
-          const existing = mergedMap.get(ipo.id)!;
-          mergedMap.set(ipo.id, { ...existing, isHidden: true });
         }
       });
 
       const combined = Array.from(mergedMap.values()).map((ipo) => {
-        const dist = profitDists[ipo.id] || ipo.profitDistribution;
-        const extraApps = localApps[ipo.id] || [];
-
         // Map database applications for this IPO
         const dbAppsForIpo: Application[] = dbApplications
           .filter((doc: any) => doc.ipoId === ipo.id || doc.ipoName?.toLowerCase() === ipo.name?.toLowerCase())
@@ -320,8 +311,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
             type: doc.fundingStructure === "MULTI_FRIEND" ? "COMBINED" : "INDIVIDUAL",
             applicantName: doc.applicantName || "Member",
             memberId: doc.memberId || "mem_1",
-            panMasked: doc.panNumbers?.[0] || doc.pan || "ABCDE2741D",
-            panNumbers: doc.panNumbers || [doc.panMasked || "ABCDE2741D"],
+            panMasked: doc.panNumbers?.[0] || doc.pan || doc.panMasked || "",
+            panNumbers: doc.panNumbers || (doc.panMasked ? [doc.panMasked] : []),
             totalContribution: doc.totalContribution || 15000,
             lotCount: doc.numberOfPanCards || doc.lotCount || 1,
             verified: true,
@@ -334,34 +325,37 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
               avatar: "/oggy.png",
               contribution: c.amount || c.contribution || 15000,
               percentage: c.percentage || 100,
-              panMasked: doc.panNumbers?.[0] || "ABCDE2741D",
-              panFull: doc.panNumbers?.[0] || "ABCDE2741D",
+              panMasked: doc.panNumbers?.[0] || "",
+              panFull: doc.panNumbers?.[0] || "",
               status: "SUBMITTED" as const,
             })),
           }));
 
         const existingAppIds = new Set(dbAppsForIpo.map((a) => a.id));
         const fileApps = (ipo.applications || []).filter((a) => !existingAppIds.has(a.id));
-        const customLocalApps = extraApps.filter((a) => !existingAppIds.has(a.id));
-        const mergedApps = [...dbAppsForIpo, ...fileApps, ...customLocalApps];
+        const mergedApps = [...dbAppsForIpo, ...fileApps];
 
         return {
           ...ipo,
           applications: mergedApps,
           combinedCapital: mergedApps.reduce((sum, a) => sum + (a.totalContribution || 0), 0),
           participantsCount: new Set(mergedApps.flatMap((a) => (a.participants || []).map((p) => p.memberId))).size,
-          isHidden: hiddenLocal.includes(ipo.id) || ipo.isHidden === true,
-          profitDistribution: dist || ipo.profitDistribution,
+          profitDistribution: ipo.profitDistribution,
         };
       });
 
       const publishedCards: ListedIPO[] = [];
       combined.forEach((ipo) => {
         if (ipo.profitDistribution) {
-          const dist = ipo.profitDistribution;
+          const dist = ipo.profitDistribution as any;
           const minInv = ipo.metrics?.minInvestment || 15000;
 
-          // Compute total applied lots across all applications for this IPO
+          // Compute total combined capital and applied lots across all applications for this IPO
+          const totalCapital = (ipo.applications || []).reduce(
+            (sum, a) => sum + (Number(a.totalContribution) || 0),
+            0
+          );
+
           const totalAppliedLots = (ipo.applications || []).reduce((sum, app) => {
             if (Array.isArray(app.participants) && app.participants.length > 0) {
               return (
@@ -376,51 +370,80 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
             return sum + (app.lotCount || 1);
           }, 0) || dist.totalLots || 1;
 
-          // Per lot profit = totalProfit / totalAppliedLots
+          const totalProfitNum = Number(dist.totalProfit) || 0;
           const oneLotProfit =
-            dist.totalProfit && totalAppliedLots > 0
-              ? Math.round(dist.totalProfit / totalAppliedLots)
+            totalProfitNum && totalAppliedLots > 0
+              ? Math.round(totalProfitNum / totalAppliedLots)
               : dist.oneLotProfit || 0;
 
-          const rawUserProfits = (ipo.applications || []).flatMap((app) => {
-            if (Array.isArray(app.participants) && app.participants.length > 0) {
-              return app.participants.map((p: any) => {
-                let pName = p.memberName || p.name || app.applicantName || "Member";
-                if (pName.includes(",")) pName = pName.split(",")[0].trim();
-                const lotVal = p.contribution ? p.contribution / minInv : 1;
-                return {
-                  memberId: p.memberId || app.memberId,
-                  memberName: pName,
-                  profit: Math.round(lotVal * oneLotProfit),
-                  lotsApplied: Math.round(lotVal) || 1,
-                };
-              });
-            }
-            let aName = app.applicantName || "Member";
-            if (aName.includes(",")) aName = aName.split(",")[0].trim();
-            return [
-              {
-                memberId: app.memberId,
-                memberName: aName,
-                profit: Math.round((app.lotCount || 1) * oneLotProfit),
-                lotsApplied: app.lotCount || 1,
-              },
-            ];
-          });
+          let userProfits: ListedIPOUserProfit[] = [];
 
-          // Aggregate profits by member so members with multiple applications get their full sum
-          const aggregatedMap = new Map<string, { memberId: string; memberName: string; profit: number; lotsApplied: number }>();
-          rawUserProfits.forEach((item) => {
-            const key = (item.memberName || item.memberId).toLowerCase().trim();
-            if (aggregatedMap.has(key)) {
-              const existing = aggregatedMap.get(key)!;
-              existing.profit += item.profit;
-              existing.lotsApplied += item.lotsApplied;
-            } else {
-              aggregatedMap.set(key, { ...item });
-            }
-          });
-          const userProfits = Array.from(aggregatedMap.values());
+          if (Array.isArray(dist.memberPayouts) && dist.memberPayouts.length > 0) {
+            userProfits = dist.memberPayouts.map((p: any) => ({
+              memberId: p.memberId || p.id || `mem_${p.name}`,
+              memberName: p.name || p.memberName || "Member",
+              profit: Number(p.profit) || 0,
+              lotsApplied: Number(p.lots) || 1,
+            }));
+          } else {
+            // Compute mathematically exact profit per member based on their contributed money
+            const memberAggMap = new Map<string, { memberId: string; memberName: string; contribution: number; lotsApplied: number }>();
+
+            (ipo.applications || []).forEach((app) => {
+              if (Array.isArray(app.participants) && app.participants.length > 0) {
+                app.participants.forEach((p: any) => {
+                  const pName = p.memberName || p.name || app.applicantName || "Member";
+                  const key = (p.memberId || pName).toLowerCase().trim().replace(/^@+/, "");
+                  const contrib = Number(p.contribution) || minInv;
+                  const lots = p.contribution ? p.contribution / minInv : 1;
+
+                  if (memberAggMap.has(key)) {
+                    const ex = memberAggMap.get(key)!;
+                    ex.contribution += contrib;
+                    ex.lotsApplied += lots;
+                  } else {
+                    memberAggMap.set(key, {
+                      memberId: p.memberId || app.memberId || key,
+                      memberName: pName,
+                      contribution: contrib,
+                      lotsApplied: lots,
+                    });
+                  }
+                });
+              } else {
+                const aName = app.applicantName || "Member";
+                const key = (app.memberId || aName).toLowerCase().trim().replace(/^@+/, "");
+                const contrib = Number(app.totalContribution) || (app.lotCount || 1) * minInv;
+                const lots = Number(app.lotCount) || (contrib / minInv) || 1;
+
+                if (memberAggMap.has(key)) {
+                  const ex = memberAggMap.get(key)!;
+                  ex.contribution += contrib;
+                  ex.lotsApplied += lots;
+                } else {
+                  memberAggMap.set(key, {
+                    memberId: app.memberId || key,
+                    memberName: aName,
+                    contribution: contrib,
+                    lotsApplied: lots,
+                  });
+                }
+              }
+            });
+
+            userProfits = Array.from(memberAggMap.values()).map((m) => {
+              const exactProfit = totalAppliedLots > 0
+                ? Math.round((m.lotsApplied / totalAppliedLots) * totalProfitNum)
+                : Math.round(m.lotsApplied * oneLotProfit);
+
+              return {
+                memberId: m.memberId,
+                memberName: m.memberName,
+                profit: exactProfit,
+                lotsApplied: Math.round(m.lotsApplied * 100) / 100,
+              };
+            });
+          }
 
           publishedCards.push({
             id: `pub_${ipo.id}`,
@@ -429,13 +452,11 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
             logo: ipo.logo || ipo.name.substring(0, 2).toUpperCase(),
             lotsAllotted: dist.allottedLots || 1,
             lotsApplied: totalAppliedLots,
-            totalProfit: dist.totalProfit || 0,
+            totalProfit: totalProfitNum,
             applicantsCount:
-              new Set(
-                (ipo.applications || []).flatMap((a) =>
-                  (a.participants || []).map((p: any) => p.memberName || p.memberId || a.applicantName)
-                )
-              ).size || (ipo.applications || []).length || 1,
+              userProfits.length ||
+              (ipo.applications || []).length ||
+              1,
             oneLotProfit: oneLotProfit,
             listingDate: dist.publishedAt
               ? new Date(dist.publishedAt).toLocaleDateString("en-GB", {
@@ -456,15 +477,13 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       } catch {}
 
       const cardMap = new Map<string, ListedIPO>();
-      publishedCards.forEach((card) => {
+      customListed.forEach((card) => {
         const key = card.name.trim().toLowerCase();
         cardMap.set(key, card);
       });
-      customListed.forEach((card) => {
+      publishedCards.forEach((card) => {
         const key = card.name.trim().toLowerCase();
-        if (!cardMap.has(key)) {
-          cardMap.set(key, card);
-        }
+        cardMap.set(key, card);
       });
       const uniquePublishedCards = Array.from(cardMap.values());
 
@@ -599,7 +618,9 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
 
     window.addEventListener("hashchange", handleHashChange);
     window.addEventListener("storage", refreshIpos);
-    const ipoInterval = setInterval(refreshIpos, 15000);
+
+    // Auto-fetch fresh data from MongoDB every 3 seconds
+    const ipoInterval = setInterval(refreshIpos, 3000);
 
     return () => {
       window.removeEventListener("hashchange", handleHashChange);
@@ -1159,9 +1180,12 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     applicantNameInput?: string,
     panNumbersInput?: string[]
   ) => {
-    const isSuperAdminUser = currentUser?.role === "SUPER_ADMIN" || currentUser?.username === "ankitgod";
+    const isSuperAdminUser =
+      (currentUser?.role === "SUPER_ADMIN" || currentUser?.username === "ankitgod") &&
+      !applicantMemberId &&
+      !applicantNameInput;
     if (isSuperAdminUser) {
-      console.warn("Blocked IPO application attempt: Super Admin (ankitgod) cannot submit IPO applications on the user portal.");
+      console.warn("Blocked IPO application attempt: Super Admin (ankitgod) cannot submit personal IPO applications without specifying member.");
       return "";
     }
 
@@ -1197,7 +1221,6 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
 
     const applicantMember =
       (applicantMemberId ? members.find((m) => m.id === applicantMemberId) : null) ||
-      (currentMember ? currentMember : null) ||
       (currentUser ? members.find((m) => m.id === currentUser.id || m.username?.toLowerCase() === currentUser.username?.toLowerCase()) : null) ||
       (currentUser ? { id: currentUser.id, name: currentUser.name, username: currentUser.username, avatar: currentUser.avatar, panMasked: (currentUser as any).panMasked } : null) ||
       members[0];

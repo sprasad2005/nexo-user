@@ -4,11 +4,16 @@
    Monitors sequence numbers (seq) and executes delta-sync on reconnect.
 ──────────────────────────────────────────────────────────────── */
 
+import { getPusherClient } from "@/lib/pusherClient";
+import type { Channel } from "pusher-js";
+
 type ChatEventCallback = (data: any) => void;
 
 class ChatRealtimeService {
   private listeners: Map<string, Set<ChatEventCallback>> = new Map();
   private eventSource: EventSource | null = null;
+  private pusherChannel: Channel | null = null;
+  private broadcastChannel: BroadcastChannel | null = null;
   private currentMemberId: string | null = null;
   private isConnected: boolean = false;
   private lastMessageSequence: number = 0;
@@ -18,6 +23,51 @@ class ChatRealtimeService {
   public connect(memberId: string) {
     if (typeof window === "undefined") return;
     this.currentMemberId = memberId;
+
+    // 1. Initialize BroadcastChannel for 0ms cross-tab instant messaging
+    if (typeof window !== "undefined" && "BroadcastChannel" in window && !this.broadcastChannel) {
+      try {
+        this.broadcastChannel = new BroadcastChannel("nexo_realtime_chat");
+        this.broadcastChannel.onmessage = (event) => {
+          const { type, data } = event.data || {};
+          if (type === "message:new") {
+            this.handleIncomingMessageObject(data);
+          } else if (type) {
+            this.emit(type, data);
+          }
+        };
+      } catch {}
+    }
+
+    // 2. Initialize Pusher WebSockets (0-30ms instant transport)
+    try {
+      const pusher = getPusherClient();
+      if (pusher && !this.pusherChannel) {
+        this.pusherChannel = pusher.subscribe("global-messages");
+
+        this.pusherChannel.bind("message:new", (data: any) => {
+          this.handleIncomingMessageObject(data);
+        });
+
+        this.pusherChannel.bind("message:update", (data: any) => {
+          this.emit("message:update", data);
+        });
+
+        this.pusherChannel.bind("message:typing", (data: any) => {
+          this.emit("message:typing", data);
+        });
+
+        this.pusherChannel.bind("message:read", (data: any) => {
+          this.emit("message:read", data);
+        });
+
+        this.pusherChannel.bind("presence:update", (data: any) => {
+          this.emit("presence:update", data);
+        });
+      }
+    } catch (err) {
+      console.warn("[Pusher Client] Subscription fallback:", err);
+    }
 
     if (this.eventSource) return;
 
@@ -105,6 +155,13 @@ class ChatRealtimeService {
   }
 
   public disconnect() {
+    if (this.pusherChannel) {
+      try {
+        const pusher = getPusherClient();
+        pusher?.unsubscribe("global-messages");
+        this.pusherChannel = null;
+      } catch {}
+    }
     if (this.eventSource) {
       this.eventSource.close();
       this.eventSource = null;
@@ -133,9 +190,14 @@ class ChatRealtimeService {
     }
   }
 
-  public emit(event: string, data: any) {
+  public emit(event: string, data: any, shouldBroadcast = true) {
     if (this.listeners.has(event)) {
       this.listeners.get(event)!.forEach((cb) => cb(data));
+    }
+    if (shouldBroadcast && this.broadcastChannel) {
+      try {
+        this.broadcastChannel.postMessage({ type: event, data });
+      } catch {}
     }
   }
 

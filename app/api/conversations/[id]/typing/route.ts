@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { broadcastRealtimeEvent } from "@/app/api/realtime/route";
+import { triggerPusherEvent } from "@/lib/pusher";
 
 export async function POST(
   req: Request,
@@ -14,14 +15,18 @@ export async function POST(
     const username = body.username;
     const isTyping = Boolean(body.isTyping);
 
-    broadcastRealtimeEvent("message:typing", {
+    const payload = {
       conversationId,
       memberId,
       memberName,
       memberAvatar,
       username,
       isTyping,
-    });
+    };
+
+    broadcastRealtimeEvent("message:typing", payload);
+    triggerPusherEvent(`conversation-${conversationId}`, "message:typing", payload).catch(() => {});
+    triggerPusherEvent("global-messages", "message:typing", payload).catch(() => {});
 
     return NextResponse.json({ success: true });
   } catch (err: any) {

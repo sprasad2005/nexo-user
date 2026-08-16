@@ -24,63 +24,7 @@ export const MOCK_MEMBERS: Member[] = [
 ];
 
 
-export const MOCK_IPOS: IPOOpportunity[] = [
-  {
-    id: "ipo_1786630252147",
-    name: "HDB Financial Services",
-    company: "HDB Financial Services Limited",
-    logo: "HDB",
-    category: "Mainboard",
-    status: "APPLICATION_OPEN",
-    recommendation: "APPLY",
-    thesis: "Leading NBFC subsidiary of HDFC Bank with strong retail lending and credit distribution network.",
-    isFeatured: true,
-    metrics: {
-      issueSize: "₹2,400 Cr",
-      priceBand: { min: 700, max: 740 },
-      lotSize: 20,
-      minInvestment: 14800,
-      openDate: "18 Aug 2026",
-      closeDate: "28 Aug 2026",
-      allotmentDate: "01 Sep 2026",
-      listingDate: "04 Sep 2026",
-      gmpPercent: 18.5,
-    },
-    createdBy: "Admin",
-    participantsCount: 1,
-    combinedCapital: 15000,
-    tags: ["NBFC", "HDFC Group", "High Growth"],
-    applications: [
-      {
-        id: "app_1786683514267",
-        ipoId: "ipo_1786630252147",
-        type: "INDIVIDUAL",
-        applicantName: "user",
-        memberId: "mem_1786680225463",
-        panMasked: "HSCPP7066Q",
-        totalContribution: 15000,
-        lotCount: 1,
-        verified: true,
-        allotmentStatus: "AWAITING",
-        status: "AWAITING",
-        createdAt: "2026-08-14T04:58:34.267Z",
-        applicationNumber: "NEXO-APP-6912",
-        participants: [
-          {
-            memberId: "mem_1786680225463",
-            memberName: "user",
-            avatar: "/japlu.png",
-            contribution: 15000,
-            percentage: 100,
-            panMasked: "HSCPP7066Q",
-            panFull: "HSCPP7066Q",
-            status: "SUBMITTED",
-          },
-        ],
-      },
-    ],
-  },
-];
+export const MOCK_IPOS: IPOOpportunity[] = [];
 
 export const MOCK_PORTFOLIO_SUMMARY: PortfolioSummary = {
   totalCapital: 284500,

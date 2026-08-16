@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
     try {
       const client = await clientPromise;
       const db = client.db(DB_NAME);
-      const dbIpos = await db.collection("ipos").find({ isHidden: { $ne: true } }).sort({ _id: -1 }).toArray();
+      const dbIpos = await db.collection("ipos").find({}).sort({ _id: -1 }).toArray();
       if (Array.isArray(dbIpos) && dbIpos.length > 0) {
         allIpos = dbIpos.map((item: any) => ({
           ...item,
@@ -132,8 +132,13 @@ export async function POST(req: NextRequest) {
     // 1. Action: Publish Profit Distribution
     if (body.action === "publishProfit") {
       const { ipoId, profitDistribution, memberPayouts = [] } = body;
+      const fullProfitDist = {
+        ...profitDistribution,
+        memberPayouts,
+      };
+
       const updated = allIpos.map((ipo) =>
-        ipo.id === ipoId ? { ...ipo, profitDistribution } : ipo
+        ipo.id === ipoId ? { ...ipo, profitDistribution: fullProfitDist } : ipo
       );
       writeSharedIpos(updated);
 
@@ -147,7 +152,7 @@ export async function POST(req: NextRequest) {
           { $or: [{ id: ipoId }, { _id: ipoId as any }] },
           {
             $set: {
-              profitDistribution,
+              profitDistribution: fullProfitDist,
               updatedAt: new Date(),
             },
           }

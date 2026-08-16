@@ -52,8 +52,30 @@ export function IPOWorkspaceView() {
     ipo.name.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const activeUserName = currentMember?.name || "Member";
-  const activeUserId = currentMember?.id || "mem_1";
+  const activeUserName = currentMember?.name || currentUser?.name || "Member";
+  const activeUserId = currentMember?.id || currentUser?.id || "mem_1";
+
+  const formatLotCount = (lots: number): string => {
+    if (!lots || isNaN(lots)) return "0 Lots";
+    const rounded = Math.round(lots * 100) / 100;
+    return `${rounded} ${rounded === 1 ? "Lot" : "Lots"}`;
+  };
+
+  const matchProfitForUser = (u: any) => {
+    if (!u) return false;
+    const uId = String(u.memberId || u.id || "").toLowerCase();
+    const uName = String(u.memberName || u.name || u.username || "").toLowerCase().replace(/^@+/, "").trim();
+    const currentId = String(activeUserId || "").toLowerCase();
+    const currentName = String(activeUserName || "").toLowerCase().trim();
+    const currentUsername = String(currentUser?.username || "").toLowerCase().replace(/^@+/, "").trim();
+
+    return Boolean(
+      (currentId && (uId === currentId || uId === `mem_${currentUsername}` || uId === `mem_${currentName}`)) ||
+      (currentUsername && (uName === currentUsername || uName.includes(currentUsername) || currentUsername.includes(uName))) ||
+      (currentName && (uName === currentName || uName.includes(currentName) || currentName.includes(uName))) ||
+      (uId && currentUsername && uId.includes(currentUsername))
+    );
+  };
 
   // Calculate summary metrics
   const totalTrackRecordProfit = filteredListedIpos.reduce(
@@ -62,12 +84,9 @@ export function IPOWorkspaceView() {
   );
 
   const userTotalProfit = filteredListedIpos.reduce((acc, ipo) => {
-    const myProfitEntry = ipo.userProfits?.find(
-      (u) =>
-        u.memberId === activeUserId ||
-        u.memberName?.toLowerCase() === activeUserName.toLowerCase()
-    );
-    return acc + (myProfitEntry ? myProfitEntry.profit : ipo.oneLotProfit || 0);
+    const myProfits = ipo.userProfits?.filter(matchProfitForUser);
+    const sum = myProfits && myProfits.length > 0 ? myProfits.reduce((s, p) => s + (p.profit || 0), 0) : 0;
+    return acc + sum;
   }, 0);
 
   const totalLotsAllotted = filteredListedIpos.reduce(
@@ -375,20 +394,15 @@ export function IPOWorkspaceView() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 md:gap-7">
           {filteredListedIpos.map((ipo) => {
             // Find total User Profit for active member across all applications
-            const myProfits = ipo.userProfits?.filter(
-              (u) =>
-                u.memberId === activeUserId ||
-                (u.memberName && activeUserName && u.memberName.toLowerCase().trim() === activeUserName.toLowerCase().trim())
-            );
-            const myProfitAmount =
-              myProfits && myProfits.length > 0
-                ? myProfits.reduce((sum, u) => sum + u.profit, 0)
-                : ipo.oneLotProfit;
+            const myProfits = ipo.userProfits?.filter(matchProfitForUser);
+            const hasUserParticipated = Boolean(myProfits && myProfits.length > 0);
+            const myProfitAmount = hasUserParticipated
+              ? myProfits!.reduce((sum, u) => sum + u.profit, 0)
+              : 0;
 
-            const myAppliedLots =
-              myProfits && myProfits.length > 0
-                ? myProfits.reduce((sum, u) => sum + (u.lotsApplied || 1), 0)
-                : (ipo.lotsApplied || 1);
+            const myAppliedLots = hasUserParticipated
+              ? myProfits!.reduce((sum, u) => sum + (Number(u.lotsApplied) || Number(u.lots) || 1), 0)
+              : 0;
 
             return (
               <div
@@ -433,14 +447,14 @@ export function IPOWorkspaceView() {
 
                 {/* CARD BODY */}
                 <div className="px-5 pb-5 space-y-3.5 flex-1">
-                  {/* METRICS 1: APPLIED, ALLOTTED & APPLICANTS */}
+                  {/* METRICS 1: USER APPLIED, ALLOTTED & TOTAL APPLIED */}
                   <div className="grid grid-cols-3 gap-2 p-3 rounded-xl bg-surface-alt/70 border border-line-subtle">
                     <div className="space-y-0.5">
                       <span className="text-[10px] sm:text-caption font-medium text-ink-secondary block uppercase tracking-wider truncate">
-                        IPO Applied
+                        You Applied
                       </span>
-                      <span className="text-small sm:text-body-md font-semibold text-ink num-tabular">
-                        {ipo.lotsApplied || ipo.lotsAllotted || 1} {(ipo.lotsApplied || ipo.lotsAllotted || 1) === 1 ? "Lot" : "Lots"}
+                      <span className="text-small sm:text-body-md font-semibold text-accent num-tabular">
+                        {formatLotCount(myAppliedLots)}
                       </span>
                     </div>
 
@@ -449,17 +463,16 @@ export function IPOWorkspaceView() {
                         IPO Allotted
                       </span>
                       <span className="text-small sm:text-body-md font-semibold text-ink num-tabular">
-                        {ipo.lotsAllotted} {ipo.lotsAllotted === 1 ? "Lot" : "Lots"}
+                        {formatLotCount(ipo.lotsAllotted || 1)}
                       </span>
                     </div>
 
                     <div className="space-y-0.5 border-l border-line-subtle pl-2">
                       <span className="text-[10px] sm:text-caption font-medium text-ink-secondary block uppercase tracking-wider truncate">
-                        Applicants
+                        Total Applied
                       </span>
-                      <span className="text-small sm:text-body-md font-semibold text-ink num-tabular flex items-center gap-1">
-                        <Users size={14} className="text-ink-muted shrink-0" />
-                        {ipo.applicantsCount}
+                      <span className="text-small sm:text-body-md font-semibold text-ink num-tabular">
+                        {formatLotCount(ipo.lotsApplied || ipo.lotsAllotted || 1)}
                       </span>
                     </div>
                   </div>
@@ -477,12 +490,16 @@ export function IPOWorkspaceView() {
                             User Profit ({activeUserName})
                           </span>
                           <span className="text-caption font-medium text-accent">
-                            Your Allocation ({myAppliedLots} {myAppliedLots === 1 ? "Lot" : "Lots"} Applied)
+                            {hasUserParticipated
+                              ? `Your Allocation (${formatLotCount(myAppliedLots)} Applied)`
+                              : "0 Lots Applied • Not Participated"}
                           </span>
                         </div>
                       </div>
                       <span className="text-body-md font-semibold text-accent num-tabular">
-                        +{formatINR(myProfitAmount)}
+                        {hasUserParticipated && myProfitAmount > 0
+                          ? `+${formatINR(myProfitAmount)}`
+                          : "₹0"}
                       </span>
                     </div>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useMemo } from "react";
 import { useNexo } from "@/context/NexoContext";
 import { Conversation } from "@/types/nexo";
 import { ConversationList } from "@/src/features/chat/components/ConversationList";
@@ -41,24 +41,12 @@ export function MessagesView() {
       const res = await fetch(`/api/conversations?memberId=${currentMemberId}`);
       const data = await res.json();
       if (data?.success && Array.isArray(data.conversations) && data.conversations.length > 0) {
-        const validConversations = data.conversations.filter((c: Conversation) => {
-          if (c.type === "DIRECT" && c.otherMember) {
-            return members.some((m) => m.id === c.otherMember?.id || m.username === c.otherMember?.username);
-          }
-          return true;
-        });
-
-        if (validConversations.length > 0) {
-          const uniqueConversations = validConversations.filter(
-            (c: Conversation, index: number, self: Conversation[]) =>
-              index === self.findIndex((item) => item.id === c.id)
-          );
-          setConversations(uniqueConversations);
-          if (!activeConversationId) {
-            setActiveConversationId(uniqueConversations[0].id);
-          }
-          return;
-        }
+        const uniqueConversations = data.conversations.filter(
+          (c: Conversation, index: number, self: Conversation[]) =>
+            index === self.findIndex((item) => item.id === c.id)
+        );
+        setConversations(uniqueConversations);
+        return;
       }
 
       // Build dynamic initial conversations for registered members
@@ -69,7 +57,7 @@ export function MessagesView() {
         title: `@${(m.username || m.name).toLowerCase()}`,
         avatar: m.avatar || "/oggy.png",
         createdBy: currentMemberId,
-        directKey: `${currentMemberId}_${m.id}`,
+        directKey: `${[currentMemberId, m.id].sort().join("_")}`,
         lastMessage: `Tap to chat with @${(m.username || m.name).toLowerCase()}`,
         lastMessageAt: new Date().toISOString(),
         createdAt: new Date().toISOString(),
@@ -80,16 +68,15 @@ export function MessagesView() {
       }));
 
       setConversations(generated);
-      if (generated.length > 0 && !activeConversationId) {
-        setActiveConversationId(generated[0].id);
-      }
     } catch (err) {
       console.error("Failed to fetch conversations:", err);
     }
-  }, [currentMemberId, activeConversationId, setActiveConversationId, members, activeUser]);
+  }, [currentMemberId, members, activeUser]);
 
   useEffect(() => {
     fetchConversations();
+    const interval = setInterval(fetchConversations, 2500);
+    return () => clearInterval(interval);
   }, [fetchConversations]);
 
   useEffect(() => {
@@ -136,38 +123,56 @@ export function MessagesView() {
     }
   };
 
-  const activeConversation =
-    conversations.find(
+  const activeConversation = useMemo(() => {
+    if (!activeConversationId) return conversations[0] || null;
+
+    // 1. Direct match by conversation ID
+    const directMatch = conversations.find((c) => c.id === activeConversationId);
+    if (directMatch) return directMatch;
+
+    // 2. Match by other member ID, username, or participants
+    const memberMatch = conversations.find(
       (c) =>
-        c.id === activeConversationId ||
         c.otherMember?.id === activeConversationId ||
-        c.otherMember?.username?.toLowerCase() === activeConversationId?.toLowerCase()
-    ) ||
-    (() => {
-      const targetMemberObj = members.find(
-        (m) =>
-          m.id !== currentMemberId &&
-          (m.id === activeConversationId ||
-            m.username?.toLowerCase() === activeConversationId?.toLowerCase())
-      );
-      if (targetMemberObj) {
-        return {
-          id: `conv_dir_${currentMemberId}_${targetMemberObj.id}`,
-          type: "DIRECT" as const,
-          title: targetMemberObj.name,
-          avatar: targetMemberObj.avatar,
-          createdBy: currentMemberId,
-          lastMessage: "Start a conversation",
-          lastMessageAt: new Date().toISOString(),
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          unreadCount: 0,
-          otherMember: targetMemberObj,
-          participants: [activeUser, targetMemberObj],
-        };
-      }
-      return conversations[0];
-    })();
+        c.otherMember?.username?.toLowerCase() === activeConversationId.toLowerCase() ||
+        c.directKey?.includes(activeConversationId) ||
+        (Array.isArray(c.participants) &&
+          c.participants.some(
+            (p: any) =>
+              p.id === activeConversationId ||
+              p.username?.toLowerCase() === activeConversationId.toLowerCase()
+          ))
+    );
+    if (memberMatch) return memberMatch;
+
+    // 3. Construct instant optimistic conversation if target member is found
+    const targetMemberObj = members.find(
+      (m) =>
+        m.id === activeConversationId ||
+        m.username?.toLowerCase() === activeConversationId.toLowerCase() ||
+        m.name?.toLowerCase() === activeConversationId.toLowerCase()
+    );
+
+    if (targetMemberObj) {
+      return {
+        id: `conv_dir_${currentMemberId}_${targetMemberObj.id}`,
+        type: "DIRECT" as const,
+        title: targetMemberObj.name,
+        avatar: targetMemberObj.avatar || "/oggy.png",
+        createdBy: currentMemberId,
+        directKey: `${[currentMemberId, targetMemberObj.id].sort().join("_")}`,
+        lastMessage: "Start a conversation",
+        lastMessageAt: new Date().toISOString(),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        unreadCount: 0,
+        otherMember: targetMemberObj,
+        participants: [activeUser, targetMemberObj],
+      };
+    }
+
+    return conversations[0] || null;
+  }, [conversations, activeConversationId, members, currentMemberId, activeUser]);
 
   const handleOpenIpoPage = (ipoId: string) => {
     const foundIpo = ipos.find((i) => i.id === ipoId);

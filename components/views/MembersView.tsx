@@ -345,9 +345,15 @@ export function MembersView() {
                       <div className="space-y-1.5 min-w-0">
                         <div className="flex items-center gap-2">
                           <h3
-                            onClick={() => router.push(`/admin/members/${member.id}`)}
+                            onClick={() => {
+                              if (currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") {
+                                router.push(`/admin/members/${member.id}`);
+                              } else {
+                                openDirectChatWithUser(member.id);
+                              }
+                            }}
                             className="text-base font-black text-ink group-hover:text-accent hover:underline transition-colors truncate tracking-tight cursor-pointer"
-                            title="Click to view detailed member IPO history & PnL"
+                            title={currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN" ? "Click to view detailed member IPO history & PnL" : `Click to message @${mUsername}`}
                           >
                             {member.name}
                           </h3>
@@ -360,9 +366,14 @@ export function MembersView() {
 
                         {/* Username Tag & Phone Badge */}
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <div className="inline-flex items-center gap-1 text-xs font-sans font-semibold tracking-tight text-accent bg-accent-soft/40 hover:bg-accent-soft px-2.5 py-0.5 rounded-lg border border-accent/25 transition-all shadow-2xs">
+                          <button
+                            type="button"
+                            onClick={() => openDirectChatWithUser(member.id)}
+                            className="inline-flex items-center gap-1 text-xs font-sans font-semibold tracking-tight text-accent bg-accent-soft/40 hover:bg-accent-soft px-2.5 py-0.5 rounded-lg border border-accent/25 transition-all shadow-2xs cursor-pointer active:scale-95"
+                            title={`Click to chat with @${mUsername}`}
+                          >
                             @{mUsername}
-                          </div>
+                          </button>
 
                           <div className="inline-flex items-center gap-1 text-[11px] font-sans font-medium text-ink-secondary bg-surface-alt/90 px-2.5 py-0.5 rounded-lg border border-line/80 shadow-2xs">
                             <Phone size={11} className="text-ink-tertiary" /> {mPhone}

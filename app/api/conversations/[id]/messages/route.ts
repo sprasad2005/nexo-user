@@ -5,6 +5,7 @@ import { ConversationDocument } from "@/src/models/Conversation";
 import { ConversationMemberDocument } from "@/src/models/ConversationMember";
 import { MemberDocument } from "@/src/models/Member";
 import { broadcastRealtimeEvent } from "@/app/api/realtime/route";
+import { triggerPusherEvent } from "@/lib/pusher";
 import { getNextSequence } from "@/src/lib/sequence";
 import { getAuthenticatedUser } from "@/src/lib/auth/authorization";
 
@@ -254,6 +255,10 @@ export async function POST(
     /* Broadcast real-time SSE event with atomic seq ID */
     broadcastRealtimeEvent("message:new", fullMsg);
 
+    /* Broadcast real-time Pusher WebSocket event */
+    triggerPusherEvent(`conversation-${conversationId}`, "message:new", fullMsg).catch(() => {});
+    triggerPusherEvent("global-messages", "message:new", fullMsg).catch(() => {});
+
     return NextResponse.json({ success: true, message: fullMsg });
   } catch (err: any) {
     console.error("POST /api/conversations/[id]/messages error:", err);
@@ -350,6 +355,8 @@ export async function PUT(
     const updated = await msgCol.findOne({ id: messageId });
 
     broadcastRealtimeEvent("message:update", updated);
+    triggerPusherEvent(`conversation-${conversationId}`, "message:update", updated).catch(() => {});
+    triggerPusherEvent("global-messages", "message:update", updated).catch(() => {});
 
     return NextResponse.json({ success: true, message: updated });
   } catch (err: any) {

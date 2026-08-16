@@ -18,7 +18,7 @@ export function SearchableUserSelect({
   selectedMemberId,
   selectedUsername,
   onSelect,
-  placeholder = "Search username...",
+  placeholder = "Search username or name...",
   className = "",
 }: SearchableUserSelectProps) {
   const [isOpen, setIsOpen] = useState(false);
@@ -26,11 +26,15 @@ export function SearchableUserSelect({
   const containerRef = useRef<HTMLDivElement>(null);
 
   // Find currently active selected member
-  const currentSelected = members.find(
-    (m) =>
-      (selectedMemberId && m.id === selectedMemberId) ||
-      (selectedUsername && (m.username === selectedUsername || m.name === selectedUsername || `@${m.username}` === selectedUsername))
-  ) || members[0];
+  const currentSelected =
+    members.find(
+      (m) =>
+        (selectedMemberId && m.id === selectedMemberId) ||
+        (selectedUsername &&
+          (m.username === selectedUsername ||
+            m.name === selectedUsername ||
+            `@${m.username}` === selectedUsername))
+    ) || members[0];
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -51,35 +55,42 @@ export function SearchableUserSelect({
   });
 
   const displayVal = currentSelected
-    ? `@${(currentSelected.username || currentSelected.name).toLowerCase()} (${currentSelected.name})`
-    : "Select username...";
+    ? `@${(currentSelected.username || currentSelected.name).toLowerCase().replace(/^@+/, "")} (${currentSelected.name})`
+    : "Select member...";
 
   return (
     <div ref={containerRef} className={`relative ${className}`}>
       {/* Selector Trigger Button */}
       <div
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full bg-surface-alt/80 border border-line hover:border-line-strong rounded-xl px-3.5 py-2.5 text-xs font-semibold text-ink flex items-center justify-between cursor-pointer select-none transition-all shadow-2xs"
+        className="w-full bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] hover:border-slate-300 dark:hover:border-[#333742] rounded-xl px-3.5 py-2.5 text-xs font-bold text-slate-900 dark:text-[#F5F7FA] flex items-center justify-between cursor-pointer select-none transition-all shadow-2xs"
       >
-        <span className="truncate">
-          {displayVal}
-        </span>
-        <CaretDown size={14} className="text-ink-tertiary shrink-0 ml-1" />
+        <div className="flex items-center gap-2 min-w-0">
+          {currentSelected && (
+            <img
+              src={currentSelected.avatar || "/oggy.png"}
+              alt={currentSelected.name}
+              className="w-5 h-5 rounded-full object-cover shrink-0 ring-1 ring-slate-200 dark:ring-white/10"
+            />
+          )}
+          <span className="truncate">{displayVal}</span>
+        </div>
+        <CaretDown size={14} className="text-slate-400 dark:text-[#858D99] shrink-0 ml-1.5" />
       </div>
 
       {/* Floating Search Dropdown */}
       {isOpen && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-50 bg-[#0C0F1A] border border-[#1F2942] rounded-2xl shadow-2xl overflow-hidden p-2 animate-in fade-in zoom-in-95">
+        <div className="absolute top-full left-0 right-0 mt-1.5 z-50 bg-white dark:bg-[#121418] border border-slate-200 dark:border-[#252931] rounded-2xl shadow-2xl overflow-hidden p-2 animate-in fade-in zoom-in-95 font-sans">
           {/* Real-time Filter Search Input */}
-          <div className="flex items-center gap-2 px-3 py-2 bg-[#121827] border border-[#1E273E] rounded-xl mb-2">
-            <MagnifyingGlass size={15} className="text-[#6B93FF] shrink-0" />
+          <div className="flex items-center gap-2 px-3 py-2 bg-slate-50 dark:bg-[#181B22] border border-slate-200 dark:border-[#252931] rounded-xl mb-2">
+            <MagnifyingGlass size={15} className="text-blue-500 dark:text-[#6B93FF] shrink-0" />
             <input
               type="text"
               autoFocus
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               placeholder={placeholder}
-              className="w-full bg-transparent text-xs font-medium text-white placeholder-slate-500 outline-none"
+              className="w-full bg-transparent text-xs font-semibold text-slate-900 dark:text-white placeholder-slate-400 dark:placeholder-slate-500 outline-none"
               onClick={(e) => e.stopPropagation()}
             />
           </div>
@@ -89,7 +100,7 @@ export function SearchableUserSelect({
             {filteredMembers.length > 0 ? (
               filteredMembers.map((m) => {
                 const isSelected = currentSelected?.id === m.id;
-                const uName = (m.username || m.name).toLowerCase();
+                const uName = (m.username || m.name).toLowerCase().replace(/^@+/, "");
                 return (
                   <div
                     key={m.id}
@@ -101,28 +112,28 @@ export function SearchableUserSelect({
                     }}
                     className={`flex items-center justify-between px-3 py-2 rounded-xl text-xs cursor-pointer transition-all ${
                       isSelected
-                        ? "bg-[#4F75FF]/20 text-[#6B93FF] font-bold border border-[#4F75FF]/30"
-                        : "hover:bg-[#161E33] text-slate-200"
+                        ? "bg-blue-50 dark:bg-[#4F75FF]/20 text-blue-600 dark:text-[#6B93FF] font-bold border border-blue-200 dark:border-[#4F75FF]/30"
+                        : "hover:bg-slate-100 dark:hover:bg-[#1B1F2A] text-slate-800 dark:text-slate-200"
                     }`}
                   >
                     <div className="flex items-center gap-2.5 min-w-0">
                       <img
                         src={m.avatar || "/oggy.png"}
                         alt={m.name}
-                        className="w-6 h-6 rounded-full object-cover shrink-0 ring-1 ring-white/10"
+                        className="w-6 h-6 rounded-full object-cover shrink-0 ring-1 ring-slate-200 dark:ring-white/10"
                       />
                       <div className="min-w-0">
                         <span className="font-mono font-bold block truncate">@{uName}</span>
-                        <span className="text-[10px] text-slate-400 font-normal block truncate">{m.name}</span>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400 font-normal block truncate">{m.name}</span>
                       </div>
                     </div>
-                    {isSelected && <Check size={14} className="text-[#6B93FF] shrink-0" />}
+                    {isSelected && <Check size={14} className="text-blue-600 dark:text-[#6B93FF] shrink-0" />}
                   </div>
                 );
               })
             ) : (
               <div className="p-3 text-center text-xs text-slate-400 font-medium">
-                No matching username found
+                No matching member found
               </div>
             )}
           </div>

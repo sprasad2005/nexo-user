@@ -6,6 +6,7 @@ import { Application, AllotmentStatus } from "@/types/nexo";
 import { formatINR, formatApplicantNames } from "@/lib/mockData";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CopyButton } from "@/components/ui/CopyButton";
+import { SearchableUserSelect } from "@/components/common/SearchableUserSelect";
 import {
   Files,
   MagnifyingGlass,
@@ -21,10 +22,15 @@ import {
   EyeSlash,
   Warning,
   ArrowSquareOut,
+  Plus,
+  Minus,
+  Users,
+  User,
+  IdentificationCard,
 } from "@phosphor-icons/react";
 
 export function AdminApplicationsView() {
-  const { ipos, activeApplicationIpo, updateApplication, deleteApplication, updateRegistrarUrl } = useNexo();
+  const { ipos, members, activeApplicationIpo, updateApplication, deleteApplication, updateRegistrarUrl, createApplication } = useNexo();
 
   // Filter & Search State
   const [selectedIpoId, setSelectedIpoId] = useState<string>("");
@@ -40,6 +46,18 @@ export function AdminApplicationsView() {
 
   // Toast / Feedback message
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
+
+  // Add Application Modal State
+  const [isAddAppModalOpen, setIsAddAppModalOpen] = useState(false);
+  const [addAppIpoId, setAddAppIpoId] = useState("");
+  const [addAppMemberId, setAddAppMemberId] = useState("");
+  const [addAppCustomApplicantName, setAddAppCustomApplicantName] = useState("");
+  const [addAppApplicantMode, setAddAppApplicantMode] = useState<"SOLO" | "JOINT">("SOLO");
+  const [addAppLotCount, setAddAppLotCount] = useState<number>(1);
+  const [addAppPans, setAddAppPans] = useState<string[]>(["ABCDE2741D"]);
+  const [addAppContributors, setAddAppContributors] = useState<{ memberId: string; memberName: string; amount: number | "" }[]>([]);
+  const [addAppError, setAddAppError] = useState<string | null>(null);
+  const [addAppIsSubmitting, setAddAppIsSubmitting] = useState(false);
 
   // Edit Modal State
   const [editingApp, setEditingApp] = useState<{
@@ -116,6 +134,253 @@ export function AdminApplicationsView() {
       };
     }
   }, [selectedIpoId]);
+
+  // Selectable members (exclude super admin ankitgod)
+  const selectableMembers = useMemo(() => {
+    const regular = (members || []).filter(
+      (m) => m.role !== "SUPER_ADMIN" && m.username !== "ankitgod"
+    );
+    return regular.length > 0 ? regular : (members || []);
+  }, [members]);
+
+  // Handle opening the Add Application modal
+  const handleOpenAddAppModal = () => {
+    const targetIpo = ipos.find((i) => i.id === selectedIpoId) || ipos[0];
+    const initialIpoId = targetIpo?.id || "";
+    const defaultMember = selectableMembers[0];
+    const initialMemberId = defaultMember?.id || "mem_1";
+    const minInvest = targetIpo?.metrics?.minInvestment || 15000;
+
+    setAddAppIpoId(initialIpoId);
+    setAddAppMemberId(initialMemberId);
+    setAddAppCustomApplicantName("");
+    setAddAppApplicantMode("SOLO");
+    setAddAppLotCount(1);
+    const memPan = defaultMember?.panMasked || defaultMember?.panFull || "";
+    setAddAppPans([memPan]);
+    setAddAppContributors([
+      {
+        memberId: initialMemberId,
+        memberName: defaultMember?.username ? `@${defaultMember.username.replace(/^@+/, "")}` : defaultMember?.name || "Member",
+        amount: minInvest,
+      },
+    ]);
+    setAddAppError(null);
+    setIsAddAppModalOpen(true);
+  };
+
+  // Handle changing lot count in Add Application modal
+  const handleLotCountChange = (newCount: number) => {
+    const validCount = Math.max(1, Math.min(50, newCount));
+    setAddAppLotCount(validCount);
+
+    const targetIpo = ipos.find((i) => i.id === (addAppIpoId || selectedIpoId)) || selectedIpo || ipos[0];
+    const minInvest = targetIpo?.metrics?.minInvestment || 15000;
+    const newTotalCapital = validCount * minInvest;
+
+    setAddAppPans((prev) => {
+      const updated = [...prev];
+      while (updated.length < validCount) {
+        updated.push("");
+      }
+      return updated.slice(0, validCount);
+    });
+
+    if (addAppApplicantMode === "JOINT") {
+      setAddAppContributors((prev) => {
+        if (prev.length === 0) return prev;
+        const half = Math.floor(newTotalCapital / prev.length);
+        return prev.map((c, idx) => ({
+          ...c,
+          amount: idx === prev.length - 1 ? newTotalCapital - half * (prev.length - 1) : half,
+        }));
+      });
+    }
+  };
+
+  // Handle adding contributor in joint pool
+  const handleAddContributor = () => {
+    const existingIds = new Set(addAppContributors.map((c) => c.memberId));
+    const nextMember = selectableMembers.find((m) => !existingIds.has(m.id)) || selectableMembers[0];
+    if (!nextMember) return;
+
+    const targetIpo = ipos.find((i) => i.id === (addAppIpoId || selectedIpoId)) || selectedIpo || ipos[0];
+    const minInvest = targetIpo?.metrics?.minInvestment || 15000;
+    const totalCap = Math.max(1, addAppLotCount) * minInvest;
+
+    const updated = [
+      ...addAppContributors,
+      {
+        memberId: nextMember.id,
+        memberName: nextMember.username ? `@${nextMember.username.replace(/^@+/, "")}` : nextMember.name || "Member",
+        amount: 0,
+      },
+    ];
+
+    const count = updated.length;
+    const split = Math.floor(totalCap / count);
+    const withSplit = updated.map((c, idx) => ({
+      ...c,
+      amount: idx === count - 1 ? totalCap - split * (count - 1) : split,
+    }));
+
+    setAddAppContributors(withSplit);
+  };
+
+  const handleRemoveContributor = (index: number) => {
+    if (addAppContributors.length <= 1) return;
+    const targetIpo = ipos.find((i) => i.id === (addAppIpoId || selectedIpoId)) || selectedIpo || ipos[0];
+    const minInvest = targetIpo?.metrics?.minInvestment || 15000;
+    const totalCap = Math.max(1, addAppLotCount) * minInvest;
+
+    const filtered = addAppContributors.filter((_, idx) => idx !== index);
+    const count = filtered.length;
+    const split = Math.floor(totalCap / count);
+    const withSplit = filtered.map((c, idx) => ({
+      ...c,
+      amount: idx === count - 1 ? totalCap - split * (count - 1) : split,
+    }));
+
+    setAddAppContributors(withSplit);
+  };
+
+  // Submit new application created by admin
+  const handleAddAppSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setAddAppError(null);
+
+    const targetIpo = ipos.find((i) => i.id === addAppIpoId) || selectedIpo || ipos[0];
+    if (!targetIpo) {
+      setAddAppError("Please select a target IPO.");
+      return;
+    }
+
+    const minInvest = targetIpo.metrics?.minInvestment || 15000;
+    const lotCount = Math.max(1, addAppLotCount);
+    const totalRequiredCapital = lotCount * minInvest;
+
+    // Validate PANs
+    const cleanPans = addAppPans.map((p) => (p ? p.trim().toUpperCase() : ""));
+
+    const panRegex = /^[A-Z]{5}[0-9]{4}[A-Z]{1}$/;
+    for (let i = 0; i < cleanPans.length; i++) {
+      if (!cleanPans[i] || !panRegex.test(cleanPans[i])) {
+        setAddAppError(`PAN card for Lot #${i + 1} (${cleanPans[i] || "empty"}) is invalid. Please enter a valid 10-character PAN card format (e.g. ABCDE1234F).`);
+        return;
+      }
+    }
+
+    // Check duplicate PANs within this submission
+    const seenPans = new Set<string>();
+    for (const pan of cleanPans) {
+      if (seenPans.has(pan)) {
+        setAddAppError(`Duplicate PAN card "${pan}" detected in entries. Each lot/application must have a unique PAN card.`);
+        return;
+      }
+      seenPans.add(pan);
+    }
+
+    // Check duplicate PANs against existing applications for this IPO
+    const existingIpoPans = new Set<string>();
+    (targetIpo.applications || []).forEach((app) => {
+      if (app.panMasked) existingIpoPans.add(app.panMasked.trim().toUpperCase());
+      if (Array.isArray(app.panNumbers)) {
+        app.panNumbers.forEach((p) => p && existingIpoPans.add(p.trim().toUpperCase()));
+      }
+    });
+
+    for (const pan of cleanPans) {
+      if (existingIpoPans.has(pan)) {
+        setAddAppError(`PAN card "${pan}" has already been used in an application for "${targetIpo.name}".`);
+        return;
+      }
+    }
+
+    const chosenMember = selectableMembers.find((m) => m.id === addAppMemberId) || selectableMembers[0];
+    const applicantDisplayName = addAppCustomApplicantName.trim()
+      ? addAppCustomApplicantName.trim()
+      : chosenMember?.username
+      ? `@${chosenMember.username.replace(/^@+/, "")}`
+      : chosenMember?.name || "Member";
+
+    let participantContributions: { memberId: string; contribution: number; memberName?: string }[] = [];
+
+    if (addAppApplicantMode === "SOLO") {
+      participantContributions = [
+        {
+          memberId: chosenMember?.id || "mem_1",
+          memberName: chosenMember?.username ? `@${chosenMember.username.replace(/^@+/, "")}` : chosenMember?.name || "Member",
+          contribution: totalRequiredCapital,
+        },
+      ];
+    } else {
+      const sumContrib = addAppContributors.reduce(
+        (sum, c) => sum + (typeof c.amount === "number" ? c.amount : 0),
+        0
+      );
+      if (sumContrib !== totalRequiredCapital) {
+        setAddAppError(
+          `Total contributor split (₹${sumContrib.toLocaleString("en-IN")}) must equal total required capital (₹${totalRequiredCapital.toLocaleString("en-IN")}).`
+        );
+        return;
+      }
+      participantContributions = addAppContributors.map((c) => ({
+        memberId: c.memberId,
+        memberName: c.memberName,
+        contribution: typeof c.amount === "number" ? c.amount : 0,
+      }));
+    }
+
+    setAddAppIsSubmitting(true);
+
+    try {
+      createApplication(
+        targetIpo.id,
+        addAppApplicantMode === "SOLO" ? "INDIVIDUAL" : "COMBINED",
+        participantContributions as any,
+        undefined,
+        chosenMember?.id,
+        applicantDisplayName,
+        cleanPans
+      );
+
+      const newAppEntry = {
+        id: `app_${Date.now()}`,
+        ipoId: targetIpo.id,
+        ipoName: targetIpo.name,
+        applicantName: applicantDisplayName,
+        memberId: chosenMember?.id || "mem_1",
+        lotCount,
+        lotsApplied: lotCount,
+        panMasked: cleanPans[0],
+        pan: cleanPans[0],
+        panNumbers: cleanPans,
+        totalContribution: totalRequiredCapital,
+        allotmentStatus: "AWAITING" as const,
+        status: "AWAITING" as const,
+        createdAt: new Date().toISOString(),
+        applicationNumber: `NEXO-APP-${Math.floor(1000 + Math.random() * 9000)}`,
+        participants: participantContributions.map((p, idx) => ({
+          memberId: p.memberId,
+          memberName: p.memberName || "Member",
+          avatar: "/oggy.png",
+          contribution: p.contribution,
+          percentage: Number(((p.contribution / totalRequiredCapital) * 100).toFixed(1)),
+          panMasked: cleanPans[idx] || cleanPans[0],
+          panFull: cleanPans[idx] || cleanPans[0],
+          status: "SUBMITTED" as const,
+        })),
+      };
+
+      setFetchedApps((prev) => [newAppEntry, ...prev]);
+      showFeedback(`✓ Successfully added application for ${applicantDisplayName} (${lotCount} lot${lotCount > 1 ? "s" : ""}) to ${targetIpo.name}!`);
+      setIsAddAppModalOpen(false);
+    } catch (err: any) {
+      setAddAppError(err?.message || "Failed to create application.");
+    } finally {
+      setAddAppIsSubmitting(false);
+    }
+  };
 
   // Selected Target IPO
   const selectedIpo = useMemo(() => {
@@ -349,7 +614,7 @@ export function AdminApplicationsView() {
       )}
 
       {/* Header Section */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-200 dark:border-[#252931] pb-5">
+      <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 border-b border-slate-200 dark:border-[#252931] pb-5">
         <div>
           <div className="flex items-center gap-2">
             <h1 className="text-2xl font-black text-slate-900 dark:text-[#F5F7FA] tracking-tight">
@@ -364,12 +629,12 @@ export function AdminApplicationsView() {
           </p>
         </div>
 
-        {/* IPO Selector & Allotment Link Actions */}
-        <div className="flex flex-wrap items-center gap-3">
-          <div className="flex items-center gap-2">
-            <label className="text-xs font-bold text-slate-500 dark:text-[#858D99] whitespace-nowrap">
+        {/* IPO Selector & All Actions in Single Cohesive Row */}
+        <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[11px] font-extrabold text-slate-400 dark:text-[#858D99] uppercase tracking-wider whitespace-nowrap hidden xl:inline">
               Select IPO:
-            </label>
+            </span>
             <CustomSelect
               value={selectedIpoId}
               onChange={(val) => setSelectedIpoId(val)}
@@ -378,36 +643,47 @@ export function AdminApplicationsView() {
                 label: ipo.name,
                 badge: `${ipo.applications?.length || 0} apps`,
               }))}
-              className="min-w-[200px]"
+              className="min-w-[170px]"
             />
           </div>
 
           {selectedIpo && (
-            <div className="flex items-center gap-2">
-              <a
-                href={selectedIpo.registrarUrl || "https://ipostatus.kfintech.com"}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 dark:bg-[#6B93FF] hover:bg-blue-700 text-white dark:text-[#101114] font-extrabold text-xs transition-all shadow-xs cursor-pointer active:scale-[0.98]"
-              >
-                <span>Check Allotment</span>
-                <ArrowSquareOut size={14} weight="bold" />
-              </a>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setCustomRegistrarUrl(selectedIpo.registrarUrl || "");
-                  setIsUrlModalOpen(true);
-                }}
-                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-[#1D2026] hover:bg-slate-200 dark:hover:bg-[#252931] border border-slate-200 dark:border-[#252931] text-slate-700 dark:text-[#AEB5C0] hover:text-blue-600 dark:hover:text-[#6B93FF] font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                title="Configure / Add Check Allotment Website URL"
-              >
-                <PencilSimple size={14} weight="bold" />
-                <span className="hidden sm:inline">Set URL</span>
-              </button>
-            </div>
+            <a
+              href={selectedIpo.registrarUrl || "https://ipostatus.kfintech.com"}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-[#1D2026] hover:bg-slate-200 dark:hover:bg-[#252931] border border-slate-200 dark:border-[#252931] text-slate-700 dark:text-[#AEB5C0] hover:text-blue-600 dark:hover:text-[#6B93FF] font-bold text-xs transition-all cursor-pointer whitespace-nowrap shadow-2xs"
+              title="Open Registrar Check Allotment site in new tab"
+            >
+              <span>Check Allotment</span>
+              <ArrowSquareOut size={13} weight="bold" />
+            </a>
           )}
+
+          {selectedIpo && (
+            <button
+              type="button"
+              onClick={() => {
+                setCustomRegistrarUrl(selectedIpo.registrarUrl || "");
+                setIsUrlModalOpen(true);
+              }}
+              className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 dark:bg-[#1D2026] hover:bg-slate-200 dark:hover:bg-[#252931] border border-slate-200 dark:border-[#252931] text-slate-700 dark:text-[#AEB5C0] hover:text-blue-600 dark:hover:text-[#6B93FF] font-bold text-xs transition-all cursor-pointer whitespace-nowrap shadow-2xs"
+              title="Configure / Add Check Allotment Website URL"
+            >
+              <PencilSimple size={13} weight="bold" />
+              <span>Set URL</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={handleOpenAddAppModal}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-[#6B93FF] dark:hover:bg-[#7BA0FF] text-white dark:text-[#101114] font-extrabold text-xs transition-all shadow-sm cursor-pointer whitespace-nowrap active:scale-[0.98]"
+            title="Add Member Application"
+          >
+            <Plus size={14} weight="bold" />
+            <span>Add Application</span>
+          </button>
         </div>
       </div>
 
@@ -418,8 +694,8 @@ export function AdminApplicationsView() {
           <span className="text-[10px] font-bold text-slate-400 dark:text-[#858D99] uppercase tracking-wider block">
             Total Applications
           </span>
-          <span className="text-xl font-black text-slate-900 dark:text-[#F5F7FA] font-mono mt-0.5 block">
-            {metrics.total}
+          <span suppressHydrationWarning className="text-xl font-black text-slate-900 dark:text-[#F5F7FA] font-mono mt-0.5 block">
+            {isMounted ? metrics.total : 0}
           </span>
         </div>
 
@@ -427,8 +703,8 @@ export function AdminApplicationsView() {
           <span className="text-[10px] font-bold text-amber-500 uppercase tracking-wider block">
             Awaiting Allotment
           </span>
-          <span className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono mt-0.5 block">
-            {metrics.awaiting}
+          <span suppressHydrationWarning className="text-xl font-black text-amber-600 dark:text-amber-400 font-mono mt-0.5 block">
+            {isMounted ? metrics.awaiting : 0}
           </span>
         </div>
 
@@ -436,8 +712,8 @@ export function AdminApplicationsView() {
           <span className="text-[10px] font-bold text-emerald-500 uppercase tracking-wider block">
             Allotted Applications
           </span>
-          <span className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 block">
-            {metrics.allotted}
+          <span suppressHydrationWarning className="text-xl font-black text-emerald-600 dark:text-emerald-400 font-mono mt-0.5 block">
+            {isMounted ? metrics.allotted : 0}
           </span>
         </div>
 
@@ -445,8 +721,8 @@ export function AdminApplicationsView() {
           <span className="text-[10px] font-bold text-blue-500 uppercase tracking-wider block">
             Total Capital Pooled
           </span>
-          <span className="text-xl font-black text-blue-600 dark:text-[#6B93FF] font-mono mt-0.5 block">
-            {formatINR(metrics.totalCapital)}
+          <span suppressHydrationWarning className="text-xl font-black text-blue-600 dark:text-[#6B93FF] font-mono mt-0.5 block">
+            {isMounted ? formatINR(metrics.totalCapital) : "₹0"}
           </span>
         </div>
       </div>
@@ -469,9 +745,9 @@ export function AdminApplicationsView() {
       {/* Applications Data Table */}
       <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl overflow-hidden shadow-2xs">
         <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800/80 flex items-center justify-between">
-          <h3 className="text-xs font-black text-slate-900 dark:text-[#F5F7FA] uppercase tracking-wider flex items-center gap-2">
+          <h3 suppressHydrationWarning className="text-xs font-black text-slate-900 dark:text-[#F5F7FA] uppercase tracking-wider flex items-center gap-2">
             <Files size={16} className="text-blue-500" />
-            Applications for {selectedIpo?.name} ({filteredApplications.length})
+            Applications for {isMounted ? (selectedIpo?.name || "IPO") : "..."} ({isMounted ? filteredApplications.length : 0})
           </h3>
         </div>
 
@@ -853,6 +1129,321 @@ export function AdminApplicationsView() {
                   Save URL
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── ADMIN ADD APPLICATION MODAL (MULTI-LOT SUPPORT) ── */}
+      {isAddAppModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/70 backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in font-sans">
+          <div className="bg-white dark:bg-[#101114] rounded-3xl p-6 sm:p-7 max-w-xl w-full border border-slate-200 dark:border-[#252931] shadow-2xl space-y-5 animate-modal-pop-in max-h-[92vh] flex flex-col justify-between text-slate-900 dark:text-[#F5F7FA]">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#252931] pb-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-600/10 text-blue-600 dark:text-[#6B93FF] flex items-center justify-center font-black text-lg border border-blue-500/20">
+                  <Plus size={20} weight="bold" />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-slate-900 dark:text-[#F5F7FA] tracking-tight">
+                    Add Member Application
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-[#858D99] font-medium">
+                    Apply for 1 or multiple IPO lots at the same time on behalf of group members.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setIsAddAppModalOpen(false)}
+                className="w-8 h-8 rounded-xl text-slate-400 hover:text-slate-700 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-[#1D2026] flex items-center justify-center transition-colors cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="flex-1 overflow-y-auto space-y-4 pr-1 text-xs">
+              {addAppError && (
+                <div className="p-3.5 bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 rounded-2xl text-xs font-semibold flex items-center gap-2">
+                  <Warning size={16} className="shrink-0" />
+                  <span>{addAppError}</span>
+                </div>
+              )}
+
+              {/* 1. Target IPO Selection */}
+              <div className="space-y-1.5">
+                <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                  Target IPO Opportunity <span className="text-rose-500">*</span>
+                </label>
+                <CustomSelect
+                  value={addAppIpoId || selectedIpoId}
+                  onChange={(val) => {
+                    setAddAppIpoId(val);
+                    const ipo = ipos.find((i) => i.id === val);
+                    const minInv = ipo?.metrics?.minInvestment || 15000;
+                    handleLotCountChange(addAppLotCount);
+                  }}
+                  options={ipos.map((ipo) => ({
+                    value: ipo.id,
+                    label: `${ipo.name} (₹${(ipo.metrics?.minInvestment || 15000).toLocaleString("en-IN")}/lot)`,
+                  }))}
+                />
+              </div>
+
+              {/* 2. Applicant Member & Mode */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                    Primary Applicant Member <span className="text-rose-500">*</span>
+                  </label>
+                  <SearchableUserSelect
+                    members={selectableMembers}
+                    selectedMemberId={addAppMemberId}
+                    onSelect={(m) => {
+                      setAddAppMemberId(m.id);
+                      if (m.panMasked || (m as any).panFull) {
+                        setAddAppPans((prev) => [m.panMasked || (m as any).panFull || prev[0], ...prev.slice(1)]);
+                      }
+                    }}
+                    placeholder="Search member by username or name..."
+                    className="w-full"
+                  />
+                </div>
+
+                <div className="space-y-1.5">
+                  <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                    Participation Structure
+                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddAppApplicantMode("SOLO");
+                        setAddAppError(null);
+                      }}
+                      className={`py-2 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                        addAppApplicantMode === "SOLO"
+                          ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                          : "bg-slate-50 dark:bg-[#14161A] border-slate-200 dark:border-[#252931] text-slate-600 dark:text-[#AEB5C0]"
+                      }`}
+                    >
+                      <User size={14} />
+                      <span>Solo</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setAddAppApplicantMode("JOINT");
+                        setAddAppError(null);
+                        const targetIpo = ipos.find((i) => i.id === addAppIpoId) || selectedIpo || ipos[0];
+                        const minInv = targetIpo?.metrics?.minInvestment || 15000;
+                        const totalCap = Math.max(1, addAppLotCount) * minInv;
+                        const chosenMember = selectableMembers.find((m) => m.id === addAppMemberId) || selectableMembers[0];
+                        const nextMember = selectableMembers.find((m) => m.id !== chosenMember?.id) || selectableMembers[1] || chosenMember;
+                        const half = Math.floor(totalCap / 2);
+                        setAddAppContributors([
+                          { memberId: chosenMember?.id || "mem_1", memberName: chosenMember?.username ? `@${chosenMember.username.replace(/^@+/, "")}` : chosenMember?.name || "Member", amount: half },
+                          { memberId: nextMember?.id || "mem_2", memberName: nextMember?.username ? `@${nextMember.username.replace(/^@+/, "")}` : nextMember?.name || "Member", amount: totalCap - half },
+                        ]);
+                      }}
+                      className={`py-2 px-3 rounded-xl font-extrabold text-xs flex items-center justify-center gap-1.5 border transition-all cursor-pointer ${
+                        addAppApplicantMode === "JOINT"
+                          ? "bg-blue-600 text-white border-blue-600 shadow-xs"
+                          : "bg-slate-50 dark:bg-[#14161A] border-slate-200 dark:border-[#252931] text-slate-600 dark:text-[#AEB5C0]"
+                      }`}
+                    >
+                      <Users size={14} />
+                      <span>Joint Pool</span>
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. Number of Lots / Applications Stepper */}
+              <div className="p-4 bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] rounded-2xl space-y-3">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <span className="text-xs font-black text-slate-900 dark:text-[#F5F7FA] block">
+                      Number of Lots / Applications
+                    </span>
+                    <span className="text-[11px] text-slate-500 dark:text-[#858D99]">
+                      Apply for multiple lots simultaneously
+                    </span>
+                  </div>
+
+                  {/* Stepper */}
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleLotCountChange(addAppLotCount - 1)}
+                      disabled={addAppLotCount <= 1}
+                      className="w-8 h-8 rounded-xl bg-white dark:bg-[#1D2026] border border-slate-200 dark:border-[#252931] text-slate-700 dark:text-white flex items-center justify-center hover:bg-slate-100 disabled:opacity-40 cursor-pointer"
+                    >
+                      <Minus size={14} weight="bold" />
+                    </button>
+
+                    <input
+                      type="number"
+                      min={1}
+                      max={50}
+                      value={addAppLotCount}
+                      onChange={(e) => handleLotCountChange(parseInt(e.target.value, 10) || 1)}
+                      className="w-14 text-center py-1 bg-white dark:bg-[#1D2026] border border-slate-200 dark:border-[#252931] rounded-xl text-xs font-mono font-black text-slate-900 dark:text-white"
+                    />
+
+                    <button
+                      type="button"
+                      onClick={() => handleLotCountChange(addAppLotCount + 1)}
+                      disabled={addAppLotCount >= 50}
+                      className="w-8 h-8 rounded-xl bg-white dark:bg-[#1D2026] border border-slate-200 dark:border-[#252931] text-slate-700 dark:text-white flex items-center justify-center hover:bg-slate-100 disabled:opacity-40 cursor-pointer"
+                    >
+                      <Plus size={14} weight="bold" />
+                    </button>
+                  </div>
+                </div>
+
+                {/* Capital Calculation Banner */}
+                {(() => {
+                  const targetIpo = ipos.find((i) => i.id === addAppIpoId) || selectedIpo || ipos[0];
+                  const minInv = targetIpo?.metrics?.minInvestment || 15000;
+                  const total = Math.max(1, addAppLotCount) * minInv;
+                  return (
+                    <div className="flex items-center justify-between pt-2 border-t border-slate-200/60 dark:border-[#252931]/60 text-xs">
+                      <span className="font-bold text-slate-500 dark:text-[#858D99]">
+                        Total Required Capital ({addAppLotCount} lot{addAppLotCount > 1 ? "s" : ""} × ₹{minInv.toLocaleString("en-IN")}):
+                      </span>
+                      <span className="font-mono font-black text-blue-600 dark:text-[#6B93FF] text-sm">
+                        ₹{total.toLocaleString("en-IN")}
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* 4. Individual PAN Card Inputs per Lot */}
+              <div className="space-y-2">
+                <label className="block text-xs font-extrabold text-slate-700 dark:text-slate-300">
+                  PAN Cards for {addAppLotCount} Application{addAppLotCount > 1 ? "s" : ""} <span className="text-rose-500">*</span>
+                </label>
+                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                  {addAppPans.map((pan, idx) => (
+                    <div key={idx} className="flex items-center gap-2">
+                      <span className="w-12 text-center text-[10px] font-mono font-extrabold text-slate-400 dark:text-[#858D99] bg-slate-100 dark:bg-[#1D2026] py-2 rounded-lg shrink-0 border border-slate-200 dark:border-[#252931]">
+                        #{String(idx + 1).padStart(2, "0")}
+                      </span>
+                      <div className="relative flex-1">
+                        <IdentificationCard size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input
+                          type="text"
+                          maxLength={10}
+                          required
+                          placeholder="ABCDE1234F"
+                          value={pan}
+                          onChange={(e) => {
+                            const val = e.target.value.toUpperCase().slice(0, 10);
+                            setAddAppPans((prev) => {
+                              const copy = [...prev];
+                              copy[idx] = val;
+                              return copy;
+                            });
+                          }}
+                          className="w-full bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] rounded-xl pl-9 pr-3 py-2 text-xs font-mono font-bold text-slate-900 dark:text-white uppercase focus:outline-none focus:border-blue-500"
+                        />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* 5. Joint Contributors Breakdown (if Joint mode selected) */}
+              {addAppApplicantMode === "JOINT" && (
+                <div className="p-4 bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] rounded-2xl space-y-3">
+                  <div className="flex items-center justify-between">
+                    <h4 className="text-xs font-black text-slate-900 dark:text-white uppercase tracking-wider">
+                      Pool Contributors Split
+                    </h4>
+                    <button
+                      type="button"
+                      onClick={handleAddContributor}
+                      className="text-[11px] font-extrabold text-blue-600 dark:text-[#6B93FF] hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Plus size={13} weight="bold" />
+                      <span>Add Contributor</span>
+                    </button>
+                  </div>
+
+                  <div className="space-y-2">
+                    {addAppContributors.map((contrib, idx) => (
+                      <div key={idx} className="flex items-center gap-2">
+                        <div className="flex-1 min-w-0">
+                          <SearchableUserSelect
+                            members={selectableMembers}
+                            selectedMemberId={contrib.memberId}
+                            onSelect={(m) => {
+                              setAddAppContributors((prev) => {
+                                const copy = [...prev];
+                                copy[idx] = {
+                                  ...copy[idx],
+                                  memberId: m.id,
+                                  memberName: m.username ? `@${m.username.replace(/^@+/, "")}` : m.name || "Member",
+                                };
+                                return copy;
+                              });
+                            }}
+                            placeholder="Select member..."
+                          />
+                        </div>
+
+                        <div className="relative w-28 shrink-0">
+                          <span className="absolute left-2.5 top-1/2 -translate-y-1/2 font-mono text-slate-400 font-bold">₹</span>
+                          <input
+                            type="number"
+                            value={contrib.amount}
+                            onChange={(e) => {
+                              const val = e.target.value === "" ? "" : Number(e.target.value);
+                              setAddAppContributors((prev) => {
+                                const copy = [...prev];
+                                copy[idx] = { ...copy[idx], amount: val };
+                                return copy;
+                              });
+                            }}
+                            className="w-full bg-white dark:bg-[#1D2026] border border-slate-200 dark:border-[#252931] rounded-xl pl-6 pr-2 py-2 text-xs font-mono font-bold text-slate-900 dark:text-white"
+                          />
+                        </div>
+
+                        {addAppContributors.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveContributor(idx)}
+                            className="p-2 rounded-lg text-slate-400 hover:text-rose-500 cursor-pointer"
+                          >
+                            <Trash size={14} />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex items-center justify-end gap-3 pt-3 border-t border-slate-100 dark:border-[#252931] shrink-0">
+              <button
+                type="button"
+                onClick={() => setIsAddAppModalOpen(false)}
+                className="px-4 py-2.5 rounded-xl border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-600 dark:text-[#AEB5C0] hover:bg-slate-100 dark:hover:bg-[#1D2026] cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={handleAddAppSubmit}
+                disabled={addAppIsSubmitting}
+                className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-[#6B93FF] dark:hover:bg-[#5280ff] text-white dark:text-[#101114] text-xs font-extrabold shadow-md cursor-pointer transition-all disabled:opacity-50 flex items-center gap-1.5"
+              >
+                {addAppIsSubmitting ? "Submitting..." : `Submit ${addAppLotCount} Application${addAppLotCount > 1 ? "s" : ""}`}
+              </button>
             </div>
           </div>
         </div>

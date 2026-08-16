@@ -3,6 +3,7 @@ import clientPromise from "@/lib/mongodb";
 import { MessageDocument } from "@/src/models/Message";
 import { MemberDocument } from "@/src/models/Member";
 import { broadcastRealtimeEvent } from "@/app/api/realtime/route";
+import { triggerPusherEvent } from "@/lib/pusher";
 import { getAuthenticatedUser } from "@/src/lib/auth/authorization";
 
 const DB = "nexo";
@@ -81,8 +82,10 @@ export async function POST(
 
     const updatedMsg = await msgCol.findOne({ id: messageId });
 
-    /* Broadcast real-time SSE update to all clients */
+    /* Broadcast real-time SSE & Pusher WebSocket updates */
     broadcastRealtimeEvent("message:update", updatedMsg);
+    triggerPusherEvent(`conversation-${conversationId}`, "message:update", updatedMsg).catch(() => {});
+    triggerPusherEvent("global-messages", "message:update", updatedMsg).catch(() => {});
 
     return NextResponse.json({ success: true, message: updatedMsg });
   } catch (err: any) {

@@ -92,7 +92,7 @@ export function CustomSelect({
 
       {/* Floating Dropdown Panel */}
       {isOpen && (
-        <div className="absolute left-0 top-full mt-1.5 w-full min-w-[220px] max-h-60 overflow-y-auto rounded-xl bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] shadow-2xl z-50 p-1 space-y-0.5 custom-scrollbar animate-fade-in">
+        <div className="absolute left-0 top-full mt-1.5 w-full min-w-[180px] max-w-[calc(100vw-32px)] max-h-60 overflow-y-auto rounded-xl bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] shadow-2xl z-50 p-1 space-y-0.5 custom-scrollbar animate-fade-in">
           {options.map((option) => {
             const isSelected = option.value === value;
             return (

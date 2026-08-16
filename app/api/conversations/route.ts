@@ -71,7 +71,7 @@ export async function GET(req: Request) {
         const seenPartIds = new Set<string>();
         const participantMembers = cMemberships
           .map((m) => userMap.get(m.memberId))
-          .filter((u): u is MemberDocument => {
+          .filter((u): u is any => {
             if (!u || !u.id || seenPartIds.has(u.id)) return false;
             seenPartIds.add(u.id);
             return true;

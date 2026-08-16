@@ -7,6 +7,7 @@ import { ChatHeader } from "./ChatHeader";
 import { MessageList } from "./MessageList";
 import { MessageComposer } from "./MessageComposer";
 import { chatRealtime } from "../utils/chatRealtime";
+import { soundEffects } from "../utils/soundEffects";
 
 interface ChatWindowProps {
   conversation: Conversation;
@@ -31,7 +32,7 @@ export function ChatWindow({
   const [presenceStatus, setPresenceStatus] = useState<UserPresenceStatus>("ONLINE");
   const typingTimerRef = useRef<Record<string, any>>({});
 
-  // Fetch messages from API
+  // Fetch messages from API with smooth reconciliation
   const fetchMessages = useCallback(async () => {
     try {
       const res = await fetch(
@@ -39,7 +40,11 @@ export function ChatWindow({
       );
       const data = await res.json();
       if (data?.success && Array.isArray(data.messages)) {
-        setMessages(data.messages);
+        setMessages((prev) => {
+          const existingIds = new Set(data.messages.map((m: any) => m.id));
+          const pending = prev.filter((m) => m.id.startsWith("msg_temp_") && !existingIds.has(m.id));
+          return [...data.messages, ...pending];
+        });
         // Track latest sequence for real-time recovery
         for (const m of data.messages) {
           if (m.seq) chatRealtime.updateLastSequence(m.seq);
@@ -66,6 +71,10 @@ export function ChatWindow({
   useEffect(() => {
     fetchMessages();
     markAsRead();
+
+    // High-speed 1000ms polling for instant message arrival with 0 delay
+    const interval = setInterval(fetchMessages, 1000);
+    return () => clearInterval(interval);
   }, [conversation.id, fetchMessages, markAsRead]);
 
   // Real-time event listeners
@@ -86,6 +95,10 @@ export function ChatWindow({
           }
           return [...prev, msg];
         });
+
+        if (msg.senderId !== currentMemberId) {
+          soundEffects.playReceive();
+        }
         markAsRead();
       }
     });
@@ -175,6 +188,7 @@ export function ChatWindow({
     };
 
     setMessages((prev) => [...prev, tempMsg]);
+    soundEffects.playSend();
 
     try {
       const res = await fetch(`/api/conversations/${conversation.id}/messages`, {
