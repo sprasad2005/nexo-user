@@ -54,17 +54,15 @@ export function FeaturedOpportunity({ ipo, onInspect, onApply }: FeaturedOpportu
                 {ipo.logo}
               </div>
               <div>
-                <div className="flex items-center gap-2 mb-0.5">
-                  <span className="text-[11px] font-sans font-semibold text-ink-secondary uppercase tracking-wider bg-surface-alt/90 px-2 py-0.5 rounded border border-line/60">
-                    {ipo.category || "Mainboard IPO"}
+                <div className="flex items-center gap-2 mb-1">
+                  <span className="text-[10px] font-mono font-bold text-ink-secondary uppercase tracking-wider bg-surface-alt/90 px-2 py-0.5 rounded-md border border-line/60">
+                    {ipo.category || "MAINBOARD"}
                   </span>
-                  <span className="text-ink-tertiary">•</span>
-                  <span className="text-caption font-medium text-ink-secondary">{ipo.company}</span>
                 </div>
                 {/* Clickable IPO name */}
                 <button
                   onClick={() => setShowDetail(true)}
-                  className="text-left text-h4 font-bold text-ink hover:text-accent transition-colors tracking-tight cursor-pointer block"
+                  className="text-left text-h4 font-bold text-ink hover:text-accent transition-colors tracking-tight cursor-pointer block leading-snug"
                 >
                   {ipo.name}
                 </button>

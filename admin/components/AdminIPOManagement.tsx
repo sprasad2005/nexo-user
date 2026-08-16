@@ -130,14 +130,12 @@ export function AdminIPOManagement() {
                           {ipo.logo || initials}
                         </div>
                         <div>
-                          <div className="flex items-center gap-2 mb-0.5">
-                            <span className="text-[11px] font-sans font-semibold text-slate-600 dark:text-[#AEB5C0] uppercase tracking-wider bg-slate-100 dark:bg-[#14161A] px-2 py-0.5 rounded border border-slate-200 dark:border-[#252931]/60">
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-mono font-bold text-slate-600 dark:text-[#AEB5C0] uppercase tracking-wider bg-slate-100 dark:bg-[#14161A] px-2 py-0.5 rounded-md border border-slate-200 dark:border-[#252931]/60">
                               {ipo.category || "MAINBOARD"}
                             </span>
-                            <span className="text-slate-400 dark:text-slate-500">•</span>
-                            <span className="text-[10px] font-medium text-slate-400 dark:text-[#858D99] uppercase tracking-wider">{ipo.company || initials}</span>
                           </div>
-                          <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
+                          <h3 className="text-base font-bold text-slate-900 dark:text-white tracking-tight leading-snug">
                             {ipo.name}
                           </h3>
                           <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-[#858D99] mt-0.5">
