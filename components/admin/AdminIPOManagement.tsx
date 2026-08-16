@@ -23,6 +23,7 @@ import {
 } from "@phosphor-icons/react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { AddIPODrawer } from "./AddIPODrawer";
+import { AdminIPOHistoryView } from "./AdminIPOHistoryView";
 import { formatINR, formatApplicantNames } from "@/lib/mockData";
 
 import { AdminTab } from "./AdminSidebar";
@@ -521,6 +522,11 @@ export function AdminIPOManagement({
             </div>
           )}
         </div>
+      )}
+
+      {/* TAB: IPO HISTORY & COMPLETED LEDGER */}
+      {activeAdminTab === "history" && (
+        <AdminIPOHistoryView />
       )}
 
       {/* TAB 2: ALLOTMENT & APPLICATION PROCESSOR */}

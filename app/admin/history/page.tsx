@@ -9,16 +9,16 @@ import { NotificationPopover } from "@/components/shell/NotificationPopover";
 import { AdminLogoutModal } from "@/components/admin/AdminLogoutModal";
 import { AddIPODrawer } from "@/admin/components/AddIPODrawer";
 import { ShieldCheck } from "@phosphor-icons/react";
-import { AdminIPOManagement } from "@/admin/components/AdminIPOManagement";
+import { AdminIPOHistoryView } from "@/admin/components/AdminIPOHistoryView";
 
-function AdminIposPageContent() {
+function AdminHistoryPageContent() {
   const router = useRouter();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isAddIpoOpen, setIsAddIpoOpen] = useState(false);
   const [adminStatus, setAdminStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("AUTHORIZED");
 
   useEffect(() => {
-    document.title = "NEXO - IPO Management";
+    document.title = "NEXO - IPO History";
   }, []);
 
   // Auth check
@@ -56,9 +56,9 @@ function AdminIposPageContent() {
   }, [router]);
 
   const handleTabChange = (tab: string) => {
-    if (tab === "ipos") return;
-    if (tab === "history") {
-      router.push("/admin/history");
+    if (tab === "history") return;
+    if (tab === "ipos") {
+      router.push("/admin/ipos");
       return;
     }
     if (tab === "applications") {
@@ -96,7 +96,7 @@ function AdminIposPageContent() {
             <ShieldCheck size={28} weight="bold" />
           </div>
           <p className="text-xs font-semibold text-slate-400 tracking-wide">
-            Loading administrative workspace...
+            Loading administrative history ledger...
           </p>
         </div>
       </div>
@@ -104,73 +104,64 @@ function AdminIposPageContent() {
   }
 
   return (
-    <div className="flex min-h-screen bg-slate-50 dark:bg-[#090A0C] text-slate-900 dark:text-[#F5F7FA] font-sans antialiased">
-      {/* Sidebar */}
+    <div className="min-h-screen flex bg-page text-ink font-sans">
+      {/* SIDEBAR NAVIGATION */}
       <AdminSidebar
-        activeTab="ipos"
+        activeTab="history"
         setActiveTab={handleTabChange}
         onAddIpoClick={() => setIsAddIpoOpen(true)}
         onSignOutClick={() => setIsLogoutModalOpen(true)}
       />
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
-        {/* Top Header Bar */}
-        <header className="h-14 bg-surface/90 dark:bg-surface/90 border-b border-line px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md shrink-0 select-none font-sans">
+      {/* MAIN CONTENT AREA */}
+      <div className="flex-1 flex flex-col min-w-0 min-h-screen">
+        {/* Top Navbar */}
+        <header className="h-14 border-b border-line px-6 flex items-center justify-between bg-surface/80 backdrop-blur-md sticky top-0 z-20">
           <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-            <span className="text-xs font-semibold text-ink-tertiary uppercase tracking-wider">
-              Workspace
+            <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+            <span className="text-xs font-bold text-ink-secondary uppercase tracking-wider">
+              Workspace /
             </span>
-            <span className="text-xs font-bold text-ink-muted">/</span>
-            <span className="text-xs font-extrabold text-ink uppercase tracking-wider">
-              IPO Management
+            <span className="text-xs font-black text-ink uppercase tracking-wider">
+              IPO History
             </span>
           </div>
 
           <div className="flex items-center gap-3">
             <NotificationPopover />
             <AdminNavbarProfileMenu
-              activeTab="ipos"
+              activeTab="history"
               onSelectTab={handleTabChange}
               onSignOutClick={() => setIsLogoutModalOpen(true)}
             />
           </div>
         </header>
 
-        {/* Content Body */}
-        <main className="p-4 sm:p-6 md:p-8 flex-1 max-w-6xl w-full mx-auto">
-          <AdminIPOManagement />
+        {/* Dynamic Viewport Content */}
+        <main className="flex-1 p-4 sm:p-6 md:p-8 max-w-6xl w-full mx-auto">
+          <AdminIPOHistoryView />
         </main>
       </div>
 
-      {/* ADD IPO DRAWER */}
-      <AddIPODrawer
-        isOpen={isAddIpoOpen}
-        onClose={() => setIsAddIpoOpen(false)}
-        onSuccess={() => {}}
-      />
-
-      {/* LOGOUT MODAL */}
+      {/* MODALS */}
       <AdminLogoutModal
         isOpen={isLogoutModalOpen}
         onClose={() => setIsLogoutModalOpen(false)}
+      />
+
+      <AddIPODrawer
+        isOpen={isAddIpoOpen}
+        onClose={() => setIsAddIpoOpen(false)}
       />
     </div>
   );
 }
 
-export default function AdminIposPage() {
+export default function AdminHistoryPage() {
   return (
     <AdminProvider>
-      <Suspense
-        fallback={
-          <div className="min-h-screen bg-[#0A0C10] flex items-center justify-center text-slate-400 text-xs">
-            Loading workspace...
-          </div>
-        }
-      >
-        <AdminIposPageContent />
+      <Suspense fallback={<div className="p-8 text-xs text-ink-secondary">Loading...</div>}>
+        <AdminHistoryPageContent />
       </Suspense>
     </AdminProvider>
   );

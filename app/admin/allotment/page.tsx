@@ -57,6 +57,14 @@ function AdminAllotmentPageContent() {
 
   const handleTabChange = (tab: string) => {
     if (tab === "allotment" || tab === "allotments") return;
+    if (tab === "history") {
+      router.push("/admin/history");
+      return;
+    }
+    if (tab === "ipos") {
+      router.push("/admin/ipos");
+      return;
+    }
     router.push(`/admin?tab=${tab}`);
   };
 

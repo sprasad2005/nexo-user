@@ -57,6 +57,14 @@ function AdminApplicationsPageContent() {
 
   const handleTabChange = (tab: string) => {
     if (tab === "applications") return;
+    if (tab === "history") {
+      router.push("/admin/history");
+      return;
+    }
+    if (tab === "ipos") {
+      router.push("/admin/ipos");
+      return;
+    }
     router.push(`/admin?tab=${tab}`);
   };
 

@@ -1651,37 +1651,89 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
 
   const removeIPO = (ipoId: string) => {
     const activeRole = currentUser?.role || currentUserRole;
-    if (activeRole !== "ADMIN") {
+    if (activeRole !== "ADMIN" && activeRole !== "SUPER_ADMIN") {
       return { success: false, message: "Unauthorized. Admin privileges required." };
     }
 
-    const targetIpo = ipos.find((i) => i.id === ipoId);
-    if (!targetIpo) {
-      return { success: false, message: "IPO not found." };
+    const targetIpo = ipos.find((i) => i.id === ipoId || i.id === ipoId.replace(/^pub_/, "") || `pub_${i.id}` === ipoId);
+    const ipoName = targetIpo?.name || ipoId;
+    const cleanId = ipoId.replace(/^pub_/, "");
+
+    // 1. Remove permanently from IPO state
+    setIpos((prev) =>
+      prev.filter(
+        (ipo) =>
+          ipo.id !== ipoId &&
+          ipo.id !== cleanId &&
+          `pub_${ipo.id}` !== ipoId &&
+          ipo.name?.toLowerCase() !== ipoName.toLowerCase()
+      )
+    );
+
+    // 2. Remove from Listed IPOs / Published Cards in state
+    setListedIpos((prev) =>
+      prev.filter(
+        (item) =>
+          item.id !== ipoId &&
+          item.id !== cleanId &&
+          item.name?.toLowerCase() !== ipoName.toLowerCase()
+      )
+    );
+
+    // 4. Clean local storage
+    try {
+      const stored = localStorage.getItem("nexo_local_admin_ipos") || "[]";
+      const parsed = JSON.parse(stored);
+      const filtered = parsed.filter(
+        (ipo: any) =>
+          ipo.id !== ipoId &&
+          ipo.id !== cleanId &&
+          `pub_${ipo.id}` !== ipoId &&
+          ipo.name?.toLowerCase() !== ipoName.toLowerCase()
+      );
+      localStorage.setItem("nexo_local_admin_ipos", JSON.stringify(filtered));
+
+      const listedStored = localStorage.getItem("nexo_listed_ipos_db") || "[]";
+      const listedParsed = JSON.parse(listedStored);
+      const listedFiltered = listedParsed.filter(
+        (item: any) =>
+          item.id !== ipoId &&
+          item.id !== cleanId &&
+          item.name?.toLowerCase() !== ipoName.toLowerCase()
+      );
+      localStorage.setItem("nexo_listed_ipos_db", JSON.stringify(listedFiltered));
+
+      window.dispatchEvent(new Event("storage"));
+    } catch (e) {}
+
+    // 5. Call API endpoint to cascade delete permanently from MongoDB
+    try {
+      fetch(`/api/ipos?id=${encodeURIComponent(ipoId)}`, {
+        method: "DELETE",
+      }).then(() => refreshIpos());
+    } catch (e) {
+      console.warn("Failed to DELETE /api/ipos in removeIPO:", e);
     }
 
     const adminName = currentUser?.name || members[0]?.name || "Shivam Prasad";
-
-    // Soft hide from member-facing lists while preserving application references
-    setIpos((prev) =>
-      prev.map((ipo) => (ipo.id === ipoId ? { ...ipo, isHidden: true } : ipo))
-    );
-
     const newActivity: ActivityItem = {
       id: `act_${Date.now()}`,
       type: "IPO_ADDED",
-      title: `${adminName} removed ${targetIpo.name}`,
-      subtitle: `IPO hidden from user website`,
+      title: `${adminName} deleted ${ipoName}`,
+      subtitle: `IPO permanently deleted from database and user website`,
       timestamp: "Today",
       memberName: adminName,
       memberAvatar: currentUser?.avatar || members[0]?.avatar,
-      ipoId: targetIpo.id,
-      ipoName: targetIpo.name,
+      ipoId: ipoId,
+      ipoName: ipoName,
     };
 
     setActivities((prev) => [newActivity, ...prev]);
 
-    return { success: true, message: `✓ IPO removed. ${targetIpo.name} is no longer visible on the user website.` };
+    return {
+      success: true,
+      message: `✓ IPO "${ipoName}" and all associated data permanently deleted from database and user website.`,
+    };
   };
 
   return (

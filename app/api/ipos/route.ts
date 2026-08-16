@@ -445,27 +445,75 @@ export async function DELETE(req: NextRequest) {
     }
 
     const allIpos = readSharedIpos();
-    const updated = allIpos.map((ipo) =>
-      ipo.id === id ? { ...ipo, isHidden: true } : ipo
-    );
+    const targetIpo = allIpos.find((ipo) => ipo.id === id || ipo.id === id.replace(/^pub_/, "") || `pub_${ipo.id}` === id);
+    const targetName = targetIpo?.name || id;
+    const cleanId = id.replace(/^pub_/, "");
 
+    // 1. Remove permanently from local shared JSON store
+    const updated = allIpos.filter(
+      (ipo) =>
+        ipo.id !== id &&
+        ipo.id !== cleanId &&
+        `pub_${ipo.id}` !== id &&
+        ipo.name?.toLowerCase() !== targetName.toLowerCase()
+    );
     writeSharedIpos(updated);
 
+    // 2. Cascade Delete permanently from MongoDB collections
     try {
       const client = await clientPromise;
       const db = client.db(DB_NAME);
-      await db.collection("ipos").updateOne(
-        { $or: [{ id }, { _id: id as any }] },
-        { $set: { isHidden: true } }
-      );
+
+      const deleteQuery = {
+        $or: [
+          { id: id },
+          { id: cleanId },
+          { id: `pub_${cleanId}` },
+          { ipoId: id },
+          { ipoId: cleanId },
+          { ipoId: `pub_${cleanId}` },
+          { name: { $regex: new RegExp(`^${targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
+          { ipoName: { $regex: new RegExp(`^${targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
+        ],
+      };
+
+      // Delete from ipos collection
+      await db.collection("ipos").deleteMany({
+        $or: [
+          { id: id },
+          { id: cleanId },
+          { id: `pub_${cleanId}` },
+          { name: { $regex: new RegExp(`^${targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
+        ],
+      });
+
+      // Delete associated profit distributions
+      await db.collection("profit_distributions").deleteMany({
+        $or: [
+          { ipoId: id },
+          { ipoId: cleanId },
+          { ipoId: `pub_${cleanId}` },
+          { ipoName: { $regex: new RegExp(`^${targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
+        ],
+      });
+
+      // Delete associated member applications
+      await db.collection("applications").deleteMany({
+        $or: [
+          { ipoId: id },
+          { ipoId: cleanId },
+          { ipoId: `pub_${cleanId}` },
+          { ipoName: { $regex: new RegExp(`^${targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
+        ],
+      });
     } catch (dbErr) {
-      console.warn("MongoDB delete optional fallback:", dbErr);
+      console.warn("MongoDB cascade delete fallback:", dbErr);
     }
 
     await logActivity({
       eventType: "IPO_ARCHIVED",
       category: "PRODUCT",
-      severity: "INFO",
+      severity: "WARNING",
       actorUserId,
       actorMemberId,
       actorName,
@@ -473,11 +521,17 @@ export async function DELETE(req: NextRequest) {
       actorRole,
       targetType: "IPO",
       targetId: id,
-      targetName: "IPO",
-      ipoId: id
+      targetName: targetName,
+      ipoId: id,
     });
 
-    return NextResponse.json({ success: true, message: "✓ IPO removed." }, { headers: corsHeaders });
+    return NextResponse.json(
+      {
+        success: true,
+        message: `✓ IPO "${targetName}" and all associated data permanently deleted from database and user website.`,
+      },
+      { headers: corsHeaders }
+    );
   } catch (err: any) {
     console.error("DELETE /api/ipos error:", err);
     return NextResponse.json({ success: false, message: err.message }, { status: 500, headers: corsHeaders });

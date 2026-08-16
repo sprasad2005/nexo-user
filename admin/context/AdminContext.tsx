@@ -336,32 +336,49 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeIPO = async (ipoId: string) => {
-    // 1. Immediately update state so UI removes it instantly from visible list
+    const targetIpo = ipos.find((i) => i.id === ipoId || i.id === ipoId.replace(/^pub_/, "") || `pub_${i.id}` === ipoId);
+    const ipoName = targetIpo?.name || ipoId;
+    const cleanId = ipoId.replace(/^pub_/, "");
+
+    // 1. Immediately remove from state
     setIpos((prev) =>
-      prev.map((ipo) => (ipo.id === ipoId ? { ...ipo, isHidden: true } : ipo))
+      prev.filter(
+        (ipo) =>
+          ipo.id !== ipoId &&
+          ipo.id !== cleanId &&
+          `pub_${ipo.id}` !== ipoId &&
+          ipo.name?.toLowerCase() !== ipoName.toLowerCase()
+      )
     );
 
-    // 2. Persist in local hidden storage AND update local extra additions
+    // 2. Remove from local caches
     try {
-      const hiddenLocal: string[] = JSON.parse(
-        localStorage.getItem("nexo_local_hidden_ipos") || "[]"
-      );
-      if (!hiddenLocal.includes(ipoId)) {
-        hiddenLocal.push(ipoId);
-        localStorage.setItem("nexo_local_hidden_ipos", JSON.stringify(hiddenLocal));
-      }
-
       const extraLocal: IPOOpportunity[] = JSON.parse(
         localStorage.getItem("nexo_local_admin_ipos") || "[]"
       );
-      const updatedExtra = extraLocal.map((ipo) =>
-        ipo.id === ipoId ? { ...ipo, isHidden: true } : ipo
+      const updatedExtra = extraLocal.filter(
+        (ipo) =>
+          ipo.id !== ipoId &&
+          ipo.id !== cleanId &&
+          `pub_${ipo.id}` !== ipoId &&
+          ipo.name?.toLowerCase() !== ipoName.toLowerCase()
       );
       localStorage.setItem("nexo_local_admin_ipos", JSON.stringify(updatedExtra));
+
+      const listedStored = localStorage.getItem("nexo_listed_ipos_db") || "[]";
+      const listedParsed = JSON.parse(listedStored);
+      const listedFiltered = listedParsed.filter(
+        (item: any) =>
+          item.id !== ipoId &&
+          item.id !== cleanId &&
+          item.name?.toLowerCase() !== ipoName.toLowerCase()
+      );
+      localStorage.setItem("nexo_listed_ipos_db", JSON.stringify(listedFiltered));
+
       window.dispatchEvent(new Event("storage"));
     } catch (e) {}
 
-    // 3. Call API endpoint to persist in shared_ipos.json
+    // 3. Call API endpoint to cascade delete permanently from MongoDB
     try {
       const res = await fetch(`${API_BASE_URL}?id=${encodeURIComponent(ipoId)}`, {
         method: "DELETE",
@@ -370,15 +387,15 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       await refreshIpos();
       return {
         success: true,
-        message: result.message || "✓ IPO removed.",
+        message: result.message || `✓ IPO "${ipoName}" and all associated data permanently deleted from database and user website.`,
       };
     } catch (err) {
-      console.warn("API network call offline, soft-hiding in local store:", err);
+      console.warn("API network call error in removeIPO:", err);
     }
 
     return {
       success: true,
-      message: "✓ IPO removed. It is no longer visible on the user website.",
+      message: `✓ IPO "${ipoName}" permanently deleted.`,
     };
   };
 

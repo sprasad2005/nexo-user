@@ -17,9 +17,10 @@ import {
   CheckCircle,
   CaretLeft,
   CaretRight,
+  ClockCounterClockwise,
 } from "@phosphor-icons/react";
 
-export type AdminTab = "ipos" | "applications" | "allotments" | "members" | "transactions" | "messages";
+export type AdminTab = "ipos" | "history" | "applications" | "allotments" | "members" | "transactions" | "messages";
 
 interface AdminSidebarProps {
   activeTab: AdminTab;
@@ -57,6 +58,11 @@ export function AdminSidebar({
           label: "IPO Catalog & Status",
           icon: Buildings,
           badge: visibleIpos.length,
+        },
+        {
+          id: "history" as AdminTab,
+          label: "IPO History Ledger",
+          icon: ClockCounterClockwise,
         },
         {
           id: "applications" as AdminTab,

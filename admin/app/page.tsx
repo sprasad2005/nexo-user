@@ -3,6 +3,7 @@
 import React, { useState } from "react";
 import { AdminSidebar } from "../components/AdminSidebar";
 import { AdminIPOManagement } from "../components/AdminIPOManagement";
+import { AdminIPOHistoryView } from "../components/AdminIPOHistoryView";
 import { DistributeProfitView } from "../components/DistributeProfitView";
 import { AddIPODrawer } from "../components/AddIPODrawer";
 
@@ -37,7 +38,7 @@ export default function AdminHomePage() {
               Workspace /
             </span>
             <span className="text-xs font-extrabold text-slate-900 uppercase tracking-wider">
-              IPO Management
+              {activeTab === "history" ? "IPO History" : "IPO Management"}
             </span>
           </div>
 
@@ -51,8 +52,9 @@ export default function AdminHomePage() {
         {/* Page Content */}
         <main className="p-4 sm:p-6 md:p-8 flex-1 max-w-6xl w-full mx-auto">
           {activeTab === "ipos" && <AdminIPOManagement />}
+          {activeTab === "history" && <AdminIPOHistoryView />}
           {activeTab === "distribute-profit" && <DistributeProfitView />}
-          {activeTab !== "ipos" && activeTab !== "distribute-profit" && (
+          {activeTab !== "ipos" && activeTab !== "history" && activeTab !== "distribute-profit" && (
             <div className="p-12 text-center bg-white border border-slate-200 rounded-2xl shadow-2xs space-y-2">
               <h3 className="text-base font-extrabold text-slate-800">
                 {activeTab.toUpperCase()} Section

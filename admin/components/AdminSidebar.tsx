@@ -7,6 +7,7 @@ import {
   Users,
   ListChecks,
   ClockCountdown,
+  ClockCounterClockwise,
   Plus,
   SignOut,
   ShieldCheck,
@@ -34,6 +35,7 @@ export function AdminSidebar({
 
   const mainNav = [
     { id: "ipos", label: "IPO Management", icon: TrendUp },
+    { id: "history", label: "IPO History", icon: ClockCounterClockwise },
     { id: "applications", label: "Applications", icon: Files },
     { id: "allotment", label: "Allotment", icon: CheckCircle },
     { id: "distribute-profit", label: "Distribute Profit", icon: Coins },
