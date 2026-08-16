@@ -33,6 +33,8 @@ export function IPOWorkspaceView() {
   const isAdmin = String(activeRole).toUpperCase() === "ADMIN";
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
+  const [localSearch, setLocalSearch] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<"ALL" | "Mainboard" | "SME">("ALL");
 
   // Form State for Adding a Listed IPO Card
   const [name, setName] = useState("");
@@ -47,10 +49,22 @@ export function IPOWorkspaceView() {
   const [listingDate, setListingDate] = useState("22 Aug 2026");
   const [lotPrice, setLotPrice] = useState<number>(15000);
 
-  // Filter listed IPOs by search query
-  const filteredListedIpos = listedIpos.filter((ipo) =>
-    ipo.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  // Filter listed IPOs by search query and category
+  const effectiveSearch = (localSearch || searchQuery || "").trim().toLowerCase();
+
+  const filteredListedIpos = listedIpos.filter((ipo) => {
+    const matchesSearch =
+      effectiveSearch === "" ||
+      ipo.name.toLowerCase().includes(effectiveSearch) ||
+      ipo.category?.toLowerCase().includes(effectiveSearch) ||
+      ipo.listingDate?.toLowerCase().includes(effectiveSearch);
+
+    const matchesCategory =
+      selectedCategory === "ALL" ||
+      ipo.category?.toUpperCase() === selectedCategory.toUpperCase();
+
+    return matchesSearch && matchesCategory;
+  });
 
   const activeUserName = currentMember?.name || currentUser?.name || "Member";
   const activeUserId = currentMember?.id || currentUser?.id || "mem_1";
@@ -391,13 +405,56 @@ export function IPOWorkspaceView() {
         </div>
       )}
 
+      {/* SEARCH & FILTERS CONTROLS BAR */}
+      <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 bg-surface p-3.5 rounded-2xl border border-line shadow-xs">
+        <div className="relative flex-1">
+          <MagnifyingGlass
+            size={16}
+            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-tertiary"
+          />
+          <input
+            type="text"
+            placeholder="Search listed IPOs by company name, category, or listing date..."
+            value={localSearch}
+            onChange={(e) => setLocalSearch(e.target.value)}
+            className="w-full pl-9 pr-8 py-2 bg-surface-alt border border-line rounded-xl text-small font-medium text-ink placeholder:text-ink-tertiary focus:outline-none focus:border-accent transition-all"
+          />
+          {localSearch && (
+            <button
+              onClick={() => setLocalSearch("")}
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-ink-tertiary hover:text-ink p-0.5 cursor-pointer"
+            >
+              <X size={14} />
+            </button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-1 bg-surface-alt p-1 rounded-xl border border-line shrink-0">
+          {(["ALL", "Mainboard", "SME"] as const).map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={`px-3 py-1.5 rounded-lg text-caption font-semibold transition-all cursor-pointer ${
+                selectedCategory === cat
+                  ? "bg-accent text-white shadow-xs"
+                  : "text-ink-secondary hover:text-ink"
+              }`}
+            >
+              {cat === "ALL" ? "All Categories" : cat}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* LISTED IPO CARDS GRID */}
       {filteredListedIpos.length === 0 ? (
         <div className="p-12 text-center bg-surface rounded-2xl border border-line shadow-xs space-y-2">
           <MagnifyingGlass size={32} className="text-ink-muted mx-auto" />
           <h3 className="text-h4 font-semibold text-ink">No Listed IPO Cards Found</h3>
           <p className="text-small text-ink-tertiary">
-            {searchQuery ? `No results matching "${searchQuery}"` : "No listed IPO cards present."}
+            {effectiveSearch
+              ? `No listed IPOs matched "${effectiveSearch}".`
+              : "No listed IPO cards present in track record."}
           </p>
         </div>
       ) : (
