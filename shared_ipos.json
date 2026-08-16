@@ -1,5 +1,63 @@
 [
   {
+    "id": "ipo_1786903102636",
+    "addedAt": "2026-08-16T17:58:22.637Z",
+    "applications": [],
+    "category": "Mainboard",
+    "combinedCapital": 0,
+    "company": "Horizon",
+    "createdAt": "2026-08-16T17:58:22.637Z",
+    "createdBy": "Shivam Prasad",
+    "isHidden": false,
+    "logo": "HO",
+    "metrics": {
+      "issueSize": "₹2,400 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 18.5,
+      "openDate": "18 Aug 2026",
+      "closeDate": "28 Aug 2026",
+      "allotmentDate": "01 Sep 2026",
+      "listingDate": "04 Sep 2026",
+      "fundUnblockDate": "02 Sep 2026"
+    },
+    "name": "Horizon",
+    "participantsCount": 0,
+    "recommendation": "APPLY",
+    "status": "APPLICATION_OPEN",
+    "thesis": "af",
+    "profitDistribution": {
+      "totalProfit": 10000,
+      "totalLots": 1,
+      "allottedLots": 1,
+      "oneLotProfit": 10000,
+      "publishedAt": "2026-08-16T17:59:06.672Z",
+      "memberPayouts": [
+        {
+          "memberId": "mem_1786902117364",
+          "name": "@aanikett",
+          "pan": "HSCPP7068G",
+          "contribution": 7500,
+          "lots": 0.5,
+          "profit": 5000
+        },
+        {
+          "memberId": "mem_1786902040057",
+          "name": "@shree",
+          "pan": "HSCPP7068G",
+          "contribution": 7500,
+          "lots": 0.5,
+          "profit": 5000
+        }
+      ]
+    },
+    "updatedAt": "2026-08-16T17:59:06.776Z"
+  },
+  {
     "id": "ipo_1786898877713",
     "addedAt": "2026-08-16T16:47:57.713Z",
     "applications": [],

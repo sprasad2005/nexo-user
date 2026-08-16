@@ -93,40 +93,11 @@ export function MembersView() {
   const getFeaturedMemberTheme = (member: Member) => {
     const u = (member.username || member.name || "").toLowerCase().trim();
     
-    // Super Admin: Emerald Jade Green
+    // Super Admin: Full-Tier Midnight Sky Blue
     if (member.role === "SUPER_ADMIN" || u === "ankitgod" || u === "ankit") {
       return {
         isFeatured: true,
         roleBadge: "SUPER ADMIN",
-        cardContainer: "bg-gradient-to-b from-[#061A14] via-[#051410] to-[#040E0B] dark:from-[#061A14] dark:via-[#051410] dark:to-[#040E0B] border-emerald-500/35 hover:border-emerald-400/60 shadow-xl shadow-emerald-950/30 hover:shadow-2xl hover:shadow-emerald-500/10",
-        topAccent: "from-teal-400/0 via-emerald-500 to-teal-400/0",
-        avatarAura: "from-emerald-600/40 via-teal-600/30 to-cyan-400/40",
-        avatarRim: "from-emerald-500 via-teal-500 to-cyan-400 shadow-[0_0_18px_rgba(16,185,129,0.35)] group-hover:shadow-[0_0_26px_rgba(20,184,166,0.5)]",
-        statusPing: "bg-emerald-400",
-        statusDot: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]",
-        badgePill: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-        badgeDot: "bg-emerald-400",
-        nameHover: "text-slate-100 group-hover:text-emerald-400",
-        usernameTag: "text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/30",
-        phoneTag: "text-slate-300 bg-emerald-950/35 border-emerald-500/20",
-        phoneIcon: "text-emerald-400/80",
-        statsCard: "bg-emerald-950/30 dark:bg-[#07241B]/80 border-emerald-500/20 group-hover:border-emerald-500/35 shadow-2xs",
-        statsIcon: "text-emerald-400",
-        statsVal: "text-slate-100",
-        statsMuted: "text-slate-200",
-        footerBorder: "border-emerald-500/20",
-        verifiedBadge: "bg-emerald-500/10 border-emerald-500/25 text-emerald-400",
-        verifiedIcon: "text-emerald-400",
-        messageBtn: "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs shadow-emerald-950/40",
-        youBadge: "bg-emerald-950/50 border-emerald-500/30 text-emerald-300",
-      };
-    }
-
-    // aanikett: Full-Tier Midnight Sky Blue
-    if (u === "aanikett" || u.startsWith("aaniket") || u === "aniket") {
-      return {
-        isFeatured: true,
-        roleBadge: "CORE MEMBER",
         cardContainer: "bg-gradient-to-b from-[#0B1A28] via-[#08131F] to-[#050C14] dark:from-[#0B1A28] dark:via-[#08131F] dark:to-[#050C14] border-sky-500/35 hover:border-sky-400/60 shadow-xl shadow-sky-950/30 hover:shadow-2xl hover:shadow-sky-500/10",
         topAccent: "from-sky-400/0 via-sky-400 to-sky-400/0",
         avatarAura: "from-sky-600/40 via-blue-600/30 to-cyan-400/40",
@@ -148,6 +119,35 @@ export function MembersView() {
         verifiedIcon: "text-sky-400",
         messageBtn: "bg-sky-500 hover:bg-sky-400 text-white shadow-xs shadow-sky-950/40",
         youBadge: "bg-sky-950/50 border-sky-500/30 text-sky-300",
+      };
+    }
+
+    // aanikett: Full-Tier Emerald Jade Green
+    if (u === "aanikett" || u.startsWith("aaniket") || u === "aniket") {
+      return {
+        isFeatured: true,
+        roleBadge: "CORE MEMBER",
+        cardContainer: "bg-gradient-to-b from-[#061A14] via-[#051410] to-[#040E0B] dark:from-[#061A14] dark:via-[#051410] dark:to-[#040E0B] border-emerald-500/35 hover:border-emerald-400/60 shadow-xl shadow-emerald-950/30 hover:shadow-2xl hover:shadow-emerald-500/10",
+        topAccent: "from-teal-400/0 via-emerald-500 to-teal-400/0",
+        avatarAura: "from-emerald-600/40 via-teal-600/30 to-cyan-400/40",
+        avatarRim: "from-emerald-500 via-teal-500 to-cyan-400 shadow-[0_0_18px_rgba(16,185,129,0.35)] group-hover:shadow-[0_0_26px_rgba(20,184,166,0.5)]",
+        statusPing: "bg-emerald-400",
+        statusDot: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]",
+        badgePill: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+        badgeDot: "bg-emerald-400",
+        nameHover: "text-slate-100 group-hover:text-emerald-400",
+        usernameTag: "text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/30",
+        phoneTag: "text-slate-300 bg-emerald-950/35 border-emerald-500/20",
+        phoneIcon: "text-emerald-400/80",
+        statsCard: "bg-emerald-950/30 dark:bg-[#07241B]/80 border-emerald-500/20 group-hover:border-emerald-500/35 shadow-2xs",
+        statsIcon: "text-emerald-400",
+        statsVal: "text-slate-100",
+        statsMuted: "text-slate-200",
+        footerBorder: "border-emerald-500/20",
+        verifiedBadge: "bg-emerald-500/10 border-emerald-500/25 text-emerald-400",
+        verifiedIcon: "text-emerald-400",
+        messageBtn: "bg-emerald-600 hover:bg-emerald-500 text-white shadow-xs shadow-emerald-950/40",
+        youBadge: "bg-emerald-950/50 border-emerald-500/30 text-emerald-300",
       };
     }
 
