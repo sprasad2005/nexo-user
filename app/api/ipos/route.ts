@@ -72,9 +72,20 @@ export async function GET(req: NextRequest) {
         }));
         // Cache to local file
         writeSharedIpos(allIpos);
+      } else if (allIpos.length > 0) {
+        // Seed MongoDB from shared_ipos.json on first connection
+        try {
+          await db.collection("ipos").insertMany(
+            allIpos.map((item: any) => ({
+              ...item,
+              _id: undefined,
+              createdAt: new Date(),
+            }))
+          );
+        } catch (_seedErr) {}
       }
     } catch (dbErr) {
-      // Fallback to local file if MongoDB is offline
+      // Fallback to local file if MongoDB is temporarily offline
     }
 
     return NextResponse.json({ success: true, ipos: allIpos }, { headers: corsHeaders });
