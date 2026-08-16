@@ -12,15 +12,18 @@ import {
   Pulse,
   Eye,
   MagnifyingGlass,
+  ArrowClockwise,
+  PencilSimple,
+  Trash,
   X,
+  LockKey,
   Shield,
   ClockCountdown,
+  Coin,
+  Buildings,
   Check,
+  Warning,
   Megaphone,
-  Phone,
-  ChatCircleDots,
-  TrendUp,
-  CalendarBlank,
 } from "@phosphor-icons/react";
 import { Member, MemberRole, MemberStatus, MemberPermissions } from "@/types/nexo";
 import { MOCK_MEMBERS } from "@/lib/mockData";
@@ -31,146 +34,8 @@ import { AdminDataCache } from "@/lib/adminDataCache";
 
 export function SuperAdminMemberManagement() {
   const router = useRouter();
-  const { currentUser, ipos, openDirectChatWithUser } = useNexo();
+  const { currentUser } = useNexo();
   const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
-
-  const getAppliedIpoCount = useCallback((member: Member): number => {
-    if (!ipos || ipos.length === 0) return 0;
-    return ipos.filter((ipo) => {
-      if (!ipo.applications || ipo.applications.length === 0) return false;
-      return ipo.applications.some((app: any) => {
-        const isDirectMatch =
-          app.memberId === member.id ||
-          (app.applicantName && app.applicantName.toLowerCase() === member.name.toLowerCase());
-        const isParticipantMatch =
-          Array.isArray(app.participants) &&
-          app.participants.some(
-            (p: any) =>
-              p.memberId === member.id ||
-              (p.memberName && p.memberName.toLowerCase() === member.name.toLowerCase())
-          );
-        return isDirectMatch || isParticipantMatch;
-      });
-    }).length;
-  }, [ipos]);
-
-  const getFeaturedMemberTheme = useCallback((member: Member) => {
-    const u = (member.username || member.name || "").toLowerCase().trim();
-
-    // Super Admin: Sky Blue
-    if (member.role === "SUPER_ADMIN" || u === "ankitgod" || u === "ankit") {
-      return {
-        isFeatured: true,
-        roleBadge: "SUPER ADMIN",
-        cardContainer: "bg-white dark:bg-[#0c121c] border-sky-300 dark:border-sky-500/40 hover:border-sky-400 shadow-md dark:shadow-[0_0_20px_rgba(14,165,233,0.12)]",
-        topAccent: "from-sky-400/0 via-sky-500 to-sky-400/0",
-        avatarAura: "from-sky-500/20 via-blue-500/15 to-cyan-400/20 dark:from-sky-600/40 dark:via-blue-600/30 dark:to-cyan-400/40",
-        avatarRim: "from-sky-500 via-blue-500 to-cyan-400 shadow-[0_0_12px_rgba(14,165,233,0.25)] dark:shadow-[0_0_18px_rgba(14,165,233,0.35)]",
-        statusPing: "bg-sky-400",
-        statusDot: "bg-sky-500 shadow-[0_0_8px_rgba(14,165,233,0.8)]",
-        badgePill: "bg-sky-50 text-sky-700 border-sky-200 dark:bg-sky-500/15 dark:text-sky-400 dark:border-sky-500/30 font-bold",
-        badgeDot: "bg-sky-500 dark:bg-sky-400",
-        nameHover: "text-slate-900 group-hover:text-sky-600 dark:text-white dark:group-hover:text-sky-400",
-        usernameTag: "text-sky-700 bg-sky-50 hover:bg-sky-100 border-sky-200 dark:text-sky-300 dark:bg-sky-500/15 dark:hover:bg-sky-500/25 dark:border-sky-500/30",
-        phoneTag: "text-slate-600 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-[#13161C] dark:border-[#1E232B]",
-        phoneIcon: "text-sky-600 dark:text-sky-400",
-        statsCard: "bg-slate-50 border-slate-200 dark:bg-[#13161C] dark:border-[#1E232B]",
-        statsIcon: "text-sky-600 dark:text-sky-400",
-        statsVal: "text-slate-900 dark:text-white",
-        statsMuted: "text-slate-600 dark:text-slate-300",
-        footerBorder: "border-slate-100 dark:border-[#1E232B]",
-        verifiedBadge: "bg-sky-50 border-sky-200 text-sky-700 dark:bg-sky-500/10 dark:border-sky-500/30 dark:text-sky-400",
-        verifiedIcon: "text-sky-600 dark:text-sky-400",
-        messageBtn: "bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white shadow-sm shadow-sky-500/25",
-        youBadge: "bg-sky-50 border-sky-200 text-sky-700 dark:bg-[#13161C] dark:border-[#1E232B] dark:text-sky-300",
-      };
-    }
-
-    // aanikett: Emerald Jade Green
-    if (u === "aanikett" || u.startsWith("aaniket") || u === "aniket") {
-      return {
-        isFeatured: true,
-        roleBadge: "CORE MEMBER",
-        cardContainer: "bg-white dark:bg-[#0c1713] border-emerald-300 dark:border-emerald-500/40 hover:border-emerald-400 shadow-md dark:shadow-[0_0_20px_rgba(16,185,129,0.12)]",
-        topAccent: "from-teal-400/0 via-emerald-500 to-teal-400/0",
-        avatarAura: "from-emerald-500/20 via-teal-500/15 to-cyan-400/20 dark:from-emerald-600/40 dark:via-teal-600/30 dark:to-cyan-400/40",
-        avatarRim: "from-emerald-500 via-teal-500 to-cyan-400 shadow-[0_0_12px_rgba(16,185,129,0.25)] dark:shadow-[0_0_18px_rgba(16,185,129,0.35)]",
-        statusPing: "bg-emerald-400",
-        statusDot: "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]",
-        badgePill: "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-400 dark:border-emerald-500/30 font-bold",
-        badgeDot: "bg-emerald-500 dark:bg-emerald-400",
-        nameHover: "text-slate-900 group-hover:text-emerald-600 dark:text-white dark:group-hover:text-emerald-400",
-        usernameTag: "text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border-emerald-200 dark:text-emerald-300 dark:bg-emerald-500/15 dark:hover:bg-emerald-500/25 dark:border-emerald-500/30",
-        phoneTag: "text-slate-600 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-[#13161C] dark:border-[#1E232B]",
-        phoneIcon: "text-emerald-600 dark:text-emerald-400",
-        statsCard: "bg-slate-50 border-slate-200 dark:bg-[#13161C] dark:border-[#1E232B]",
-        statsIcon: "text-emerald-600 dark:text-emerald-400",
-        statsVal: "text-slate-900 dark:text-white",
-        statsMuted: "text-slate-600 dark:text-slate-300",
-        footerBorder: "border-slate-100 dark:border-[#1E232B]",
-        verifiedBadge: "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-emerald-500/10 dark:border-emerald-500/30 dark:text-emerald-400",
-        verifiedIcon: "text-emerald-600 dark:text-emerald-400",
-        messageBtn: "bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white shadow-sm shadow-emerald-500/25",
-        youBadge: "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-[#13161C] dark:border-[#1E232B] dark:text-emerald-300",
-      };
-    }
-
-    // shivam_p: Royal Violet Tier
-    if (u === "shivam_p" || u.startsWith("shivam")) {
-      return {
-        isFeatured: true,
-        roleBadge: member.role === "ADMIN" ? "CORE ADMIN" : "CORE MEMBER",
-        cardContainer: "bg-white dark:bg-[#140c1e] border-purple-300 dark:border-purple-500/40 hover:border-purple-400 shadow-md dark:shadow-[0_0_20px_rgba(168,85,247,0.12)]",
-        topAccent: "from-purple-400/0 via-purple-500 to-purple-400/0",
-        avatarAura: "from-purple-500/20 via-indigo-500/15 to-pink-400/20 dark:from-purple-600/40 dark:via-indigo-600/30 dark:to-pink-500/40",
-        avatarRim: "from-purple-500 via-indigo-500 to-purple-400 shadow-[0_0_12px_rgba(168,85,247,0.25)] dark:shadow-[0_0_18px_rgba(168,85,247,0.35)]",
-        statusPing: "bg-purple-400",
-        statusDot: "bg-purple-500 shadow-[0_0_8px_rgba(168,85,247,0.8)]",
-        badgePill: "bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-400 dark:border-purple-500/30 font-bold",
-        badgeDot: "bg-purple-500 dark:bg-purple-400",
-        nameHover: "text-slate-900 group-hover:text-purple-600 dark:text-white dark:group-hover:text-purple-400",
-        usernameTag: "text-purple-700 bg-purple-50 hover:bg-purple-100 border-purple-200 dark:text-purple-300 dark:bg-purple-500/15 dark:hover:bg-purple-500/25 dark:border-purple-500/30",
-        phoneTag: "text-slate-600 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-[#13161C] dark:border-[#1E232B]",
-        phoneIcon: "text-purple-600 dark:text-purple-400",
-        statsCard: "bg-slate-50 border-slate-200 dark:bg-[#13161C] dark:border-[#1E232B]",
-        statsIcon: "text-purple-600 dark:text-purple-400",
-        statsVal: "text-slate-900 dark:text-white",
-        statsMuted: "text-slate-600 dark:text-slate-300",
-        footerBorder: "border-slate-100 dark:border-[#1E232B]",
-        verifiedBadge: "bg-purple-50 border-purple-200 text-purple-700 dark:bg-purple-500/10 dark:border-purple-500/30 dark:text-purple-400",
-        verifiedIcon: "text-purple-600 dark:text-purple-400",
-        messageBtn: "bg-gradient-to-r from-purple-500 to-indigo-600 hover:from-purple-600 hover:to-indigo-700 text-white shadow-sm shadow-purple-500/25",
-        youBadge: "bg-purple-50 border-purple-200 text-purple-700 dark:bg-[#13161C] dark:border-[#1E232B] dark:text-purple-300",
-      };
-    }
-
-    // Default Member Theme
-    return {
-      isFeatured: false,
-      roleBadge: member.role === "ADMIN" ? "ADMIN" : "MEMBER",
-      cardContainer: "bg-white dark:bg-[#0d0f14] border-slate-200 dark:border-[#1E232B] hover:border-slate-400 dark:hover:border-[#2E3542] shadow-md",
-      topAccent: "from-blue-500/0 via-blue-500 to-blue-500/0",
-      avatarAura: "",
-      avatarRim: "",
-      statusPing: "bg-emerald-400",
-      statusDot: "bg-emerald-500",
-      badgePill: "bg-blue-50 text-blue-700 border-blue-200 dark:bg-slate-800 dark:text-slate-300 dark:border-slate-700 font-bold",
-      badgeDot: "bg-blue-500 dark:bg-slate-400",
-      nameHover: "text-slate-900 group-hover:text-blue-600 dark:text-white dark:group-hover:text-blue-400",
-      usernameTag: "text-blue-700 bg-blue-50 hover:bg-blue-100 border-blue-200 dark:text-slate-300 dark:bg-[#13161C] dark:border-[#1E232B]",
-      phoneTag: "text-slate-600 bg-slate-100 border-slate-200 dark:text-slate-300 dark:bg-[#13161C] dark:border-[#1E232B]",
-      phoneIcon: "text-slate-500 dark:text-slate-400",
-      statsCard: "bg-slate-50 border-slate-200 dark:bg-[#13161C] dark:border-[#1E232B]",
-      statsIcon: "text-blue-600 dark:text-slate-400",
-      statsVal: "text-slate-900 dark:text-white",
-      statsMuted: "text-slate-600 dark:text-slate-300",
-      footerBorder: "border-slate-100 dark:border-[#1E232B]",
-      verifiedBadge: "bg-emerald-50 border-emerald-200 text-emerald-700 dark:bg-slate-800/40 dark:border-slate-700 dark:text-slate-300",
-      verifiedIcon: "text-emerald-600 dark:text-emerald-400",
-      messageBtn: "bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white shadow-sm shadow-blue-500/25",
-      youBadge: "bg-slate-100 border-slate-200 text-slate-700 dark:bg-[#13161C] dark:border-[#1E232B] dark:text-slate-300",
-    };
-  }, []);
 
   const [isSendNotifOpen, setIsSendNotifOpen] = useState(false);
 
@@ -576,226 +441,214 @@ export function SuperAdminMemberManagement() {
       </div>
 
       {/* ── SEARCH & FILTER CONTROLS ── */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 bg-white dark:bg-[#0D0F12] border border-slate-200 dark:border-[#1E232B] p-2.5 rounded-2xl shadow-sm font-sans select-none">
-        <div className="relative flex-1">
-          <MagnifyingGlass
-            size={18}
-            className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400"
-          />
+      <div className="bg-[#0D0F12] border border-[#1E232B] rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative w-full sm:w-80">
+          <MagnifyingGlass size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
           <input
             type="text"
+            placeholder="Search name, username, email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Search member by name, @username, or phone number..."
-            className="w-full pl-10 pr-9 py-2 bg-slate-50 dark:bg-[#13161C] border border-slate-200 dark:border-[#252931] rounded-xl text-xs sm:text-sm text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-blue-500 font-sans transition-all"
+            className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-[#13161C] border border-[#252931] text-xs font-semibold text-white placeholder:text-slate-500 focus:outline-none focus:border-blue-500 transition-colors"
           />
-          {searchQuery && (
-            <button
-              onClick={() => setSearchQuery("")}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-1 rounded-md text-slate-400 hover:text-slate-700 dark:text-slate-500 dark:hover:text-white cursor-pointer transition-colors"
-              title="Clear search"
-            >
-              <X size={14} />
-            </button>
-          )}
         </div>
 
-        {/* Role Filter Tabs */}
-        <div className="flex items-center gap-1 bg-slate-100 dark:bg-[#13161C] p-1 rounded-xl border border-slate-200 dark:border-[#252931] shrink-0 font-sans">
-          {(["ALL", "SUPER_ADMIN", "MEMBER"] as const).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setRoleFilter(tab)}
-              className={`px-3.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
-                roleFilter === tab
-                  ? "bg-blue-600 text-white font-extrabold shadow-sm"
-                  : "text-slate-500 hover:text-slate-900 dark:text-slate-400 dark:hover:text-white font-semibold hover:bg-slate-200/50 dark:hover:bg-[#1E232B]"
-              }`}
-            >
-              {tab === "ALL" ? "All" : tab === "SUPER_ADMIN" ? "Super Admin" : "Members"}
-            </button>
-          ))}
+        <div className="flex items-center gap-3 w-full sm:w-auto justify-end">
+          {/* Role Filter */}
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value as any)}
+            className="px-3.5 py-2.5 rounded-xl bg-[#13161C] border border-[#252931] text-xs font-bold text-slate-300 focus:outline-none cursor-pointer"
+          >
+            <option value="ALL">All Roles</option>
+            <option value="SUPER_ADMIN">Super Admin Only</option>
+            <option value="MEMBER">Members Only</option>
+          </select>
+
+          {/* Status Filter */}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value as any)}
+            className="px-3.5 py-2.5 rounded-xl bg-[#13161C] border border-[#252931] text-xs font-bold text-slate-300 focus:outline-none cursor-pointer"
+          >
+            <option value="ALL">All Statuses</option>
+            <option value="ACTIVE">Active Only</option>
+            <option value="SUSPENDED">Suspended Only</option>
+          </select>
         </div>
       </div>
 
-      {/* ── MEMBER CARDS GRID ── */}
-      {filteredMembers.length === 0 ? (
-        <div className="text-center py-12 bg-white dark:bg-[#0D0F12] border border-slate-200 dark:border-[#1E232B] rounded-2xl space-y-2">
-          <Users size={36} className="mx-auto text-slate-400 dark:text-slate-600" />
-          <h4 className="text-sm font-bold text-slate-700 dark:text-slate-300">No members found</h4>
-          <p className="text-xs text-slate-400 dark:text-slate-500">Try searching with a different keyword</p>
+      {/* ── MEMBERS DIRECTORY TABLE ── */}
+      <div className="bg-[#0D0F12] border border-[#1E232B] rounded-2xl overflow-hidden shadow-2xl">
+        <div className="p-4 sm:p-5 border-b border-[#1E232B] bg-[#0D0F12] flex items-center justify-between">
+          <h3 className="text-xs font-black text-slate-200 uppercase tracking-wider">
+            SYSTEM ACCOUNTS DIRECTORY ({filteredMembers.length})
+          </h3>
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-          {filteredMembers.map((member) => {
-            const mUsername = member.username || member.name.toLowerCase();
-            const mPhone = member.phone || "+91 98200 12345";
-            const appliedCount = getAppliedIpoCount(member);
-            const theme = getFeaturedMemberTheme(member);
 
-            return (
-              <div
-                key={member.id}
-                className={`group relative rounded-2xl p-5 transition-all duration-300 flex flex-col justify-between overflow-hidden font-sans border ${theme.cardContainer} hover:-translate-y-1`}
-              >
-                {/* Subtle Top Accent */}
-                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${theme.topAccent} ${theme.isFeatured ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity duration-300`} />
+        {filteredMembers.length === 0 ? (
+          <div className="p-12 text-center space-y-2">
+            <Users size={36} className="text-slate-500 mx-auto" />
+            <h4 className="text-sm font-bold text-slate-300">No Members Found</h4>
+            <p className="text-xs text-slate-500">
+              Try adjusting your search query or status filter.
+            </p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs sm:text-sm">
+              <thead>
+                <tr className="border-b border-[#1E232B] bg-[#0D0F12] text-slate-400 uppercase text-[10px] font-extrabold tracking-wider">
+                  <th className="p-4">USER</th>
+                  <th className="p-4">USERNAME &amp; PASSWORD</th>
+                  <th className="p-4">ROLE</th>
+                  <th className="p-4">STATUS</th>
+                  <th className="p-4 text-right">ACTIONS</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-[#1E232B] font-medium">
+                {filteredMembers.map((m) => {
+                  const isSuspended = m.status === "SUSPENDED";
 
-                <div className="space-y-4">
-                  {/* Top Profile Header */}
-                  <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-3.5">
-                      {/* Avatar with Animated Status & Multi-Tone Frame */}
-                      <div className="relative shrink-0">
-                        {theme.isFeatured ? (
-                          <div className="relative">
-                            {/* Ambient Breathing Background Aura */}
-                            <div className={`absolute -inset-1 rounded-2xl bg-gradient-to-tr ${theme.avatarAura} blur-md animate-pulse pointer-events-none opacity-80 group-hover:opacity-100 group-hover:blur-lg transition-all duration-500`} />
-                            
-                            {/* Fluid Animated Gradient Border Frame */}
-                            <div className={`relative p-[2.5px] rounded-2xl bg-gradient-to-tr ${theme.avatarRim} bg-[length:200%_200%] animate-[gradientShift_4s_ease_infinite] transition-all duration-300`}>
-                              <div className="w-13 h-13 rounded-[13.5px] overflow-hidden bg-slate-900 relative group/img">
-                                <img
-                                  src={member.avatar || "/oggy.png"}
-                                  alt={member.name}
-                                  className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
-                                />
-                              </div>
-
-                              {/* Live Status Orb */}
-                              <div className="absolute -bottom-1 -right-1 flex items-center justify-center">
-                                <span className={`animate-ping absolute inline-flex h-3.5 w-3.5 rounded-full ${theme.statusPing} opacity-75`} />
-                                <span
-                                  className={`relative inline-flex w-3.5 h-3.5 rounded-full ${theme.statusDot} ring-2 ring-white dark:ring-[#0D0F14]`}
-                                  title={`${member.name} Online`}
-                                />
-                              </div>
-                            </div>
+                  return (
+                    <tr key={m.id} className="hover:bg-[#13161C]/70 transition-colors">
+                      {/* User Info */}
+                      <td className="p-4">
+                        <div
+                          onClick={() => router.push(`/admin/members/${m.id}`)}
+                          className="flex items-center gap-3 cursor-pointer group/user"
+                          title="Click to view detailed IPO history, lots & profit gains"
+                        >
+                          <img
+                            src={m.avatar || "/oggy.png"}
+                            alt={m.name}
+                            className="w-10 h-10 rounded-xl object-cover border border-[#252931] shrink-0 group-hover/user:border-blue-500 transition-all"
+                          />
+                          <div className="min-w-0">
+                            <h4 className="font-extrabold text-white group-hover/user:text-blue-400 transition-colors truncate">
+                              {m.name}
+                            </h4>
+                            <p className="text-xs text-slate-400 truncate">
+                              {m.email}
+                            </p>
                           </div>
-                        ) : (
-                          <div className="relative p-[1.5px] rounded-2xl bg-slate-900 border border-slate-700 dark:border-[#252931] shadow-sm transition-all duration-300">
-                            <div className="w-13 h-13 rounded-[14px] overflow-hidden bg-slate-900">
-                              <img
-                                src={member.avatar || "/oggy.png"}
-                                alt={member.name}
-                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                              />
-                            </div>
-                            <span
-                              className="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-white dark:ring-[#0D0F14] absolute -bottom-0.5 -right-0.5 shadow-xs"
-                              title="Active Member"
-                            />
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Name, Username & Phone */}
-                      <div className="space-y-1.5 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3
-                            onClick={() => router.push(`/admin/members/${member.id}`)}
-                            className={`text-base font-black transition-colors truncate tracking-tight cursor-pointer ${theme.nameHover} hover:underline`}
-                            title="Click to view detailed member IPO history & PnL"
-                          >
-                            {member.name}
-                          </h3>
-                          {theme.isFeatured && (
-                            <span className={`relative inline-flex items-center px-2.5 py-0.5 rounded-full ${theme.badgePill} text-[10px] font-mono font-bold tracking-wider uppercase shrink-0 overflow-hidden shadow-2xs`}>
-                              <span className="relative z-10 flex items-center gap-1.5">
-                                <span className={`w-1.5 h-1.5 rounded-full ${theme.badgeDot} animate-pulse`} />
-                                <span>{theme.roleBadge}</span>
-                              </span>
-                            </span>
-                          )}
                         </div>
+                      </td>
 
-                        {/* Username Tag & Phone Badge */}
-                        <div className="flex flex-wrap items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => router.push(`/admin/members/${member.id}`)}
-                            className={`inline-flex items-center gap-1 text-xs font-sans font-semibold tracking-tight px-2.5 py-0.5 rounded-lg border transition-all shadow-2xs cursor-pointer active:scale-95 ${theme.usernameTag}`}
-                            title={`Click to view member profile @${mUsername}`}
+                      {/* Username & Password */}
+                      <td className="p-4 font-mono">
+                        <div className="text-xs font-bold text-white">
+                          @{m.username || m.name.toLowerCase()}
+                        </div>
+                        <div className="text-[11px] text-slate-400">
+                          Pass: <span className="text-slate-300 font-semibold">{m.password || "••••••••"}</span>
+                        </div>
+                      </td>
+
+                      {/* Role Selector */}
+                      <td className="p-4">
+                        <div className="flex items-center gap-1.5">
+                          <span
+                            className={`px-3 py-1 rounded-full text-[10px] font-extrabold uppercase tracking-wider font-mono ${
+                              m.role === "SUPER_ADMIN"
+                                ? "bg-[#241A0B] text-[#F3B85B] border border-[#F3B85B]/40 shadow-[0_0_10px_rgba(243,184,91,0.15)]"
+                                : "bg-[#151821] text-[#9AA2B1] border border-[#252931]"
+                            }`}
                           >
-                            @{mUsername}
+                            {m.role === "SUPER_ADMIN" ? "SUPER ADMIN" : "MEMBER"}
+                          </span>
+                        </div>
+                      </td>
+
+                      {/* Status Badge */}
+                      <td className="p-4">
+                        <button
+                          onClick={() => handleToggleStatus(m)}
+                          className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[11px] font-bold cursor-pointer transition-all ${
+                            isSuspended
+                              ? "bg-[#32191B] text-[#FF6B6B] border border-[#FF6B6B]/30 hover:bg-[#3D1E20]"
+                              : "bg-[#0B2117] text-[#32C98B] border border-[#32C98B]/30 hover:bg-[#102D20]"
+                          }`}
+                        >
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full ${
+                              isSuspended ? "bg-rose-500" : "bg-emerald-400"
+                            }`}
+                          />
+                          <span>{isSuspended ? "SUSPENDED" : "ACTIVE"}</span>
+                        </button>
+                      </td>
+
+                      {/* Action Buttons */}
+                      <td className="p-4 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* View Full History & Profits */}
+                          <button
+                            onClick={() => router.push(`/admin/members/${m.id}`)}
+                            title="View Detailed IPO History, Lots & Profits"
+                            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#1E232B] transition-colors cursor-pointer"
+                          >
+                            <Eye size={16} />
+                          </button>
+                          {/* Manage Permissions */}
+                          <button
+                            onClick={() => handleOpenPermissions(m)}
+                            title="Manage Permissions"
+                            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#1E232B] transition-colors cursor-pointer"
+                          >
+                            <Shield size={16} />
                           </button>
 
-                          <div className={`inline-flex items-center gap-1 text-[11px] font-sans font-medium px-2.5 py-0.5 rounded-lg border shadow-2xs ${theme.phoneTag}`}>
-                            <Phone size={11} className={theme.phoneIcon} /> {mPhone}
-                          </div>
+                          {/* View Activity */}
+                          <button
+                            onClick={() => setActivityMember(m)}
+                            title="View User Activity"
+                            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#1E232B] transition-colors cursor-pointer"
+                          >
+                            <ClockCountdown size={16} />
+                          </button>
+
+                          {/* Reset Password */}
+                          {isSuperAdmin && (
+                            <button
+                              onClick={() => {
+                                setResetPassMember(m);
+                                setCustomResetPass(m.password || "");
+                              }}
+                              title="Reset Password"
+                              className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#1E232B] transition-colors cursor-pointer"
+                            >
+                              <Key size={16} />
+                            </button>
+                          )}
+
+                          {/* Revoke Sessions */}
+                          <button
+                            onClick={() => handleRevokeSessions(m)}
+                            title="Revoke Sessions"
+                            className="p-2 rounded-lg text-slate-400 hover:text-white hover:bg-[#1E232B] transition-colors cursor-pointer"
+                          >
+                            <LockKey size={16} />
+                          </button>
+
+                          {/* Assign Role Toggle Quick Button */}
+                          <button
+                            onClick={() => handleAssignRole(m, m.role === "ADMIN" ? "MEMBER" : "ADMIN")}
+                            title={m.role === "ADMIN" ? "Demote to Member" : "Promote to Admin"}
+                            className="px-3 py-1 rounded-lg text-xs font-semibold border border-[#252931] bg-[#151821] text-slate-300 hover:bg-[#1E232B] hover:text-white transition-colors cursor-pointer"
+                          >
+                            {m.role === "ADMIN" ? "Demote" : "Promote"}
+                          </button>
                         </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Clean Stats Grid */}
-                  <div className="grid grid-cols-2 gap-2.5 pt-1">
-                    {theme.roleBadge === "SUPER ADMIN" || member.role === "SUPER_ADMIN" ? (
-                      <div className={`p-3 rounded-xl border transition-all space-y-1 ${theme.statsCard}`}>
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-[#858D99] uppercase tracking-wider">
-                          <ShieldCheck size={13} className={theme.statsIcon} />
-                          <span>Platform Role</span>
-                        </div>
-                        <p className={`text-xs font-extrabold font-sans truncate mt-0.5 ${theme.statsVal}`}>
-                          Super Admin
-                        </p>
-                      </div>
-                    ) : (
-                      <div className={`p-3 rounded-xl border transition-all space-y-1 ${theme.statsCard}`}>
-                        <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-[#858D99] uppercase tracking-wider">
-                          <TrendUp size={13} className={theme.statsIcon} />
-                          <span>IPOs Applied</span>
-                        </div>
-                        <p className={`text-base font-black font-sans ${theme.statsVal}`}>
-                          {appliedCount}{" "}
-                          <span className="text-xs text-slate-400 font-sans font-normal">
-                            {appliedCount === 1 ? "IPO" : "IPOs"}
-                          </span>
-                        </p>
-                      </div>
-                    )}
-
-                    <div className={`p-3 rounded-xl border transition-all space-y-1 ${theme.statsCard}`}>
-                      <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-400 dark:text-[#858D99] uppercase tracking-wider">
-                        <CalendarBlank size={13} className={theme.statsIcon} />
-                        <span>Member Since</span>
-                      </div>
-                      <p className={`text-xs font-bold truncate mt-0.5 ${theme.statsMuted}`}>
-                        {member.joinedAt || "Jan 2025"}
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Footer Controls */}
-                <div className={`pt-4 mt-4 border-t flex items-center justify-between text-xs ${theme.footerBorder}`}>
-                  <span className={`px-2.5 py-1 rounded-lg border text-xs font-semibold flex items-center gap-1.5 shadow-2xs ${theme.verifiedBadge}`}>
-                    <ShieldCheck size={14} className={theme.verifiedIcon} /> Verified Member
-                  </span>
-
-                  <div className="flex items-center gap-1.5">
-                    {member.id === currentUser?.id ? (
-                      <span className={`px-3 py-1 rounded-xl font-bold text-xs border ${theme.youBadge}`}>
-                        You
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => openDirectChatWithUser(member.id)}
-                        className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${theme.messageBtn}`}
-                        title={`Message @${mUsername}`}
-                      >
-                        <ChatCircleDots size={14} weight="bold" />
-                        <span>Message</span>
-                        <span className="text-white/80 font-sans font-normal">→</span>
-                      </button>
-                    )}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* ═══ MODAL 1: CREATE USER ═══ */}
       {isCreateModalOpen && (
