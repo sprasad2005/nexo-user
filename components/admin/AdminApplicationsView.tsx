@@ -27,13 +27,7 @@ export function AdminApplicationsView() {
   const { ipos, activeApplicationIpo, updateApplication, deleteApplication, updateRegistrarUrl } = useNexo();
 
   // Filter & Search State
-  const [selectedIpoId, setSelectedIpoId] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("nexo_admin_selected_ipo_id");
-      if (stored) return stored;
-    }
-    return "";
-  });
+  const [selectedIpoId, setSelectedIpoId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<"ALL" | AllotmentStatus>("ALL");
 
@@ -83,21 +77,7 @@ export function AdminApplicationsView() {
     }
   }, [ipos, activeApplicationIpo, selectedIpoId]);
 
-  const [fetchedApps, setFetchedApps] = useState<any[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const storedIpoId = localStorage.getItem("nexo_admin_selected_ipo_id");
-        if (storedIpoId) {
-          const cached = localStorage.getItem(`nexo_admin_apps_${storedIpoId}`);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-          }
-        }
-      } catch {}
-    }
-    return [];
-  });
+  const [fetchedApps, setFetchedApps] = useState<any[]>([]);
 
   // Fetch complete merged applications for selected IPO from API
   useEffect(() => {

@@ -58,41 +58,10 @@ export interface IPOItem {
 
 export function AllotmentManagementView() {
   // Data states
-  const [ipos, setIpos] = useState<IPOItem[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem("nexo_cached_admin_allotment_ipos");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch {}
-    }
-    return [];
-  });
-  const [selectedIpoId, setSelectedIpoId] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem("nexo_admin_selected_ipo_id");
-      if (stored) return stored;
-    }
-    return "";
-  });
+  const [ipos, setIpos] = useState<IPOItem[]>([]);
+  const [selectedIpoId, setSelectedIpoId] = useState<string>("");
   const [selectedIpo, setSelectedIpo] = useState<IPOItem | null>(null);
-  const [applications, setApplications] = useState<ApplicationItem[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const storedIpoId = localStorage.getItem("nexo_admin_selected_ipo_id");
-        if (storedIpoId) {
-          const cached = localStorage.getItem(`nexo_admin_apps_${storedIpoId}`);
-          if (cached) {
-            const parsed = JSON.parse(cached);
-            if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-          }
-        }
-      } catch {}
-    }
-    return [];
-  });
+  const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<string>("ADMIN");
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isAppsLoading, setIsAppsLoading] = useState<boolean>(false);
@@ -201,6 +170,19 @@ export function AllotmentManagementView() {
   };
 
   useEffect(() => {
+    try {
+      const storedIpoId = localStorage.getItem("nexo_admin_selected_ipo_id");
+      if (storedIpoId) {
+        setSelectedIpoId(storedIpoId);
+      }
+      const cachedIpos = localStorage.getItem("nexo_cached_admin_allotment_ipos");
+      if (cachedIpos) {
+        const parsed = JSON.parse(cachedIpos);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setIpos(parsed);
+        }
+      }
+    } catch {}
     fetchIpos();
   }, []);
 

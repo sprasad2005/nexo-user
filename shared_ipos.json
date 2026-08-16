@@ -1,5 +1,95 @@
 [
   {
+    "id": "ipo_1786888328015",
+    "applications": [],
+    "category": "Mainboard",
+    "combinedCapital": 0,
+    "company": "tata",
+    "createdBy": "Shivam Prasad",
+    "isHidden": false,
+    "logo": "TA",
+    "metrics": {
+      "issueSize": "₹2,400 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 18.5,
+      "openDate": "1 Aug 2026",
+      "closeDate": "2 Aug 2026",
+      "allotmentDate": "3 Sep 2026",
+      "listingDate": "4 Sep 2026",
+      "fundUnblockDate": "9 Sep 2026"
+    },
+    "name": "tata",
+    "participantsCount": 0,
+    "recommendation": "APPLY",
+    "status": "APPLICATION_OPEN",
+    "thesis": "djdjn"
+  },
+  {
+    "id": "ipo_1786888325722",
+    "applications": [],
+    "category": "Mainboard",
+    "combinedCapital": 0,
+    "company": "tata",
+    "createdBy": "Shivam Prasad",
+    "isHidden": false,
+    "logo": "TA",
+    "metrics": {
+      "issueSize": "₹2,400 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 18.5,
+      "openDate": "1 Aug 2026",
+      "closeDate": "2 Aug 2026",
+      "allotmentDate": "3 Sep 2026",
+      "listingDate": "4 Sep 2026",
+      "fundUnblockDate": "9 Sep 2026"
+    },
+    "name": "tata",
+    "participantsCount": 0,
+    "recommendation": "APPLY",
+    "status": "APPLICATION_OPEN",
+    "thesis": "djdjn"
+  },
+  {
+    "id": "ipo_1786888253346",
+    "applications": [],
+    "category": "Mainboard",
+    "combinedCapital": 0,
+    "company": "offf",
+    "createdBy": "Shivam Prasad",
+    "isHidden": false,
+    "logo": "OF",
+    "metrics": {
+      "issueSize": "₹2,400 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 15000,
+      "gmpPercent": 18.5,
+      "openDate": "18 Aug 2026",
+      "closeDate": "28 Aug 2026",
+      "allotmentDate": "01 Sep 2026",
+      "listingDate": "04 Sep 2026",
+      "fundUnblockDate": "02 Sep 2026"
+    },
+    "name": "offf",
+    "participantsCount": 0,
+    "recommendation": "APPLY",
+    "status": "APPLICATION_OPEN",
+    "thesis": "dsmn mdn"
+  },
+  {
     "id": "ipo_1786887825226",
     "applications": [],
     "category": "Mainboard",
@@ -27,7 +117,15 @@
     "participantsCount": 0,
     "recommendation": "APPLY",
     "status": "APPLICATION_OPEN",
-    "thesis": "gvhgv"
+    "thesis": "gvhgv",
+    "profitDistribution": {
+      "totalProfit": 430000,
+      "totalLots": 2,
+      "allottedLots": 2,
+      "oneLotProfit": 215000,
+      "publishedAt": "2026-08-16T13:48:26.950Z"
+    },
+    "updatedAt": "2026-08-16T13:48:27.071Z"
   },
   {
     "id": "ipo_6",

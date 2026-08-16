@@ -36,7 +36,7 @@ export function CustomSelect({
     setIsMounted(true);
   }, []);
 
-  const selectedOption = options.find((opt) => opt.value === value);
+  const selectedOption = isMounted ? options.find((opt) => opt.value === value) : null;
   const isDisabled = isMounted ? Boolean(disabled) : false;
 
   // Close dropdown when clicking outside
