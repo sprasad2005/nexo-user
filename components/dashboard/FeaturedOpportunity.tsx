@@ -4,9 +4,9 @@ import React, { useState } from "react";
 import { Card } from "../ui/Card";
 import { GMPBadge } from "../ui/Badge";
 import { Button } from "../ui/Button";
-import { formatINR, formatDate } from "@/lib/mockData";
+import { formatINR, formatDate, formatIpoAddedDateTime } from "@/lib/mockData";
 import { IPOOpportunity } from "@/types/nexo";
-import { ArrowRight, Clock, ShieldCheck, CheckCircle, Hourglass } from "@phosphor-icons/react";
+import { ArrowRight, Clock, ShieldCheck, CheckCircle, Hourglass, CalendarBlank } from "@phosphor-icons/react";
 import { IPODetailModal } from "../ipo/IPODetailModal";
 
 interface FeaturedOpportunityProps {
@@ -64,10 +64,14 @@ export function FeaturedOpportunity({ ipo, onInspect, onApply }: FeaturedOpportu
                 {/* Clickable IPO name */}
                 <button
                   onClick={() => setShowDetail(true)}
-                  className="text-left text-h4 font-bold text-ink hover:text-accent transition-colors tracking-tight cursor-pointer"
+                  className="text-left text-h4 font-bold text-ink hover:text-accent transition-colors tracking-tight cursor-pointer block"
                 >
                   {ipo.name}
                 </button>
+                <div className="flex items-center gap-1 text-[11px] font-medium text-ink-muted mt-0.5">
+                  <Clock size={12} className="text-accent shrink-0" />
+                  <span>Added: <strong className="text-ink font-mono font-bold">{formatIpoAddedDateTime(ipo)}</strong></span>
+                </div>
               </div>
             </div>
 

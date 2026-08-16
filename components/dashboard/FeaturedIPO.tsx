@@ -4,7 +4,7 @@ import React from "react";
 import { Card } from "../ui/Card";
 import { GMPBadge } from "../ui/Badge";
 import { Button } from "../ui/Button";
-import { formatINR, formatDate } from "@/lib/mockData";
+import { formatINR, formatDate, formatIpoAddedDateTime } from "@/lib/mockData";
 import { IPOOpportunity } from "@/types/nexo";
 import { ArrowRight, Clock, ShieldCheck } from "@phosphor-icons/react";
 
@@ -41,6 +41,10 @@ export function FeaturedIPO({ ipo, onInspect }: FeaturedIPOProps) {
               <h3 className="text-h2 font-semibold text-ink group-hover:text-accent transition-colors mt-1">
                 {ipo.name}
               </h3>
+              <div className="flex items-center gap-1 text-[11px] font-medium text-ink-muted mt-0.5">
+                <Clock size={12} className="text-accent shrink-0" />
+                <span>Added: <strong className="text-ink font-mono font-bold">{formatIpoAddedDateTime(ipo)}</strong></span>
+              </div>
             </div>
           </div>
 

@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo } from "react";
 import { useNexo } from "@/context/NexoContext";
-import { formatINR, formatApplicantNames } from "@/lib/mockData";
+import { formatINR, formatApplicantNames, formatIpoAddedDateTime } from "@/lib/mockData";
 import {
   X,
   CheckCircle,
@@ -15,6 +15,7 @@ import {
   Trash,
   Scales,
   Coins,
+  Clock,
 } from "@phosphor-icons/react";
 
 
@@ -391,9 +392,14 @@ export function ApplicationModal() {
                   Open
                 </span>
               </div>
-              <p className="text-xs text-ink-tertiary font-medium">
-                Official IPO Application Form
-              </p>
+                <div className="flex items-center gap-2 text-xs text-ink-tertiary font-medium">
+                  <span>Official IPO Application Form</span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 font-mono text-accent">
+                    <Clock size={12} className="shrink-0" />
+                    Added: {formatIpoAddedDateTime(activeApplicationIpo)}
+                  </span>
+                </div>
             </div>
           </div>
 

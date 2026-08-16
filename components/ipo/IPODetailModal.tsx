@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { IPOOpportunity } from "@/types/nexo";
-import { formatINR } from "@/lib/mockData";
+import { formatINR, formatIpoAddedDateTime } from "@/lib/mockData";
 import { useNexo } from "@/context/NexoContext";
 import { Button } from "../ui/Button";
 import { EditIPOModal } from "./EditIPOModal";
@@ -16,6 +16,7 @@ import {
   Info,
   PencilSimple,
   Archive,
+  Clock,
 } from "@phosphor-icons/react";
 
 interface IPODetailModalProps {
@@ -207,6 +208,10 @@ export function IPODetailModal({ ipo, isOpen, onClose, onApply }: IPODetailModal
                   {ipo.name}
                 </h1>
                 <p className="text-small text-ink-secondary font-normal mt-0.5">{ipo.company}</p>
+                <div className="flex items-center gap-1 text-[11px] font-mono text-accent mt-1">
+                  <Clock size={12} className="shrink-0" />
+                  <span>Added on: <strong>{formatIpoAddedDateTime(ipo)}</strong></span>
+                </div>
               </div>
             </div>
             <div className="sm:text-right shrink-0">
