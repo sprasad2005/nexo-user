@@ -68,29 +68,58 @@ export function AdminIPOHistoryView() {
     const list: any[] = [];
     const seenNames = new Set<string>();
 
-    // 1. From ipos state (COMPLETED, LISTED, or SOLD)
+    // 1. From ipos state (COMPLETED, LISTED, SOLD, or has profitDistribution / allotmentFinalized)
     ipos.forEach((ipo) => {
+      const dist = ipo.profitDistribution;
       const isCompleted =
         ipo.status === "COMPLETED" ||
         (ipo as any).isCompleted ||
         ipo.status === "LISTED" ||
-        ipo.status === "SOLD";
+        ipo.status === "SOLD" ||
+        Boolean(dist) ||
+        Boolean((ipo as any).allotmentFinalized);
 
-      if (isCompleted && !ipo.isHidden) {
-        seenNames.add(ipo.name.toLowerCase());
-        const lotsApplied = ipo.applications?.reduce((s, a) => s + (a.lotCount || (a as any).lotsCount || 1), 0) || 1;
-        const lotsAllotted = ipo.applications?.reduce(
-          (s, a) => s + (a.allotmentStatus === "ALLOTTED" ? (a as any).allottedLotsCount || a.lotCount || 1 : 0),
-          0
-        ) || 1;
-        const totalProfit = ipo.applications?.reduce(
-          (s, a) =>
-            s +
-            (a.allotmentStatus === "ALLOTTED"
-              ? Math.round((a.totalContribution || 15000) * ((ipo.metrics?.gmpPercent || 18.5) / 100))
-              : 0),
-          0
-        ) || 15000;
+      if (isCompleted) {
+        const nameLower = ipo.name.trim().toLowerCase();
+        seenNames.add(nameLower);
+
+        const totalProfit =
+          dist?.totalProfit !== undefined
+            ? dist.totalProfit
+            : ipo.applications?.reduce(
+                (s, a) =>
+                  s +
+                  (a.allotmentStatus === "ALLOTTED"
+                    ? Math.round((a.totalContribution || 15000) * ((ipo.metrics?.gmpPercent || 18.5) / 100))
+                    : 0),
+                0
+              ) || 15000;
+
+        const lotsApplied =
+          dist?.totalLots !== undefined
+            ? dist.totalLots
+            : ipo.applications?.reduce((s, a) => s + (a.lotCount || (a as any).lotsCount || 1), 0) || 1;
+
+        const lotsAllotted =
+          dist?.allottedLots !== undefined
+            ? dist.allottedLots
+            : ipo.applications?.reduce(
+                (s, a) => s + (a.allotmentStatus === "ALLOTTED" ? (a as any).allottedLotsCount || a.lotCount || 1 : 0),
+                0
+              ) || 1;
+
+        const oneLotProfit =
+          dist?.oneLotProfit !== undefined
+            ? dist.oneLotProfit
+            : (lotsAllotted > 0 ? Math.round(totalProfit / lotsAllotted) : totalProfit);
+
+        const formattedListingDate = dist?.publishedAt
+          ? new Date(dist.publishedAt).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : (ipo.metrics?.listingDate || ipo.metrics?.closeDate || "16 Aug 2026");
 
         list.push({
           ...ipo,
@@ -98,27 +127,42 @@ export function AdminIPOHistoryView() {
           displayLotsApplied: lotsApplied,
           displayLotsAllotted: lotsAllotted,
           displayProfit: totalProfit,
-          oneLotProfit: lotsAllotted > 0 ? Math.round(totalProfit / lotsAllotted) : totalProfit,
-          memberBreakdown: (ipo.applications || []).map((app) => ({
-            id: app.id,
-            memberId: app.memberId,
-            memberName: app.applicantName || (app as any).memberName || "Member",
-            lotsApplied: app.lotCount || (app as any).lotsCount || 1,
-            lotsAllotted: app.allotmentStatus === "ALLOTTED" ? (app as any).allottedLotsCount || app.lotCount || 1 : 0,
-            status: app.allotmentStatus,
-            profit:
-              app.allotmentStatus === "ALLOTTED"
-                ? Math.round((app.totalContribution || 15000) * ((ipo.metrics?.gmpPercent || 18.5) / 100))
-                : 0,
-          })),
+          oneLotProfit,
+          metrics: {
+            ...ipo.metrics,
+            listingDate: formattedListingDate,
+          },
+          memberBreakdown: (dist as any)?.memberPayouts
+            ? (dist as any).memberPayouts.map((p: any) => ({
+                id: `pay_${p.memberId}`,
+                memberId: p.memberId,
+                memberName: p.name || "Member",
+                lotsApplied: p.lots || 1,
+                lotsAllotted: p.lots || 1,
+                status: "ALLOTTED",
+                profit: p.profit || 0,
+              }))
+            : (ipo.applications || []).map((app) => ({
+                id: app.id,
+                memberId: app.memberId,
+                memberName: app.applicantName || (app as any).memberName || "Member",
+                lotsApplied: app.lotCount || (app as any).lotsCount || 1,
+                lotsAllotted: app.allotmentStatus === "ALLOTTED" ? (app as any).allottedLotsCount || app.lotCount || 1 : 0,
+                status: app.allotmentStatus,
+                profit:
+                  app.allotmentStatus === "ALLOTTED"
+                    ? Math.round((app.totalContribution || 15000) * ((ipo.metrics?.gmpPercent || 18.5) / 100))
+                    : 0,
+              })),
         });
       }
     });
 
-    // 2. From listed track records
+    // 2. From listed track records (including Lalitha Jwellers, xyz, jhgjhg)
     listedIpos.forEach((item) => {
-      if (!seenNames.has(item.name.toLowerCase())) {
-        seenNames.add(item.name.toLowerCase());
+      const nameLower = item.name.trim().toLowerCase();
+      if (!seenNames.has(nameLower)) {
+        seenNames.add(nameLower);
         list.push({
           id: item.id || `listed_${item.name}`,
           name: item.name,
@@ -129,13 +173,13 @@ export function AdminIPOHistoryView() {
           metrics: {
             issueSize: "—",
             gmpPercent: item.oneLotProfit ? Math.round((item.oneLotProfit / (item.lotPrice || 15000)) * 100) : 18.5,
-            closeDate: item.listingDate || "Completed",
-            listingDate: item.listingDate || "Completed",
+            closeDate: item.listingDate || "16 Aug 2026",
+            listingDate: item.listingDate || "16 Aug 2026",
           },
-          displayLotsApplied: item.lotsApplied || 1,
+          displayLotsApplied: item.lotsApplied || item.lotsAllotted || 1,
           displayLotsAllotted: item.lotsAllotted || 1,
           displayProfit: item.totalProfit || 15000,
-          oneLotProfit: item.oneLotProfit || item.totalProfit || 15000,
+          oneLotProfit: item.oneLotProfit || (item.lotsAllotted ? Math.round(item.totalProfit / item.lotsAllotted) : item.totalProfit) || 15000,
           memberBreakdown: (item.userProfits || []).map((u) => ({
             id: `usr_${u.memberId}`,
             memberId: u.memberId,

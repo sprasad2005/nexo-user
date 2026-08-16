@@ -57,54 +57,100 @@ export function AdminIPOHistoryView() {
   };
 
   const historicalIpos = useMemo(() => {
-    return ipos
-      .filter((ipo) => {
-        const isCompleted =
-          ipo.status === "COMPLETED" ||
-          (ipo as any).isCompleted ||
-          ipo.status === "LISTED" ||
-          ipo.status === "SOLD";
-        return isCompleted && !ipo.isHidden;
-      })
-      .map((ipo) => {
-        const lotsApplied =
-          ipo.applications?.reduce((s, a) => s + (a.lotsCount || (a as any).lotCount || 1), 0) || 1;
-        const lotsAllotted =
-          ipo.applications?.reduce(
-            (s, a) =>
-              s + (a.allotmentStatus === "ALLOTTED" ? a.allottedLotsCount || a.lotsCount || 1 : 0),
-            0
-          ) || 1;
-        const totalProfit =
-          ipo.applications?.reduce(
-            (s, a) =>
-              s +
-              (a.allotmentStatus === "ALLOTTED"
-                ? Math.round((a.totalContribution || 15000) * ((ipo.metrics?.gmpPercent || 18.5) / 100))
-                : 0),
-            0
-          ) || 15000;
+    const list: any[] = [];
+    const seenNames = new Set<string>();
 
-        return {
+    // 1. From ipos state
+    ipos.forEach((ipo) => {
+      const dist = ipo.profitDistribution;
+      const isCompleted =
+        ipo.status === "COMPLETED" ||
+        (ipo as any).isCompleted ||
+        ipo.status === "LISTED" ||
+        ipo.status === "SOLD" ||
+        Boolean(dist) ||
+        Boolean((ipo as any).allotmentFinalized);
+
+      if (isCompleted) {
+        const nameLower = ipo.name.trim().toLowerCase();
+        seenNames.add(nameLower);
+
+        const totalProfit =
+          dist?.totalProfit !== undefined
+            ? dist.totalProfit
+            : ipo.applications?.reduce(
+                (s, a) =>
+                  s +
+                  (a.allotmentStatus === "ALLOTTED"
+                    ? Math.round((a.totalContribution || 15000) * ((ipo.metrics?.gmpPercent || 18.5) / 100))
+                    : 0),
+                0
+              ) || 15000;
+
+        const lotsApplied =
+          dist?.totalLots !== undefined
+            ? dist.totalLots
+            : ipo.applications?.reduce((s, a) => s + (a.lotsCount || (a as any).lotCount || 1), 0) || 1;
+
+        const lotsAllotted =
+          dist?.allottedLots !== undefined
+            ? dist.allottedLots
+            : ipo.applications?.reduce(
+                (s, a) =>
+                  s + (a.allotmentStatus === "ALLOTTED" ? a.allottedLotsCount || a.lotsCount || 1 : 0),
+                0
+              ) || 1;
+
+        const oneLotProfit =
+          dist?.oneLotProfit !== undefined
+            ? dist.oneLotProfit
+            : (lotsAllotted > 0 ? Math.round(totalProfit / lotsAllotted) : totalProfit);
+
+        const formattedListingDate = dist?.publishedAt
+          ? new Date(dist.publishedAt).toLocaleDateString("en-GB", {
+              day: "2-digit",
+              month: "short",
+              year: "numeric",
+            })
+          : (ipo.metrics?.listingDate || ipo.metrics?.closeDate || "16 Aug 2026");
+
+        list.push({
           ...ipo,
           displayLotsApplied: lotsApplied,
           displayLotsAllotted: lotsAllotted,
           displayProfit: totalProfit,
-          oneLotProfit: lotsAllotted > 0 ? Math.round(totalProfit / lotsAllotted) : totalProfit,
-          memberBreakdown: (ipo.applications || []).map((app) => ({
-            id: app.id,
-            memberId: app.memberId,
-            memberName: app.applicantName || "Member",
-            lotsApplied: app.lotsCount || 1,
-            lotsAllotted: app.allotmentStatus === "ALLOTTED" ? app.allottedLotsCount || app.lotsCount || 1 : 0,
-            status: app.allotmentStatus,
-            profit:
-              app.allotmentStatus === "ALLOTTED"
-                ? Math.round((app.totalContribution || 15000) * ((ipo.metrics?.gmpPercent || 18.5) / 100))
-                : 0,
-          })),
-        };
-      });
+          oneLotProfit,
+          metrics: {
+            ...ipo.metrics,
+            listingDate: formattedListingDate,
+          },
+          memberBreakdown: (dist as any)?.memberPayouts
+            ? (dist as any).memberPayouts.map((p: any) => ({
+                id: `pay_${p.memberId}`,
+                memberId: p.memberId,
+                memberName: p.name || "Member",
+                lotsApplied: p.lots || 1,
+                lotsAllotted: p.lots || 1,
+                status: "ALLOTTED",
+                profit: p.profit || 0,
+              }))
+            : (ipo.applications || []).map((app) => ({
+                id: app.id,
+                memberId: app.memberId,
+                memberName: app.applicantName || "Member",
+                lotsApplied: app.lotsCount || 1,
+                lotsAllotted: app.allotmentStatus === "ALLOTTED" ? app.allottedLotsCount || app.lotsCount || 1 : 0,
+                status: app.allotmentStatus,
+                profit:
+                  app.allotmentStatus === "ALLOTTED"
+                    ? Math.round((app.totalContribution || 15000) * ((ipo.metrics?.gmpPercent || 18.5) / 100))
+                    : 0,
+              })),
+        });
+      }
+    });
+
+    return list;
   }, [ipos]);
 
   const filteredHistory = useMemo(() => {
