@@ -137,6 +137,8 @@ export interface IPOOpportunity {
   isHidden?: boolean;
   isFeatured?: boolean;
   closeCountdown?: string;
+  createdAt?: string;
+  addedAt?: string;
   profitDistribution?: {
     totalProfit: number;
     totalLots: number;

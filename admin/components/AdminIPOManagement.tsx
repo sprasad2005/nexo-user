@@ -7,6 +7,7 @@ import { Plus, Trash, CheckCircle, Buildings, PencilSimple, Clock, CalendarBlank
 import { AddIPODrawer } from "./AddIPODrawer";
 import { EditIPODrawer } from "./EditIPODrawer";
 import { GMPBadge } from "../../components/ui/Badge";
+import { formatIpoAddedDateTime } from "@/lib/mockData";
 
 export function AdminIPOManagement() {
   const { ipos, removeIPO } = useAdmin();
@@ -139,6 +140,10 @@ export function AdminIPOManagement() {
                           <h3 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight">
                             {ipo.name}
                           </h3>
+                          <div className="flex items-center gap-1.5 text-[11px] font-medium text-slate-500 dark:text-[#858D99] mt-0.5">
+                            <Clock size={12} className="text-blue-500 dark:text-[#6B93FF] shrink-0" />
+                            <span>Added: <strong className="text-slate-700 dark:text-[#E2E8F0] font-mono font-bold">{formatIpoAddedDateTime(ipo)}</strong></span>
+                          </div>
                         </div>
                       </div>
 

@@ -3,8 +3,9 @@
 import React from "react";
 import { Card } from "../ui/Card";
 import { StatusBadge, RecommendationBadge } from "../ui/Badge";
-import { formatINR, formatDate } from "@/lib/mockData";
+import { formatINR, formatDate, formatIpoAddedDateTime } from "@/lib/mockData";
 import { IPOOpportunity } from "@/types/nexo";
+import { Clock } from "@phosphor-icons/react";
 
 interface IPOPipelineProps {
   ipos: IPOOpportunity[];
@@ -52,6 +53,10 @@ export function IPOPipeline({ ipos, onInspect, onViewAll }: IPOPipelineProps) {
                   </h4>
                   <div className="text-[11px] text-[#64748B] font-medium truncate">
                     {ipo.company}
+                  </div>
+                  <div className="flex items-center gap-1 text-[10px] font-mono text-accent mt-0.5">
+                    <Clock size={11} className="shrink-0" />
+                    <span>Added: {formatIpoAddedDateTime(ipo)}</span>
                   </div>
                 </div>
                 <StatusBadge status={ipo.status} size="sm" />

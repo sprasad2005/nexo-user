@@ -6,8 +6,8 @@ import { StatusBadge, RecommendationBadge } from "../ui/Badge";
 import { Button } from "../ui/Button";
 import { LifecycleBar } from "../ui/LifecycleBar";
 import { MaskedPAN } from "../ui/MaskedPAN";
-import { formatINR, formatDate } from "@/lib/mockData";
-import { X, UserPlus, ShieldCheck, PencilSimple, Archive, ChatCircleDots } from "@phosphor-icons/react";
+import { formatINR, formatDate, formatIpoAddedDateTime } from "@/lib/mockData";
+import { X, UserPlus, ShieldCheck, PencilSimple, Archive, ChatCircleDots, Clock } from "@phosphor-icons/react";
 import { EditIPOModal } from "../ipo/EditIPOModal";
 import { ArchiveIPOModal } from "../ipo/ArchiveIPOModal";
 
@@ -41,8 +41,13 @@ export function IPODetailDrawer() {
                   </h2>
                   <StatusBadge status={selectedIpo.status} size="sm" />
                 </div>
-                <div className="text-xs text-ink-secondary font-normal">
-                  {selectedIpo.company}
+                <div className="text-xs text-ink-secondary font-normal flex items-center gap-1.5 mt-0.5">
+                  <span>{selectedIpo.company}</span>
+                  <span>•</span>
+                  <span className="flex items-center gap-1 text-[11px] font-mono text-accent">
+                    <Clock size={12} className="shrink-0" />
+                    Added: {formatIpoAddedDateTime(selectedIpo)}
+                  </span>
                 </div>
               </div>
             </div>

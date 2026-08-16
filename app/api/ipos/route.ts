@@ -325,6 +325,8 @@ export async function POST(req: NextRequest) {
       participantsCount: 0,
       combinedCapital: 0,
       applications: [],
+      createdAt: new Date().toISOString(),
+      addedAt: new Date().toISOString(),
     };
 
     const updated = [newIpo, ...allIpos];

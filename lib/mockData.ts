@@ -168,6 +168,36 @@ export function formatDate(d?: string | null): string {
 }
 
 /**
+ * Formats the exact creation date & time for an IPO.
+ * e.g. "16 Aug 2026, 07:44 PM"
+ */
+export function formatIpoAddedDateTime(ipo?: { createdAt?: string; addedAt?: string; id?: string } | null): string {
+  if (!ipo) return "—";
+  let dateObj: Date | null = null;
+  const rawDate = ipo.createdAt || ipo.addedAt;
+  if (rawDate) {
+    const d = new Date(rawDate);
+    if (!isNaN(d.getTime())) dateObj = d;
+  }
+  if (!dateObj && ipo.id && ipo.id.startsWith("ipo_")) {
+    const ts = parseInt(ipo.id.replace("ipo_", ""), 10);
+    if (!isNaN(ts) && ts > 1000000000000) {
+      dateObj = new Date(ts);
+    }
+  }
+  if (!dateObj) return "Recently added";
+
+  return dateObj.toLocaleString("en-IN", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
+/**
  * Formats applicant / contributor names.
  * If 2 users combined applied: "@user1 & @user2"
  * If 3+ users combined applied: "@user1, @user2 & @user3"
