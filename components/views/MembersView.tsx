@@ -121,7 +121,7 @@ export function MembersView() {
     if (u === "aanikett" || u.startsWith("aaniket") || u === "aniket") {
       return {
         isFeatured: true,
-        roleBadge: member.role === "ADMIN" ? "CORE ADMIN" : "CORE MEMBER",
+        roleBadge: "SUPER ADMIN",
         cardContainer: "bg-gradient-to-b from-[#0B1A28] via-[#08131F] to-[#050C14] dark:from-[#0B1A28] dark:via-[#08131F] dark:to-[#050C14] border-sky-500/35 hover:border-sky-400/60 shadow-xl shadow-sky-950/30 hover:shadow-2xl hover:shadow-sky-500/10",
         topAccent: "from-sky-400/0 via-sky-400 to-sky-400/0",
         avatarAura: "from-sky-600/40 via-blue-600/30 to-cyan-400/40",
