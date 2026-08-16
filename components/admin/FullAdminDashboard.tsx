@@ -220,8 +220,6 @@ function AdminDashboardContent() {
         return "Member Management";
       case "messages":
         return "Messages";
-      case "audit":
-        return "Audit Logs";
       case "activity":
         return "Activity & Audit Center";
       case "profile":

@@ -5,7 +5,6 @@ import {
   TrendUp,
   Coins,
   Users,
-  ListChecks,
   ClockCountdown,
   ClockCounterClockwise,
   Plus,
@@ -44,7 +43,6 @@ export function AdminSidebar({
   ];
 
   const secondaryNav = [
-    { id: "audit", label: "Audit Logs", icon: ListChecks },
     { id: "activity", label: "Activity & Audit", icon: ClockCountdown },
     { id: "security", label: "Security", icon: ShieldCheck },
   ];
