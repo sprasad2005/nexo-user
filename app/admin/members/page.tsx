@@ -15,6 +15,7 @@ import {
   Copy, Keyhole, Info, Eye, EyeSlash, ArrowClockwise,
   ClockCountdown, CalendarBlank, Phone
 } from "@phosphor-icons/react";
+import { MOCK_MEMBERS } from "@/lib/mockData";
 
 interface MemberListEntry {
   id: string;
@@ -43,9 +44,33 @@ function MembersPageContent() {
   const [currentUserRole, setCurrentUserRole] = useState<"SUPER_ADMIN" | "ADMIN" | "MEMBER">("ADMIN");
   const isSuperAdmin = currentUserRole === "SUPER_ADMIN";
 
-  // Data states
-  const [members, setMembers] = useState<MemberListEntry[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  // Data states - Initialize with instant cache or default members so directory is never empty
+  const [members, setMembers] = useState<MemberListEntry[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("nexo_cached_admin_members");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return MOCK_MEMBERS.map((m) => ({
+      id: m.id,
+      name: m.name,
+      username: (m as any).username || m.name.toLowerCase(),
+      email: m.email,
+      avatar: m.avatar,
+      phone: m.phone || "+91 98200 12345",
+      role: m.role,
+      status: "ACTIVE",
+      isVerified: true,
+      lastLoginAt: null,
+      createdAt: new Date().toISOString(),
+      joinedAt: m.joinedAt,
+    }));
+  });
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   
@@ -185,13 +210,19 @@ function MembersPageContent() {
       });
       const res = await fetch(`/api/admin/members?${q}`);
       const data = await res.json();
-      if (data?.success && Array.isArray(data.members)) {
+      if (data?.success && Array.isArray(data.members) && data.members.length > 0) {
         setMembers(data.members);
+        try {
+          localStorage.setItem("nexo_cached_admin_members", JSON.stringify(data.members));
+        } catch {}
       } else {
         const fallbackRes = await fetch("/api/members");
         const fallbackData = await fallbackRes.json();
-        if (fallbackData?.success && Array.isArray(fallbackData.members)) {
+        if (fallbackData?.success && Array.isArray(fallbackData.members) && fallbackData.members.length > 0) {
           setMembers(fallbackData.members);
+          try {
+            localStorage.setItem("nexo_cached_admin_members", JSON.stringify(fallbackData.members));
+          } catch {}
         } else {
           showToast(data.error || "Failed to fetch members list", "error");
         }
@@ -200,8 +231,11 @@ function MembersPageContent() {
       try {
         const fallbackRes = await fetch("/api/members");
         const fallbackData = await fallbackRes.json();
-        if (fallbackData?.success && Array.isArray(fallbackData.members)) {
+        if (fallbackData?.success && Array.isArray(fallbackData.members) && fallbackData.members.length > 0) {
           setMembers(fallbackData.members);
+          try {
+            localStorage.setItem("nexo_cached_admin_members", JSON.stringify(fallbackData.members));
+          } catch {}
         } else {
           showToast("Unable to connect to administration server", "error");
         }

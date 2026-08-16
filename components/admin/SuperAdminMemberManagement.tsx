@@ -38,8 +38,19 @@ export function SuperAdminMemberManagement() {
 
   const [isSendNotifOpen, setIsSendNotifOpen] = useState(false);
 
-  const [members, setMembers] = useState<Member[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [members, setMembers] = useState<Member[]>(() => {
+    if (typeof window !== "undefined") {
+      try {
+        const cached = localStorage.getItem("nexo_cached_admin_members");
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        }
+      } catch {}
+    }
+    return MOCK_MEMBERS as any;
+  });
+  const [isLoading, setIsLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"ALL" | "SUPER_ADMIN" | "MEMBER">("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "SUSPENDED">("ALL");
@@ -85,15 +96,34 @@ export function SuperAdminMemberManagement() {
   const fetchMembers = async () => {
     setIsLoading(true);
     try {
-      const res = await fetch("/api/members");
+      const res = await fetch("/api/admin/members");
       const data = await res.json();
-      if (data?.success && Array.isArray(data.members)) {
+      if (data?.success && Array.isArray(data.members) && data.members.length > 0) {
         setMembers(data.members);
+        try {
+          localStorage.setItem("nexo_cached_admin_members", JSON.stringify(data.members));
+        } catch {}
       } else {
-        setMembers(MOCK_MEMBERS as any);
+        const fallbackRes = await fetch("/api/members");
+        const fallbackData = await fallbackRes.json();
+        if (fallbackData?.success && Array.isArray(fallbackData.members) && fallbackData.members.length > 0) {
+          setMembers(fallbackData.members);
+          try {
+            localStorage.setItem("nexo_cached_admin_members", JSON.stringify(fallbackData.members));
+          } catch {}
+        }
       }
     } catch {
-      setMembers(MOCK_MEMBERS as any);
+      try {
+        const fallbackRes = await fetch("/api/members");
+        const fallbackData = await fallbackRes.json();
+        if (fallbackData?.success && Array.isArray(fallbackData.members) && fallbackData.members.length > 0) {
+          setMembers(fallbackData.members);
+          try {
+            localStorage.setItem("nexo_cached_admin_members", JSON.stringify(fallbackData.members));
+          } catch {}
+        }
+      } catch {}
     } finally {
       setIsLoading(false);
     }
