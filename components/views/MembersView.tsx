@@ -89,6 +89,105 @@ export function MembersView() {
     return members.filter((m) => m.role === "SUPER_ADMIN").length;
   }, [members]);
 
+  // Featured Member Style Themes
+  const getFeaturedMemberTheme = (member: Member) => {
+    const u = (member.username || member.name || "").toLowerCase().trim();
+    
+    // Super Admin: Midnight Cobalt Sapphire
+    if (member.role === "SUPER_ADMIN" || u === "ankitgod" || u === "ankit") {
+      return {
+        isFeatured: true,
+        roleBadge: "SUPER ADMIN",
+        cardContainer: "bg-gradient-to-b from-[#0F172A] via-[#0D1322] to-[#090D17] dark:from-[#0E1629] dark:via-[#0B101E] dark:to-[#080C14] border-blue-500/35 hover:border-blue-400/60 shadow-xl shadow-blue-950/30 hover:shadow-2xl hover:shadow-blue-500/10",
+        topAccent: "from-cyan-400/0 via-blue-500 to-cyan-400/0",
+        avatarAura: "from-blue-600/40 via-indigo-600/30 to-cyan-400/40",
+        avatarRim: "from-blue-500 via-indigo-500 to-cyan-400 shadow-[0_0_18px_rgba(59,130,246,0.35)] group-hover:shadow-[0_0_26px_rgba(99,102,241,0.5)]",
+        badgePill: "bg-blue-500/15 text-blue-400 border-blue-500/30",
+        badgeDot: "bg-blue-400",
+        nameHover: "text-slate-100 group-hover:text-blue-400",
+        usernameTag: "text-blue-300 bg-blue-500/15 hover:bg-blue-500/25 border-blue-500/30",
+        phoneTag: "text-slate-300 bg-blue-950/35 border-blue-500/20",
+        phoneIcon: "text-blue-400/80",
+        statsCard: "bg-blue-950/30 dark:bg-[#11192E]/80 border-blue-500/20 group-hover:border-blue-500/35 shadow-2xs",
+        statsIcon: "text-blue-400",
+        statsVal: "text-slate-100",
+        statsMuted: "text-slate-200",
+        footerBorder: "border-blue-500/20",
+        youBadge: "bg-blue-950/50 border-blue-500/30 text-blue-300",
+      };
+    }
+
+    // aanikett: Deep Aurora Emerald / Jade
+    if (u === "aanikett" || u.startsWith("aaniket") || u === "aniket") {
+      return {
+        isFeatured: true,
+        roleBadge: member.role === "ADMIN" ? "CORE ADMIN" : "CORE MEMBER",
+        cardContainer: "bg-gradient-to-b from-[#061A14] via-[#051410] to-[#040E0B] dark:from-[#061A14] dark:via-[#051410] dark:to-[#040E0B] border-emerald-500/35 hover:border-emerald-400/60 shadow-xl shadow-emerald-950/30 hover:shadow-2xl hover:shadow-emerald-500/10",
+        topAccent: "from-teal-400/0 via-emerald-500 to-teal-400/0",
+        avatarAura: "from-emerald-600/40 via-teal-600/30 to-cyan-400/40",
+        avatarRim: "from-emerald-500 via-teal-500 to-cyan-400 shadow-[0_0_18px_rgba(16,185,129,0.35)] group-hover:shadow-[0_0_26px_rgba(20,184,166,0.5)]",
+        badgePill: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+        badgeDot: "bg-emerald-400",
+        nameHover: "text-emerald-50 group-hover:text-emerald-400",
+        usernameTag: "text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/30",
+        phoneTag: "text-emerald-200 bg-emerald-950/35 border-emerald-500/20",
+        phoneIcon: "text-emerald-400/80",
+        statsCard: "bg-emerald-950/30 dark:bg-[#07241B]/70 border-emerald-500/20 group-hover:border-emerald-500/35 shadow-2xs",
+        statsIcon: "text-emerald-400",
+        statsVal: "text-emerald-50",
+        statsMuted: "text-emerald-200/90",
+        footerBorder: "border-emerald-500/20",
+        youBadge: "bg-emerald-950/50 border-emerald-500/30 text-emerald-300",
+      };
+    }
+
+    // shivam_p: Royal Amethyst / Velvet Purple
+    if (u === "shivam_p" || u.startsWith("shivam")) {
+      return {
+        isFeatured: true,
+        roleBadge: member.role === "ADMIN" ? "CORE ADMIN" : "CORE MEMBER",
+        cardContainer: "bg-gradient-to-b from-[#180E29] via-[#120B20] to-[#0D0717] dark:from-[#180E29] dark:via-[#120B20] dark:to-[#0D0717] border-purple-500/35 hover:border-purple-400/60 shadow-xl shadow-purple-950/30 hover:shadow-2xl hover:shadow-purple-500/10",
+        topAccent: "from-fuchsia-400/0 via-purple-500 to-fuchsia-400/0",
+        avatarAura: "from-purple-600/40 via-indigo-600/30 to-fuchsia-400/40",
+        avatarRim: "from-purple-500 via-indigo-500 to-fuchsia-400 shadow-[0_0_18px_rgba(168,85,247,0.35)] group-hover:shadow-[0_0_26px_rgba(217,70,239,0.5)]",
+        badgePill: "bg-purple-500/15 text-purple-400 border-purple-500/30",
+        badgeDot: "bg-purple-400",
+        nameHover: "text-purple-50 group-hover:text-purple-400",
+        usernameTag: "text-purple-300 bg-purple-500/15 hover:bg-purple-500/25 border-purple-500/30",
+        phoneTag: "text-purple-200 bg-purple-950/35 border-purple-500/20",
+        phoneIcon: "text-purple-400/80",
+        statsCard: "bg-purple-950/30 dark:bg-[#1E1133]/70 border-purple-500/20 group-hover:border-purple-500/35 shadow-2xs",
+        statsIcon: "text-purple-400",
+        statsVal: "text-purple-50",
+        statsMuted: "text-purple-200/90",
+        footerBorder: "border-purple-500/20",
+        youBadge: "bg-purple-950/50 border-purple-500/30 text-purple-300",
+      };
+    }
+
+    // Default Member Theme
+    return {
+      isFeatured: false,
+      roleBadge: member.role === "ADMIN" ? "ADMIN" : "MEMBER",
+      cardContainer: "bg-surface dark:bg-[#101217] border-line/80 hover:border-accent/40 hover:shadow-xl hover:shadow-accent/5",
+      topAccent: "from-accent/0 via-accent to-accent/0",
+      avatarAura: "",
+      avatarRim: "",
+      badgePill: "bg-accent-soft text-accent border-accent/20",
+      badgeDot: "bg-accent",
+      nameHover: "text-ink group-hover:text-accent",
+      usernameTag: "text-accent bg-accent-soft/40 hover:bg-accent-soft border-accent/25",
+      phoneTag: "text-ink-secondary bg-surface-alt/90 border-line/80",
+      phoneIcon: "text-ink-tertiary",
+      statsCard: "bg-surface-alt/80 dark:bg-[#141721] border-line/70 group-hover:border-line",
+      statsIcon: "text-accent",
+      statsVal: "text-ink",
+      statsMuted: "text-ink-tertiary",
+      footerBorder: "border-line/80",
+      youBadge: "bg-surface-alt/90 border-line/80 text-ink-tertiary",
+    };
+  };
+
   // Filtered and sorted members list
   const filteredMembers = useMemo(() => {
     const list = members.filter((member) => {
@@ -338,19 +437,15 @@ export function MembersView() {
             const mUsername = member.username || member.name.toLowerCase();
             const mPhone = member.phone || "+91 98200 12345";
             const appliedCount = getAppliedIpoCount(member);
-            const isSuperAdminCard = member.role === "SUPER_ADMIN" || member.username === "ankitgod";
+            const theme = getFeaturedMemberTheme(member);
 
             return (
               <div
                 key={member.id}
-                className={`group relative rounded-2xl p-5 transition-all duration-300 flex flex-col justify-between overflow-hidden font-sans ${
-                  isSuperAdminCard
-                    ? "bg-gradient-to-b from-[#0F172A] via-[#0D1322] to-[#090D17] dark:from-[#0E1629] dark:via-[#0B101E] dark:to-[#080C14] border border-blue-500/30 hover:border-blue-400/60 shadow-xl shadow-blue-950/30 hover:shadow-2xl hover:shadow-blue-500/10"
-                    : "bg-surface dark:bg-[#101217] border border-line/80 hover:border-accent/40 hover:shadow-xl hover:shadow-accent/5"
-                } hover:-translate-y-1`}
+                className={`group relative rounded-2xl p-5 transition-all duration-300 flex flex-col justify-between overflow-hidden font-sans border ${theme.cardContainer} hover:-translate-y-1`}
               >
                 {/* Subtle Top Accent */}
-                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-cyan-400/0 via-blue-500 to-cyan-400/0 ${isSuperAdminCard ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity duration-300`} />
+                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${theme.topAccent} ${theme.isFeatured ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity duration-300`} />
 
                 <div className="space-y-4">
                   {/* Top Profile Header */}
@@ -358,20 +453,20 @@ export function MembersView() {
                     <div className="flex items-center gap-3.5">
                       {/* Avatar with Animated Status & Multi-Tone Frame */}
                       <div className="relative shrink-0">
-                        {isSuperAdminCard ? (
+                        {theme.isFeatured ? (
                           <div className="relative">
                             {/* Ambient Breathing Background Aura */}
-                            <div className="absolute -inset-1 rounded-2xl bg-gradient-to-tr from-blue-600/40 via-indigo-600/30 to-cyan-400/40 blur-md animate-pulse pointer-events-none opacity-80 group-hover:opacity-100 group-hover:blur-lg transition-all duration-500" />
+                            <div className={`absolute -inset-1 rounded-2xl bg-gradient-to-tr ${theme.avatarAura} blur-md animate-pulse pointer-events-none opacity-80 group-hover:opacity-100 group-hover:blur-lg transition-all duration-500`} />
                             
                             {/* Fluid Animated Gradient Border Frame */}
-                            <div className="relative p-[2.5px] rounded-2xl bg-gradient-to-tr from-blue-500 via-indigo-500 to-cyan-400 bg-[length:200%_200%] animate-[gradientShift_4s_ease_infinite] shadow-[0_0_18px_rgba(59,130,246,0.3)] group-hover:shadow-[0_0_26px_rgba(99,102,241,0.5)] transition-all duration-300">
+                            <div className={`relative p-[2.5px] rounded-2xl bg-gradient-to-tr ${theme.avatarRim} bg-[length:200%_200%] animate-[gradientShift_4s_ease_infinite] transition-all duration-300`}>
                               <div className="w-13 h-13 rounded-[13.5px] overflow-hidden bg-surface-alt relative group/img">
                                 <img
                                   src={member.avatar}
                                   alt={member.name}
                                   className="w-full h-full object-cover group-hover:scale-108 transition-transform duration-500 ease-out"
                                 />
-                                {/* Sapphire Reflection Light Streak Sweep */}
+                                {/* Reflection Light Streak Sweep */}
                                 <div className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out pointer-events-none" />
                               </div>
 
@@ -380,7 +475,7 @@ export function MembersView() {
                                 <span className="animate-ping absolute inline-flex h-3.5 w-3.5 rounded-full bg-emerald-400 opacity-75" />
                                 <span
                                   className="relative inline-flex w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-[#0F1117] shadow-[0_0_8px_rgba(16,185,129,0.8)]"
-                                  title="Super Admin Online"
+                                  title={`${member.name} Online`}
                                 />
                               </div>
                             </div>
@@ -413,22 +508,18 @@ export function MembersView() {
                                 openDirectChatWithUser(member.id);
                               }
                             }}
-                            className={`text-base font-black transition-colors truncate tracking-tight cursor-pointer ${
-                              isSuperAdminCard
-                                ? "text-slate-100 group-hover:text-blue-400 hover:underline"
-                                : "text-ink group-hover:text-accent hover:underline"
-                            }`}
+                            className={`text-base font-black transition-colors truncate tracking-tight cursor-pointer ${theme.nameHover} hover:underline`}
                             title={currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN" ? "Click to view detailed member IPO history & PnL" : `Click to message @${mUsername}`}
                           >
                             {member.name}
                           </h3>
-                          {isSuperAdminCard && (
-                            <span className="relative inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 text-[10px] font-mono font-bold tracking-wider uppercase shrink-0 overflow-hidden shadow-2xs">
+                          {theme.isFeatured && (
+                            <span className={`relative inline-flex items-center px-2.5 py-0.5 rounded-full ${theme.badgePill} text-[10px] font-mono font-bold tracking-wider uppercase shrink-0 overflow-hidden shadow-2xs`}>
                               {/* Glass shimmer beam */}
                               <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full animate-[shimmer_2.8s_infinite]" />
                               <span className="relative z-10 flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
-                                <span>SUPER ADMIN</span>
+                                <span className={`w-1.5 h-1.5 rounded-full ${theme.badgeDot} animate-pulse`} />
+                                <span>{theme.roleBadge}</span>
                               </span>
                             </span>
                           )}
@@ -439,22 +530,14 @@ export function MembersView() {
                           <button
                             type="button"
                             onClick={() => openDirectChatWithUser(member.id)}
-                            className={`inline-flex items-center gap-1 text-xs font-sans font-semibold tracking-tight px-2.5 py-0.5 rounded-lg border transition-all shadow-2xs cursor-pointer active:scale-95 ${
-                              isSuperAdminCard
-                                ? "text-blue-300 bg-blue-500/15 hover:bg-blue-500/25 border-blue-500/30"
-                                : "text-accent bg-accent-soft/40 hover:bg-accent-soft border-accent/25"
-                            }`}
+                            className={`inline-flex items-center gap-1 text-xs font-sans font-semibold tracking-tight px-2.5 py-0.5 rounded-lg border transition-all shadow-2xs cursor-pointer active:scale-95 ${theme.usernameTag}`}
                             title={`Click to chat with @${mUsername}`}
                           >
                             @{mUsername}
                           </button>
 
-                          <div className={`inline-flex items-center gap-1 text-[11px] font-sans font-medium px-2.5 py-0.5 rounded-lg border shadow-2xs ${
-                            isSuperAdminCard
-                              ? "text-slate-300 bg-blue-950/35 border-blue-500/20"
-                              : "text-ink-secondary bg-surface-alt/90 border-line/80"
-                          }`}>
-                            <Phone size={11} className={isSuperAdminCard ? "text-blue-400/80" : "text-ink-tertiary"} /> {mPhone}
+                          <div className={`inline-flex items-center gap-1 text-[11px] font-sans font-medium px-2.5 py-0.5 rounded-lg border shadow-2xs ${theme.phoneTag}`}>
+                            <Phone size={11} className={theme.phoneIcon} /> {mPhone}
                           </div>
                         </div>
                       </div>
@@ -463,16 +546,12 @@ export function MembersView() {
 
                   {/* Clean Stats Grid */}
                   <div className="grid grid-cols-2 gap-2.5 pt-1">
-                    <div className={`p-3 rounded-xl border transition-all space-y-1 ${
-                      isSuperAdminCard
-                        ? "bg-blue-950/30 dark:bg-[#11192E]/80 border-blue-500/20 group-hover:border-blue-500/35 shadow-2xs"
-                        : "bg-surface-alt/80 dark:bg-[#141721] border-line/70 group-hover:border-line"
-                    }`}>
+                    <div className={`p-3 rounded-xl border transition-all space-y-1 ${theme.statsCard}`}>
                       <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
-                        <TrendUp size={13} className={isSuperAdminCard ? "text-blue-400" : "text-accent"} />
+                        <TrendUp size={13} className={theme.statsIcon} />
                         <span>IPOs Applied</span>
                       </div>
-                      <p className={`text-base font-black font-sans ${isSuperAdminCard ? "text-slate-100" : "text-ink"}`}>
+                      <p className={`text-base font-black font-sans ${theme.statsVal}`}>
                         {appliedCount}{" "}
                         <span className="text-xs text-ink-tertiary font-sans font-normal">
                           {appliedCount === 1 ? "IPO" : "IPOs"}
@@ -480,16 +559,12 @@ export function MembersView() {
                       </p>
                     </div>
 
-                    <div className={`p-3 rounded-xl border transition-all space-y-1 ${
-                      isSuperAdminCard
-                        ? "bg-blue-950/30 dark:bg-[#11192E]/80 border-blue-500/20 group-hover:border-blue-500/35 shadow-2xs"
-                        : "bg-surface-alt/80 dark:bg-[#141721] border-line/70 group-hover:border-line"
-                    }`}>
+                    <div className={`p-3 rounded-xl border transition-all space-y-1 ${theme.statsCard}`}>
                       <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
-                        <CalendarBlank size={13} className={isSuperAdminCard ? "text-blue-400" : "text-ink-secondary"} />
+                        <CalendarBlank size={13} className={theme.statsIcon} />
                         <span>Member Since</span>
                       </div>
-                      <p className={`text-xs font-bold truncate mt-0.5 ${isSuperAdminCard ? "text-slate-200" : "text-ink"}`}>
+                      <p className={`text-xs font-bold truncate mt-0.5 ${theme.statsMuted}`}>
                         {member.joinedAt || "Jan 2025"}
                       </p>
                     </div>
@@ -497,20 +572,14 @@ export function MembersView() {
                 </div>
 
                 {/* Footer Controls */}
-                <div className={`pt-4 mt-4 border-t flex items-center justify-between text-xs ${
-                  isSuperAdminCard ? "border-blue-500/20" : "border-line/80"
-                }`}>
+                <div className={`pt-4 mt-4 border-t flex items-center justify-between text-xs ${theme.footerBorder}`}>
                   <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
                     <ShieldCheck size={14} className="text-emerald-400" /> Verified Member
                   </span>
 
                   <div className="flex items-center gap-1.5">
                     {member.id === currentUser?.id ? (
-                      <span className={`px-3 py-1 rounded-xl font-bold text-xs border ${
-                        isSuperAdminCard
-                          ? "bg-blue-950/50 border-blue-500/30 text-blue-300"
-                          : "bg-surface-alt/90 border-line/80 text-ink-tertiary"
-                      }`}>
+                      <span className={`px-3 py-1 rounded-xl font-bold text-xs border ${theme.youBadge}`}>
                         You
                       </span>
                     ) : (
