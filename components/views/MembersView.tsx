@@ -336,24 +336,34 @@ export function MembersView() {
                       {/* Avatar with Status Ring */}
                       <div className="relative shrink-0">
                         {isSuperAdminCard ? (
-                          <div className="p-[2px] rounded-2xl bg-gradient-to-tr from-blue-500 via-indigo-500 to-cyan-400 shadow-md shadow-accent/20">
-                            <img
-                              src={member.avatar}
-                              alt={member.name}
-                              className="w-12.5 h-12.5 rounded-[14px] object-cover bg-surface-alt"
+                          <div className="relative p-[2.5px] rounded-2xl bg-gradient-to-tr from-blue-500 via-indigo-500 to-cyan-400 shadow-[0_0_20px_rgba(59,130,246,0.25)] group-hover:shadow-[0_0_25px_rgba(99,102,241,0.35)] transition-all duration-300">
+                            <div className="w-13 h-13 rounded-[13.5px] overflow-hidden bg-surface-alt ring-1 ring-black/40 dark:ring-white/10">
+                              <img
+                                src={member.avatar}
+                                alt={member.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
+                            <span
+                              className="w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-surface absolute -bottom-1 -right-1 shadow-[0_0_8px_rgba(16,185,129,0.7)]"
+                              title="Super Admin Active"
                             />
                           </div>
                         ) : (
-                          <img
-                            src={member.avatar}
-                            alt={member.name}
-                            className="w-13 h-13 rounded-2xl object-cover ring-2 ring-accent/30 group-hover:ring-accent/60 bg-surface-alt transition-all duration-300 shadow-md"
-                          />
+                          <div className="relative p-[1.5px] rounded-2xl bg-surface-alt border border-line ring-1 ring-accent/20 group-hover:ring-accent/50 shadow-sm transition-all duration-300">
+                            <div className="w-13 h-13 rounded-[14px] overflow-hidden bg-surface-alt">
+                              <img
+                                src={member.avatar}
+                                alt={member.name}
+                                className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                              />
+                            </div>
+                            <span
+                              className="w-3 h-3 rounded-full bg-emerald-500 ring-2 ring-surface absolute -bottom-0.5 -right-0.5 shadow-xs"
+                              title="Active Member"
+                            />
+                          </div>
                         )}
-                        <span
-                          className="w-3.5 h-3.5 rounded-full bg-emerald-500 ring-2 ring-surface absolute -bottom-0.5 -right-0.5 shadow-xs"
-                          title="Active Member"
-                        />
                       </div>
 
                       {/* Name, Username & Phone */}
