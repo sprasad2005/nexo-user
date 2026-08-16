@@ -304,6 +304,45 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    const cleanName = name.trim();
+
+    // Enforce Unique IPO Name across all existing active and completed IPOs
+    const isDuplicate = allIpos.some(
+      (item) => item.name && item.name.trim().toLowerCase() === cleanName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      return NextResponse.json(
+        {
+          success: false,
+          error: `An IPO named "${cleanName}" already exists. IPO names must be unique.`,
+          message: `An IPO named "${cleanName}" already exists. IPO names must be unique.`,
+        },
+        { status: 400, headers: corsHeaders }
+      );
+    }
+
+    // Also check directly in MongoDB collection "ipos"
+    try {
+      const client = await clientPromise;
+      const db = client.db(DB_NAME);
+      const dbExisting = await db.collection("ipos").findOne({
+        name: { $regex: new RegExp(`^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+      });
+      if (dbExisting) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `An IPO named "${cleanName}" already exists in the database.`,
+            message: `An IPO named "${cleanName}" already exists in the database.`,
+          },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+    } catch (dbErr) {
+      console.warn("MongoDB unique name check fallback:", dbErr);
+    }
+
     const formattedIssueSize = typeof issueSize === "number" ? `₹${issueSize.toLocaleString("en-IN")} Cr` : String(issueSize);
 
     const newIpo = {

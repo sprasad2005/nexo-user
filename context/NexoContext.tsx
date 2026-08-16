@@ -1560,9 +1560,20 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     description: string;
     closeDate: string;
   }) => {
-    const activeRole = currentUser?.role || currentUserRole;
-    if (activeRole !== "ADMIN") {
-      return { success: false, message: "Unauthorized. Admin privileges required." };
+    const cleanName = (data.name || "").trim();
+    if (!cleanName) {
+      return { success: false, message: "Please provide a valid IPO name." };
+    }
+
+    const isDuplicate = ipos.some(
+      (item) => item.name && item.name.trim().toLowerCase() === cleanName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      return {
+        success: false,
+        message: `An IPO named "${cleanName}" already exists. IPO names must be unique.`,
+      };
     }
 
     const adminName = currentUser?.name || members[0]?.name || "Shivam Prasad";

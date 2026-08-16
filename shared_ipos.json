@@ -60,8 +60,45 @@
     "name": "Lalitha Jwellers",
     "participantsCount": 0,
     "recommendation": "APPLY",
-    "status": "APPLICATION_OPEN",
-    "thesis": "Apply After 2 PM"
+    "status": "ALLOTMENT_OUT",
+    "thesis": "Apply After 2 PM",
+    "allotmentFinalized": true,
+    "allotmentFinalizedAt": "2026-08-16T16:50:47.929Z",
+    "allotmentFinalizedBy": "Ankit",
+    "updatedAt": "2026-08-16T16:52:46.466Z",
+    "profitDistribution": {
+      "totalProfit": 20000,
+      "totalLots": 3,
+      "allottedLots": 2,
+      "oneLotProfit": 6667,
+      "publishedAt": "2026-08-16T16:52:46.299Z",
+      "memberPayouts": [
+        {
+          "memberId": "mem_1786680225463",
+          "name": "@user",
+          "pan": "IKXPP8988P",
+          "contribution": 30000,
+          "lots": 2,
+          "profit": 13334
+        },
+        {
+          "memberId": "mem_1786684473400",
+          "name": "@user4",
+          "pan": "IKXPP8958P",
+          "contribution": 8500,
+          "lots": 0.5666666666666667,
+          "profit": 3778
+        },
+        {
+          "memberId": "mem_1786713174555",
+          "name": "@krish",
+          "pan": "IKXPP8938P",
+          "contribution": 6500,
+          "lots": 0.43333333333333335,
+          "profit": 2889
+        }
+      ]
+    }
   },
   {
     "id": "ipo_1786897130585",

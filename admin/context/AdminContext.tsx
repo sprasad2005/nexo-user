@@ -180,6 +180,22 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     listingDate?: string;
     fundUnblockDate?: string;
   }) => {
+    const cleanName = (data.name || "").trim();
+    if (!cleanName) {
+      return { success: false, message: "Please provide a valid IPO name." };
+    }
+
+    const isDuplicate = ipos.some(
+      (item) => item.name && item.name.trim().toLowerCase() === cleanName.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      return {
+        success: false,
+        message: `An IPO named "${cleanName}" already exists. IPO names must be unique.`,
+      };
+    }
+
     try {
       const res = await fetch(API_BASE_URL, {
         method: "POST",
@@ -201,6 +217,11 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         return {
           success: true,
           message: result.message || `✓ IPO added successfully. ${data.name} is now visible to members.`,
+        };
+      } else {
+        return {
+          success: false,
+          message: result.error || result.message || `An IPO with this name already exists.`,
         };
       }
     } catch (err) {

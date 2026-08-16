@@ -101,10 +101,20 @@ export function IPOWorkspaceView() {
 
   const handleAddSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim()) return;
+    const cleanName = name.trim();
+    if (!cleanName) return;
+
+    // Check unique IPO name
+    const isExisting = listedIpos.some(
+      (item) => item.name && item.name.trim().toLowerCase() === cleanName.toLowerCase()
+    );
+    if (isExisting) {
+      alert(`An IPO named "${cleanName}" already exists. Please enter a unique name.`);
+      return;
+    }
 
     addListedIpo({
-      name: name.trim(),
+      name: cleanName,
       category,
       lotsApplied: Number(lotsApplied) || 1,
       lotsAllotted: Number(lotsAllotted) || 1,
