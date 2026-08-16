@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useNexo } from "@/context/NexoContext";
 import { MetricCard, Card } from "../ui/Card";
 import { StatusBadge } from "../ui/Badge";
@@ -63,80 +63,98 @@ export function PortfolioView() {
   const [deleteNotification, setDeleteNotification] = useState<string | null>(null);
 
   // Active user identification
-  const activeUserId = currentUser?.id || currentMember?.id;
-  const activeUserName = (currentUser?.name || currentMember?.name || "").toLowerCase().trim();
-  const activeUserUsername = (currentUser?.username || currentMember?.username || "").toLowerCase().trim();
+  const activeUserId = (currentUser?.id || "").trim();
+  const activeUserName = (currentUser?.name || "").trim().toLowerCase();
+  const activeUserUsername = (currentUser?.username || "").trim().toLowerCase();
+  const activeUserEmail = (currentUser?.email || "").trim().toLowerCase();
+
+  // Strict helper to test if a participant/applicant name belongs to the logged-in user
+  const isSelf = useCallback(
+    (val?: string) => {
+      if (!val || typeof val !== "string") return false;
+      const clean = val.trim().toLowerCase();
+      if (!clean) return false;
+      if (activeUserId && clean === activeUserId.toLowerCase()) return true;
+      if (activeUserUsername && clean === activeUserUsername) return true;
+      if (activeUserEmail && clean === activeUserEmail) return true;
+      if (activeUserName && clean === activeUserName) return true;
+
+      // Match full name parts only if length >= 3
+      if (activeUserName) {
+        const parts = activeUserName.split(/\s+/).filter((p) => p.length >= 3);
+        if (parts.includes(clean)) return true;
+      }
+      return false;
+    },
+    [activeUserId, activeUserName, activeUserUsername, activeUserEmail]
+  );
 
   // Filter transactions strictly for the active logged-in user
   const userTransactions = useMemo(() => {
+    if (!currentUser) return [];
+
     return transactions.filter((txn) => {
       // 1. Direct memberId or userId match
-      if (txn.memberId && (txn.memberId === activeUserId || txn.memberId === currentUser?.id)) {
+      if (txn.memberId && activeUserId && txn.memberId === activeUserId) {
         return true;
       }
-      if (txn.userId && (txn.userId === activeUserId || txn.userId === currentUser?.id)) {
+      if (txn.userId && activeUserId && txn.userId === activeUserId) {
         return true;
       }
 
       // 2. Participant name or username match
       if (Array.isArray(txn.participants) && txn.participants.length > 0) {
-        const matchesParticipant = txn.participants.some((p) => {
-          if (typeof p !== "string") return false;
-          const cleanP = p.toLowerCase().trim();
-          return (
-            (activeUserName && (cleanP.includes(activeUserName) || activeUserName.includes(cleanP))) ||
-            (activeUserUsername && (cleanP.includes(activeUserUsername) || activeUserUsername.includes(cleanP)))
-          );
-        });
-        if (matchesParticipant) return true;
+        const matches = txn.participants.some((p) => isSelf(p));
+        if (matches) return true;
       }
 
-      // 3. Match from IPO applications where user is a participant
+      // 3. Match from the specific IPO application corresponding to this transaction
       const matchingIpo = ipos.find((i) => i.id === txn.ipoId);
       if (matchingIpo && Array.isArray(matchingIpo.applications)) {
-        const hasUserApp = matchingIpo.applications.some((app) => {
-          if (app.memberId && (app.memberId === activeUserId || app.memberId === currentUser?.id)) return true;
-          const appName = (app.applicantName || "").toLowerCase().trim();
-          if (activeUserName && (appName.includes(activeUserName) || activeUserName.includes(appName))) return true;
-          if (activeUserUsername && (appName.includes(activeUserUsername) || activeUserUsername.includes(appName))) return true;
-          if (Array.isArray(app.participants)) {
-            return app.participants.some(
-              (p: any) =>
-                p.memberId === activeUserId ||
-                (p.memberName &&
-                  (p.memberName.toLowerCase().includes(activeUserName) ||
-                    p.memberName.toLowerCase().includes(activeUserUsername)))
-            );
-          }
-          return false;
-        });
+        const matchingApp = matchingIpo.applications.find(
+          (app) => (txn as any).applicationNumber && app.applicationNumber === txn.applicationNumber
+        );
 
-        if (hasUserApp && (txn as any).applicationNumber) {
-          return matchingIpo.applications.some((a) => a.applicationNumber === txn.applicationNumber);
+        if (matchingApp) {
+          if (matchingApp.memberId && activeUserId && matchingApp.memberId === activeUserId) return true;
+          if (isSelf(matchingApp.applicantName)) return true;
+          if (
+            Array.isArray(matchingApp.participants) &&
+            matchingApp.participants.some(
+              (p: any) =>
+                (p.memberId && activeUserId && p.memberId === activeUserId) ||
+                isSelf(p.memberName) ||
+                isSelf(p.memberUsername)
+            )
+          ) {
+            return true;
+          }
         }
       }
 
       return false;
     });
-  }, [transactions, activeUserId, activeUserName, activeUserUsername, ipos, currentUser]);
+  }, [transactions, activeUserId, isSelf, ipos, currentUser]);
 
   // Calculate individual holdings strictly from user-added/edited contributions and user's own transactions
   const myHoldings = useMemo(() => {
+    if (!currentUser) return [];
+
     return ipos.map((ipo) => {
       const explicitContrib = userContributions[ipo.id] ?? 0;
       const userApps = (ipo.applications || []).filter((app) => {
-        if (app.memberId && (app.memberId === activeUserId || app.memberId === currentUser?.id)) return true;
-        const appName = (app.applicantName || "").toLowerCase().trim();
-        if (activeUserName && (appName.includes(activeUserName) || activeUserName.includes(appName))) return true;
-        if (activeUserUsername && (appName.includes(activeUserUsername) || activeUserUsername.includes(appName))) return true;
-        if (Array.isArray(app.participants)) {
-          return app.participants.some(
+        if (app.memberId && activeUserId && app.memberId === activeUserId) return true;
+        if (isSelf(app.applicantName)) return true;
+        if (
+          Array.isArray(app.participants) &&
+          app.participants.some(
             (p: any) =>
-              p.memberId === activeUserId ||
-              (p.memberName &&
-                (p.memberName.toLowerCase().includes(activeUserName) ||
-                  p.memberName.toLowerCase().includes(activeUserUsername)))
-          );
+              (p.memberId && activeUserId && p.memberId === activeUserId) ||
+              isSelf(p.memberName) ||
+              isSelf(p.memberUsername)
+          )
+        ) {
+          return true;
         }
         return false;
       });
@@ -145,10 +163,9 @@ export function PortfolioView() {
         if (Array.isArray(app.participants) && app.participants.length > 0) {
           const myPart = app.participants.find(
             (p: any) =>
-              p.memberId === activeUserId ||
-              (p.memberName &&
-                (p.memberName.toLowerCase().includes(activeUserName) ||
-                  p.memberName.toLowerCase().includes(activeUserUsername)))
+              (p.memberId && activeUserId && p.memberId === activeUserId) ||
+              isSelf(p.memberName) ||
+              isSelf(p.memberUsername)
           );
           return sum + (myPart ? Number(myPart.contribution) || 0 : 0);
         }
@@ -185,7 +202,7 @@ export function PortfolioView() {
         hasContribution: totalIpoApplied > 0,
       };
     });
-  }, [ipos, userContributions, userTransactions, activeUserId, activeUserName, activeUserUsername, currentUser]);
+  }, [ipos, userContributions, userTransactions, activeUserId, isSelf, currentUser]);
 
   // Calculate profit across user's transactions ONLY when allotment status is pushed by admin
   const transactionProfits = useMemo(() => {
