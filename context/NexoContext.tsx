@@ -1195,11 +1195,14 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
 
     const total = participantContributions.reduce((sum, p) => sum + p.contribution, 0);
 
-    const applicantMember = applicantMemberId
-      ? members.find((m) => m.id === applicantMemberId)
-      : members[0];
+    const applicantMember =
+      (applicantMemberId ? members.find((m) => m.id === applicantMemberId) : null) ||
+      (currentMember ? currentMember : null) ||
+      (currentUser ? members.find((m) => m.id === currentUser.id || m.username?.toLowerCase() === currentUser.username?.toLowerCase()) : null) ||
+      (currentUser ? { id: currentUser.id, name: currentUser.name, username: currentUser.username, avatar: currentUser.avatar, panMasked: (currentUser as any).panMasked } : null) ||
+      members[0];
 
-    const rawApplicantName = applicantNameInput?.trim() || applicantMember?.name || "Member";
+    const rawApplicantName = applicantNameInput?.trim() || applicantMember?.username || applicantMember?.name || "user";
     const finalApplicantName = formatApplicantNames(rawApplicantName);
     const primaryPan = (panNumbersInput && panNumbersInput[0]?.trim())
       ? panNumbersInput[0].trim()

@@ -322,33 +322,37 @@ export function ApplicationModal() {
     setTimeout(() => {
       if (!activeApplicationIpo) return;
 
-      const primaryMember =
-        members.find((m) => m.name.toLowerCase() === applicantName.trim().toLowerCase()) ||
-        members[0];
+      const primaryMemberId = ownMemberId || "mem_1";
+      const primaryMemberUsername = ownUsername || "user";
 
       let participantContributions;
 
       if (applicantMode === "JOINT") {
-        participantContributions = contributors.map((c) => ({
-          memberId: c.memberId,
-          memberName: c.memberName.trim() || "Friend",
+        participantContributions = contributors.map((c, idx) => ({
+          memberId: idx === 0 ? primaryMemberId : c.memberId,
+          memberName: idx === 0 ? primaryMemberUsername : (c.memberName.trim() || "Friend").replace(/^@+/, ""),
           contribution: typeof c.amount === "number" ? c.amount : 0,
         }));
       } else {
         participantContributions = Array.from({ length: effectiveIpos }).map(() => ({
-          memberId: primaryMember.id,
-          memberName: primaryMember.name,
+          memberId: primaryMemberId,
+          memberName: primaryMemberUsername,
           contribution: minInvest,
         }));
       }
+
+      const finalApplicantString =
+        applicantMode === "JOINT"
+          ? formatApplicantNames(contributors.map((c) => c.memberName))
+          : `@${primaryMemberUsername}`;
 
       createApplication(
         activeApplicationIpo.id,
         applicantMode === "JOINT" ? "COMBO" : effectiveIpos > 1 ? "COMBO" : "SOLO",
         participantContributions,
         undefined,
-        primaryMember.id,
-        applicantName,
+        primaryMemberId,
+        finalApplicantString,
         panNumbers
       );
 
@@ -356,7 +360,7 @@ export function ApplicationModal() {
       setSubmittedData({
         ipoName: activeApplicationIpo.name,
         ipoLogo: activeApplicationIpo.logo,
-        applicantName: applicantName,
+        applicantName: finalApplicantString,
         panCount: effectiveIpos,
       });
 
