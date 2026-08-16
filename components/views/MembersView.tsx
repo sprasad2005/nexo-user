@@ -320,14 +320,14 @@ export function MembersView() {
             return (
               <div
                 key={member.id}
-                className={`group relative rounded-2xl p-5 transition-all duration-300 flex flex-col justify-between overflow-hidden font-sans bg-surface dark:bg-[#101217] border ${
+                className={`group relative rounded-2xl p-5 transition-all duration-300 flex flex-col justify-between overflow-hidden font-sans ${
                   isSuperAdminCard
-                    ? "border-accent/40 hover:border-accent shadow-md shadow-accent/5 hover:shadow-xl hover:shadow-accent/10"
-                    : "border-line/80 hover:border-accent/40 hover:shadow-xl hover:shadow-accent/5"
+                    ? "bg-gradient-to-b from-[#0F172A] via-[#0D1322] to-[#090D17] dark:from-[#0E1629] dark:via-[#0B101E] dark:to-[#080C14] border border-blue-500/30 hover:border-blue-400/60 shadow-xl shadow-blue-950/30 hover:shadow-2xl hover:shadow-blue-500/10"
+                    : "bg-surface dark:bg-[#101217] border border-line/80 hover:border-accent/40 hover:shadow-xl hover:shadow-accent/5"
                 } hover:-translate-y-1`}
               >
                 {/* Subtle Top Accent */}
-                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-accent/0 via-accent to-accent/0 ${isSuperAdminCard ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity duration-300`} />
+                <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r from-cyan-400/0 via-blue-500 to-cyan-400/0 ${isSuperAdminCard ? "opacity-100" : "opacity-0 group-hover:opacity-100"} transition-opacity duration-300`} />
 
                 <div className="space-y-4">
                   {/* Top Profile Header */}
@@ -390,17 +390,21 @@ export function MembersView() {
                                 openDirectChatWithUser(member.id);
                               }
                             }}
-                            className="text-base font-black text-ink group-hover:text-accent hover:underline transition-colors truncate tracking-tight cursor-pointer"
+                            className={`text-base font-black transition-colors truncate tracking-tight cursor-pointer ${
+                              isSuperAdminCard
+                                ? "text-slate-100 group-hover:text-blue-400 hover:underline"
+                                : "text-ink group-hover:text-accent hover:underline"
+                            }`}
                             title={currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN" ? "Click to view detailed member IPO history & PnL" : `Click to message @${mUsername}`}
                           >
                             {member.name}
                           </h3>
                           {isSuperAdminCard && (
-                            <span className="relative inline-flex items-center px-2.5 py-0.5 rounded-full bg-accent-soft text-accent border border-accent/35 text-[10px] font-mono font-bold tracking-wider uppercase shrink-0 overflow-hidden shadow-2xs">
+                            <span className="relative inline-flex items-center px-2.5 py-0.5 rounded-full bg-blue-500/15 text-blue-400 border border-blue-500/30 text-[10px] font-mono font-bold tracking-wider uppercase shrink-0 overflow-hidden shadow-2xs">
                               {/* Glass shimmer beam */}
                               <span className="absolute inset-0 w-full h-full bg-gradient-to-r from-transparent via-white/25 to-transparent -translate-x-full animate-[shimmer_2.8s_infinite]" />
                               <span className="relative z-10 flex items-center gap-1.5">
-                                <span className="w-1.5 h-1.5 rounded-full bg-accent animate-pulse" />
+                                <span className="w-1.5 h-1.5 rounded-full bg-blue-400 animate-pulse" />
                                 <span>SUPER ADMIN</span>
                               </span>
                             </span>
@@ -412,14 +416,22 @@ export function MembersView() {
                           <button
                             type="button"
                             onClick={() => openDirectChatWithUser(member.id)}
-                            className="inline-flex items-center gap-1 text-xs font-sans font-semibold tracking-tight text-accent bg-accent-soft/40 hover:bg-accent-soft px-2.5 py-0.5 rounded-lg border border-accent/25 transition-all shadow-2xs cursor-pointer active:scale-95"
+                            className={`inline-flex items-center gap-1 text-xs font-sans font-semibold tracking-tight px-2.5 py-0.5 rounded-lg border transition-all shadow-2xs cursor-pointer active:scale-95 ${
+                              isSuperAdminCard
+                                ? "text-blue-300 bg-blue-500/15 hover:bg-blue-500/25 border-blue-500/30"
+                                : "text-accent bg-accent-soft/40 hover:bg-accent-soft border-accent/25"
+                            }`}
                             title={`Click to chat with @${mUsername}`}
                           >
                             @{mUsername}
                           </button>
 
-                          <div className="inline-flex items-center gap-1 text-[11px] font-sans font-medium text-ink-secondary bg-surface-alt/90 px-2.5 py-0.5 rounded-lg border border-line/80 shadow-2xs">
-                            <Phone size={11} className="text-ink-tertiary" /> {mPhone}
+                          <div className={`inline-flex items-center gap-1 text-[11px] font-sans font-medium px-2.5 py-0.5 rounded-lg border shadow-2xs ${
+                            isSuperAdminCard
+                              ? "text-slate-300 bg-blue-950/35 border-blue-500/20"
+                              : "text-ink-secondary bg-surface-alt/90 border-line/80"
+                          }`}>
+                            <Phone size={11} className={isSuperAdminCard ? "text-blue-400/80" : "text-ink-tertiary"} /> {mPhone}
                           </div>
                         </div>
                       </div>
@@ -428,12 +440,16 @@ export function MembersView() {
 
                   {/* Clean Stats Grid */}
                   <div className="grid grid-cols-2 gap-2.5 pt-1">
-                    <div className="p-3 rounded-xl bg-surface-alt/80 dark:bg-[#141721] border border-line/70 group-hover:border-line transition-all space-y-1">
+                    <div className={`p-3 rounded-xl border transition-all space-y-1 ${
+                      isSuperAdminCard
+                        ? "bg-blue-950/30 dark:bg-[#11192E]/80 border-blue-500/20 group-hover:border-blue-500/35 shadow-2xs"
+                        : "bg-surface-alt/80 dark:bg-[#141721] border-line/70 group-hover:border-line"
+                    }`}>
                       <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
-                        <TrendUp size={13} className="text-accent" />
+                        <TrendUp size={13} className={isSuperAdminCard ? "text-blue-400" : "text-accent"} />
                         <span>IPOs Applied</span>
                       </div>
-                      <p className="text-base font-black font-sans text-ink">
+                      <p className={`text-base font-black font-sans ${isSuperAdminCard ? "text-slate-100" : "text-ink"}`}>
                         {appliedCount}{" "}
                         <span className="text-xs text-ink-tertiary font-sans font-normal">
                           {appliedCount === 1 ? "IPO" : "IPOs"}
@@ -441,12 +457,16 @@ export function MembersView() {
                       </p>
                     </div>
 
-                    <div className="p-3 rounded-xl bg-surface-alt/80 dark:bg-[#141721] border border-line/70 group-hover:border-line transition-all space-y-1">
+                    <div className={`p-3 rounded-xl border transition-all space-y-1 ${
+                      isSuperAdminCard
+                        ? "bg-blue-950/30 dark:bg-[#11192E]/80 border-blue-500/20 group-hover:border-blue-500/35 shadow-2xs"
+                        : "bg-surface-alt/80 dark:bg-[#141721] border-line/70 group-hover:border-line"
+                    }`}>
                       <div className="flex items-center gap-1.5 text-[11px] font-bold text-ink-tertiary uppercase tracking-wider">
-                        <CalendarBlank size={13} className="text-ink-secondary" />
+                        <CalendarBlank size={13} className={isSuperAdminCard ? "text-blue-400" : "text-ink-secondary"} />
                         <span>Member Since</span>
                       </div>
-                      <p className="text-xs font-bold text-ink truncate mt-0.5">
+                      <p className={`text-xs font-bold truncate mt-0.5 ${isSuperAdminCard ? "text-slate-200" : "text-ink"}`}>
                         {member.joinedAt || "Jan 2025"}
                       </p>
                     </div>
@@ -454,14 +474,20 @@ export function MembersView() {
                 </div>
 
                 {/* Footer Controls */}
-                <div className="pt-4 mt-4 border-t border-line/80 flex items-center justify-between text-xs">
+                <div className={`pt-4 mt-4 border-t flex items-center justify-between text-xs ${
+                  isSuperAdminCard ? "border-blue-500/20" : "border-line/80"
+                }`}>
                   <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 border border-emerald-500/25 text-emerald-400 text-xs font-semibold flex items-center gap-1.5 shadow-2xs">
                     <ShieldCheck size={14} className="text-emerald-400" /> Verified Member
                   </span>
 
                   <div className="flex items-center gap-1.5">
                     {member.id === currentUser?.id ? (
-                      <span className="px-3 py-1 rounded-xl bg-surface-alt/90 border border-line/80 text-ink-tertiary font-bold text-xs">
+                      <span className={`px-3 py-1 rounded-xl font-bold text-xs border ${
+                        isSuperAdminCard
+                          ? "bg-blue-950/50 border-blue-500/30 text-blue-300"
+                          : "bg-surface-alt/90 border-line/80 text-ink-tertiary"
+                      }`}>
                         You
                       </span>
                     ) : (
