@@ -62,6 +62,7 @@ export async function PUT(req: Request) {
     const allowed: Array<string> = [
       "name",
       "displayName",
+      "username",
       "email",
       "phone",
       "avatar",
@@ -111,17 +112,29 @@ export async function PUT(req: Request) {
         { upsert: true }
       );
 
-      // Sync avatar, phone, name to nexo.members collection for Admin Panel & Roster visibility
+      // Sync avatar, phone, name, username to nexo.members collection for Admin Panel & Roster visibility
       const memberId = auth?.memberId || userId;
       const memberSyncDoc: Record<string, any> = { updatedAt: new Date() };
       if (body.avatar) memberSyncDoc.avatar = body.avatar;
       if (body.phone) memberSyncDoc.phone = body.phone;
       if (body.name) memberSyncDoc.name = body.name;
+      if (body.username) memberSyncDoc.username = body.username.trim().toLowerCase().replace(/^@+/, "");
 
       if (Object.keys(memberSyncDoc).length > 1) {
         await client.db(DB).collection("members").updateOne(
           { $or: [{ id: memberId }, { id: userId }] },
           { $set: memberSyncDoc }
+        );
+      }
+
+      // Sync username and name to nexo.users collection
+      if (body.username || body.name) {
+        const userSyncDoc: Record<string, any> = { updatedAt: new Date() };
+        if (body.username) userSyncDoc.username = body.username.trim().toLowerCase().replace(/^@+/, "");
+        if (body.name) userSyncDoc.name = body.name;
+        await client.db(DB).collection("users").updateOne(
+          { $or: [{ id: userId }, { memberId: memberId }] },
+          { $set: userSyncDoc }
         );
       }
 
