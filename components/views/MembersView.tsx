@@ -117,27 +117,27 @@ export function MembersView() {
       };
     }
 
-    // aanikett: Subtle Sky Blue Tint (Toned down 50%)
+    // aanikett: Full-Tier Midnight Sky Blue
     if (u === "aanikett" || u.startsWith("aaniket") || u === "aniket") {
       return {
         isFeatured: true,
         roleBadge: member.role === "ADMIN" ? "CORE ADMIN" : "CORE MEMBER",
-        cardContainer: "bg-surface dark:bg-[#08121A] border-sky-500/25 hover:border-sky-500/50 shadow-md hover:shadow-xl hover:shadow-sky-950/20",
-        topAccent: "from-sky-500/0 via-sky-500/50 to-sky-500/0",
-        avatarAura: "",
-        avatarRim: "from-sky-500/70 to-cyan-500/70 shadow-xs",
-        badgePill: "bg-sky-500/10 text-sky-400 border-sky-500/25",
+        cardContainer: "bg-gradient-to-b from-[#0B1A28] via-[#08131F] to-[#050C14] dark:from-[#0B1A28] dark:via-[#08131F] dark:to-[#050C14] border-sky-500/35 hover:border-sky-400/60 shadow-xl shadow-sky-950/30 hover:shadow-2xl hover:shadow-sky-500/10",
+        topAccent: "from-sky-400/0 via-sky-400 to-sky-400/0",
+        avatarAura: "from-sky-600/40 via-blue-600/30 to-cyan-400/40",
+        avatarRim: "from-sky-500 via-blue-500 to-cyan-400 shadow-[0_0_18px_rgba(14,165,233,0.35)] group-hover:shadow-[0_0_26px_rgba(56,189,248,0.5)]",
+        badgePill: "bg-sky-500/15 text-sky-400 border-sky-500/30",
         badgeDot: "bg-sky-400",
-        nameHover: "text-ink group-hover:text-sky-400",
-        usernameTag: "text-sky-400 bg-sky-500/10 hover:bg-sky-500/20 border-sky-500/20",
-        phoneTag: "text-ink-secondary bg-surface-alt/90 border-line/80",
-        phoneIcon: "text-ink-tertiary",
-        statsCard: "bg-surface-alt/80 dark:bg-[#0D1822] border-line/70 group-hover:border-sky-500/25",
+        nameHover: "text-slate-100 group-hover:text-sky-400",
+        usernameTag: "text-sky-300 bg-sky-500/15 hover:bg-sky-500/25 border-sky-500/30",
+        phoneTag: "text-slate-300 bg-sky-950/35 border-sky-500/20",
+        phoneIcon: "text-sky-400/80",
+        statsCard: "bg-sky-950/30 dark:bg-[#0A1726]/80 border-sky-500/20 group-hover:border-sky-500/35 shadow-2xs",
         statsIcon: "text-sky-400",
-        statsVal: "text-ink",
-        statsMuted: "text-ink-tertiary",
-        footerBorder: "border-line/80",
-        youBadge: "bg-surface-alt/90 border-line/80 text-ink-tertiary",
+        statsVal: "text-slate-100",
+        statsMuted: "text-slate-200",
+        footerBorder: "border-sky-500/20",
+        youBadge: "bg-sky-950/50 border-sky-500/30 text-sky-300",
       };
     }
 
