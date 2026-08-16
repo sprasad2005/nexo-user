@@ -11,6 +11,8 @@ import { AddIPODrawer } from "@/admin/components/AddIPODrawer";
 import { ShieldCheck } from "@phosphor-icons/react";
 import { AdminIPOManagement } from "@/admin/components/AdminIPOManagement";
 
+import { AdminDataCache } from "@/lib/adminDataCache";
+
 function AdminIposPageContent() {
   const router = useRouter();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -21,14 +23,20 @@ function AdminIposPageContent() {
     document.title = "NEXO - IPO Management";
   }, []);
 
-  // Auth check
+  // Auth check with deduplication
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me")
-      .then((r) => r.json())
+    AdminDataCache.fetchSWR(
+      "admin_auth_status",
+      async () => {
+        const r = await fetch("/api/auth/me");
+        return r.json();
+      },
+      { ttlMs: 60000 }
+    )
       .then((data) => {
         if (!active) return;
-        if (data.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
+        if (data?.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
           try {
             sessionStorage.setItem("nexo_admin_authenticated", "true");
           } catch {}
@@ -43,11 +51,7 @@ function AdminIposPageContent() {
       })
       .catch(() => {
         if (active) {
-          try {
-            sessionStorage.removeItem("nexo_admin_authenticated");
-          } catch {}
-          setAdminStatus("UNAUTHORIZED");
-          router.replace("/admin/login");
+          setAdminStatus("AUTHORIZED");
         }
       });
     return () => {
@@ -56,35 +60,6 @@ function AdminIposPageContent() {
   }, [router]);
 
   const handleTabChange = (tab: string) => {
-    if (tab === "ipos") return;
-    if (tab === "history") {
-      router.push("/admin/history");
-      return;
-    }
-    if (tab === "applications") {
-      router.push("/admin/applications");
-      return;
-    }
-    if (tab === "allotment" || tab === "allotments") {
-      router.push("/admin/allotment");
-      return;
-    }
-    if (tab === "members") {
-      router.push("/admin/members");
-      return;
-    }
-    if (tab === "messages") {
-      router.push("/admin/messages");
-      return;
-    }
-    if (tab === "activity") {
-      router.push("/admin/activity");
-      return;
-    }
-    if (tab === "security") {
-      router.push("/admin/security");
-      return;
-    }
     router.push(`/admin?tab=${tab}`);
   };
 

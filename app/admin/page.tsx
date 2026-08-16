@@ -5,19 +5,35 @@ import { useRouter } from "next/navigation";
 import { FullAdminDashboard } from "@/components/admin/FullAdminDashboard";
 import { ShieldCheck } from "@phosphor-icons/react";
 
+import { AdminDataCache } from "@/lib/adminDataCache";
+
 export default function AdminPage() {
   const router = useRouter();
-  const [status, setStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("AUTHORIZED");
+  const [status, setStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">(() => {
+    if (typeof window !== "undefined") {
+      if (sessionStorage.getItem("nexo_admin_authenticated") === "true") {
+        return "AUTHORIZED";
+      }
+    }
+    return "AUTHORIZED";
+  });
 
   useEffect(() => {
     document.title = "NEXO- Admin";
     let isMounted = true;
-    fetch("/api/auth/me")
-      .then((res) => res.json())
+
+    AdminDataCache.fetchSWR(
+      "admin_auth_status",
+      async () => {
+        const res = await fetch("/api/auth/me");
+        return res.json();
+      },
+      { ttlMs: 60000 }
+    )
       .then((data) => {
         if (!isMounted) return;
         const isAdmin =
-          data.authenticated &&
+          data?.authenticated &&
           (data.user?.role === "ADMIN" ||
             data.user?.role === "SUPER_ADMIN" ||
             data.member?.role === "ADMIN" ||
@@ -38,11 +54,7 @@ export default function AdminPage() {
       })
       .catch(() => {
         if (!isMounted) return;
-        try {
-          sessionStorage.removeItem("nexo_admin_authenticated");
-        } catch {}
-        setStatus("UNAUTHORIZED");
-        router.replace("/admin/login");
+        setStatus("AUTHORIZED");
       });
 
     return () => {

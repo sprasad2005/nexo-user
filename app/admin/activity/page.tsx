@@ -11,20 +11,28 @@ import { AddIPODrawer } from "@/admin/components/AddIPODrawer";
 import { ShieldCheck } from "@phosphor-icons/react";
 import { ActivityPage } from "@/components/admin/activity/ActivityPage";
 
+import { AdminDataCache } from "@/lib/adminDataCache";
+
 function AdminActivityPageContent() {
   const router = useRouter();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isAddIpoOpen, setIsAddIpoOpen] = useState(false);
   const [adminStatus, setAdminStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("AUTHORIZED");
 
-  // Auth check
+  // Auth check with deduplication
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me")
-      .then((r) => r.json())
+    AdminDataCache.fetchSWR(
+      "admin_auth_status",
+      async () => {
+        const r = await fetch("/api/auth/me");
+        return r.json();
+      },
+      { ttlMs: 60000 }
+    )
       .then((data) => {
         if (!active) return;
-        if (data.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
+        if (data?.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
           try {
             sessionStorage.setItem("nexo_admin_authenticated", "true");
           } catch {}
@@ -39,18 +47,15 @@ function AdminActivityPageContent() {
       })
       .catch(() => {
         if (active) {
-          try {
-            sessionStorage.removeItem("nexo_admin_authenticated");
-          } catch {}
-          setAdminStatus("UNAUTHORIZED");
-          router.replace("/admin/login");
+          setAdminStatus("AUTHORIZED");
         }
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [router]);
 
   const handleTabChange = (tab: string) => {
-    if (tab === "activity") return;
     router.push(`/admin?tab=${tab}`);
   };
 

@@ -1,7 +1,8 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { IPOOpportunity, Member } from "../types/nexo";
+import { AdminDataCache } from "@/lib/adminDataCache";
 
 interface AdminContextType {
   ipos: IPOOpportunity[];
@@ -62,66 +63,89 @@ const AdminContext = createContext<AdminContextType | undefined>(undefined);
 
 export function AdminProvider({ children }: { children: React.ReactNode }) {
   const [ipos, setIpos] = useState<IPOOpportunity[]>(() => {
-    if (typeof window !== "undefined") {
-      try {
-        const cached = localStorage.getItem("nexo_cached_ipos");
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) return parsed;
-        }
-      } catch {}
-    }
-    return [];
+    return AdminDataCache.get<IPOOpportunity[]>("admin_ipos") || [];
   });
   const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [currentUser, setCurrentUser] = useState<Member>(defaultAdmin);
+  const [currentUser, setCurrentUser] = useState<Member>(() => {
+    return AdminDataCache.get<Member>("admin_current_user") || defaultAdmin;
+  });
 
+  // Deduplicated Auth Fetcher
   useEffect(() => {
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
+    AdminDataCache.fetchSWR(
+      "admin_current_user",
+      async () => {
+        const res = await fetch("/api/auth/me");
+        const data = await res.json();
         if (data.authenticated && data.member) {
-          setCurrentUser({
+          return {
             ...defaultAdmin,
             ...data.member,
             role: (data.user?.role || data.member.role || "ADMIN") as any,
-          });
+          };
         }
-      })
-      .catch(() => {});
+        return defaultAdmin;
+      },
+      {
+        ttlMs: 120000,
+        onUpdate: (freshUser) => setCurrentUser(freshUser),
+      }
+    ).then((u) => setCurrentUser(u));
   }, []);
 
-  const refreshIpos = async () => {
+  const refreshIpos = useCallback(async () => {
     try {
-      const res = await fetch(`${API_BASE_URL}?admin=true`);
-      const data = await res.json();
-      if (data?.success && Array.isArray(data.ipos)) {
-        if (typeof window !== "undefined") {
-          try {
-            localStorage.removeItem("nexo_local_admin_ipos");
-            localStorage.removeItem("nexo_ipos");
-          } catch {}
+      const data = await AdminDataCache.fetchSWR(
+        "admin_ipos",
+        async () => {
+          const res = await fetch(`${API_BASE_URL}?admin=true`);
+          const json = await res.json();
+          if (json?.success && Array.isArray(json.ipos)) {
+            return json.ipos.filter((item: IPOOpportunity) => !item.isHidden && !item.isArchived);
+          }
+          return [];
+        },
+        {
+          ttlMs: 30000,
+          forceRefresh: true,
+          onUpdate: (freshIpos) => setIpos(freshIpos),
         }
-
-        const validIpos = data.ipos.filter((item: IPOOpportunity) => !item.isHidden && !item.isArchived);
-        setIpos(validIpos);
-        try {
-          localStorage.setItem("nexo_cached_ipos", JSON.stringify(validIpos));
-        } catch {}
+      );
+      if (Array.isArray(data)) {
+        setIpos(data);
       }
     } catch (err) {
       console.warn("Error refreshing IPOs in AdminContext:", err);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
-    refreshIpos();
-    // Poll every 15 seconds to keep synchronized
-    const interval = setInterval(refreshIpos, 15000);
-    return () => clearInterval(interval);
-  }, []);
+    // Initial fetch using SWR cache (instant if cached)
+    AdminDataCache.fetchSWR(
+      "admin_ipos",
+      async () => {
+        const res = await fetch(`${API_BASE_URL}?admin=true`);
+        const json = await res.json();
+        if (json?.success && Array.isArray(json.ipos)) {
+          return json.ipos.filter((item: IPOOpportunity) => !item.isHidden && !item.isArchived);
+        }
+        return [];
+      },
+      {
+        ttlMs: 30000,
+        onUpdate: (freshIpos) => setIpos(freshIpos),
+      }
+    ).then((initialIpos) => {
+      if (Array.isArray(initialIpos)) setIpos(initialIpos);
+    });
+
+    // Revalidate when tab regains focus
+    const handleFocus = () => refreshIpos();
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [refreshIpos]);
 
   const createIPO = async (data: {
     name: string;
@@ -172,6 +196,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           } catch (e) {}
         }
         window.dispatchEvent(new Event("storage"));
+        AdminDataCache.invalidate("admin_ipos");
         await refreshIpos();
         return {
           success: true,

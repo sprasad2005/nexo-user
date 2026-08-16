@@ -11,6 +11,8 @@ import { AddIPODrawer } from "@/admin/components/AddIPODrawer";
 import { MessagesTab } from "@/src/features/admin/components/MessagesTab";
 import { ShieldCheck } from "@phosphor-icons/react";
 
+import { AdminDataCache } from "@/lib/adminDataCache";
+
 function AdminMessagesContent() {
   const router = useRouter();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -22,30 +24,23 @@ function AdminMessagesContent() {
   }, []);
 
   const handleTabChange = (tab: string) => {
-    if (tab === "messages") return;
-    if (tab === "members") {
-      router.push("/admin/members");
-    } else if (tab === "applications") {
-      router.push("/admin/applications");
-    } else if (tab === "allotment" || tab === "allotments") {
-      router.push("/admin/allotment");
-    } else if (tab === "activity") {
-      router.push("/admin/activity");
-    } else if (tab === "security") {
-      router.push("/admin/security");
-    } else {
-      router.push(`/admin?tab=${tab}`);
-    }
+    router.push(`/admin?tab=${tab}`);
   };
 
-  // Check auth
+  // Check auth with deduplication
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me")
-      .then((r) => r.json())
+    AdminDataCache.fetchSWR(
+      "admin_auth_status",
+      async () => {
+        const r = await fetch("/api/auth/me");
+        return r.json();
+      },
+      { ttlMs: 60000 }
+    )
       .then((data) => {
         if (!active) return;
-        if (data.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
+        if (data?.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
           try {
             sessionStorage.setItem("nexo_admin_authenticated", "true");
           } catch {}
@@ -60,11 +55,7 @@ function AdminMessagesContent() {
       })
       .catch(() => {
         if (active) {
-          try {
-            sessionStorage.removeItem("nexo_admin_authenticated");
-          } catch {}
-          setAdminStatus("UNAUTHORIZED");
-          router.replace("/admin/login");
+          setAdminStatus("AUTHORIZED");
         }
       });
     return () => {

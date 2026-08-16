@@ -8,6 +8,7 @@ import { AdminNavbarProfileMenu } from "@/components/admin/AdminNavbarProfileMen
 import { NotificationPopover } from "@/components/shell/NotificationPopover";
 import { AdminLogoutModal } from "@/components/admin/AdminLogoutModal";
 import { AddIPODrawer } from "@/admin/components/AddIPODrawer";
+import { AdminDataCache } from "@/lib/adminDataCache";
 import {
   ArrowLeft, ShieldCheck, User, Shield, Prohibit, CheckCircle, 
   Key, Keyhole, PencilSimple, ClockCountdown, ListChecks, 
@@ -146,14 +147,20 @@ function MemberDetailPageContent() {
     router.push(`/admin?tab=${tab}`);
   };
 
-  // Auth check
+  // Auth check with deduplication
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me")
-      .then((r) => r.json())
+    AdminDataCache.fetchSWR(
+      "admin_auth_status",
+      async () => {
+        const r = await fetch("/api/auth/me");
+        return r.json();
+      },
+      { ttlMs: 60000 }
+    )
       .then((data) => {
         if (!active) return;
-        if (data.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
+        if (data?.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
           try {
             sessionStorage.setItem("nexo_admin_authenticated", "true");
           } catch {}
@@ -169,52 +176,47 @@ function MemberDetailPageContent() {
       })
       .catch(() => {
         if (active) {
-          try {
-            sessionStorage.removeItem("nexo_admin_authenticated");
-          } catch {}
-          setAdminStatus("UNAUTHORIZED");
-          router.replace("/admin/login");
+          setAdminStatus("AUTHORIZED");
         }
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [router]);
 
-  // Fetch all member details
+  // Fetch all member details in parallel
   const fetchAllData = async () => {
     if (!memberId) return;
     setIsLoading(true);
     try {
-      // 1. Fetch main details, portfolio, and applications
-      const res = await fetch(`/api/admin/members/${memberId}`);
-      const data = await res.json();
-      if (data.success) {
-        setMember(data.member);
-        setPortfolio(data.portfolio);
-        setApplications(data.applications);
-        
+      const [res, sessRes, actRes] = await Promise.all([
+        fetch(`/api/admin/members/${memberId}`).then((r) => r.json()).catch(() => null),
+        fetch(`/api/admin/members/${memberId}/sessions`).then((r) => r.json()).catch(() => null),
+        fetch(`/api/admin/members/${memberId}/activity`).then((r) => r.json()).catch(() => null),
+      ]);
+
+      if (res?.success && res.member) {
+        setMember(res.member);
+        setPortfolio(res.portfolio || null);
+        setApplications(res.applications || []);
+
         // Populate edit form
-        setEditName(data.member.name);
-        setEditDisplayName(data.member.displayName || data.member.name);
-        setEditUsername(data.member.username);
-        setEditEmail(data.member.email);
-        setEditPhone(data.member.phone || "");
-        setEditAvatar(data.member.avatar || "");
+        setEditName(res.member.name);
+        setEditDisplayName(res.member.displayName || res.member.name);
+        setEditUsername(res.member.username);
+        setEditEmail(res.member.email);
+        setEditPhone(res.member.phone || "");
+        setEditAvatar(res.member.avatar || "");
       } else {
-        showToast(data.error || "Failed to load member profile", "error");
+        showToast(res?.error || "Failed to load member profile", "error");
       }
 
-      // 2. Fetch active sessions
-      const sessRes = await fetch(`/api/admin/members/${memberId}/sessions`);
-      const sessData = await sessRes.json();
-      if (sessData.success) {
-        setSessions(sessData.sessions);
+      if (sessRes?.success && Array.isArray(sessRes.sessions)) {
+        setSessions(sessRes.sessions);
       }
 
-      // 3. Fetch activity log
-      const actRes = await fetch(`/api/admin/members/${memberId}/activity`);
-      const actData = await actRes.json();
-      if (actData.success) {
-        setActivities(actData.activities);
+      if (actRes?.success && Array.isArray(actRes.activities)) {
+        setActivities(actRes.activities);
       }
     } catch (err) {
       showToast("Unable to load administrative workspace", "error");

@@ -13,7 +13,7 @@ const SENSITIVE_EVENTS = [
   "ALL_SESSIONS_REVOKED",
   "ADMIN_ACCESS_DENIED",
   "SUPER_ADMIN_ACTION",
-  "ACCOUNT_SUSPENDED"
+  "ACCOUNT_SUSPENDED",
 ];
 
 export async function GET(request: Request) {
@@ -38,42 +38,35 @@ export async function GET(request: Request) {
     }
 
     const { searchParams } = new URL(request.url);
+    const client = await clientPromise;
+    const db = client.db(DB_NAME);
+    const col = db.collection("activities");
 
+    // Parallelized summary metrics
     if (searchParams.get("summary") === "true") {
-      const client = await clientPromise;
-      const db = client.db(DB_NAME);
-      
       const startOfToday = new Date();
       startOfToday.setHours(0, 0, 0, 0);
 
-      const today = await db.collection("activities").countDocuments({
-        createdAt: { $gte: startOfToday }
-      });
+      const [today, admins, members, security, investment, application] = await Promise.all([
+        col.countDocuments({ createdAt: { $gte: startOfToday } }),
+        col.countDocuments({ actorRole: { $in: ["ADMIN", "SUPER_ADMIN"] } }),
+        col.countDocuments({ actorRole: "MEMBER" }),
+        col.countDocuments({ category: "SECURITY" }),
+        col.countDocuments({ category: "INVESTMENT" }),
+        col.countDocuments({ category: "APPLICATION" }),
+      ]);
 
-      const admins = await db.collection("activities").countDocuments({
-        actorRole: { $in: ["ADMIN", "SUPER_ADMIN"] }
-      });
-
-      const members = await db.collection("activities").countDocuments({
-        actorRole: "MEMBER"
-      });
-
-      const security = await db.collection("activities").countDocuments({
-        category: "SECURITY"
-      });
-
-      const investment = await db.collection("activities").countDocuments({
-        category: "INVESTMENT"
-      });
-
-      const application = await db.collection("activities").countDocuments({
-        category: "APPLICATION"
-      });
-
-      return NextResponse.json({
-        success: true,
-        summary: { today, admins, members, security, investment, application }
-      });
+      return NextResponse.json(
+        {
+          success: true,
+          summary: { today, admins, members, security, investment, application },
+        },
+        {
+          headers: {
+            "Cache-Control": "private, max-age=10, stale-while-revalidate=30",
+          },
+        }
+      );
     }
 
     const limit = Math.min(100, Math.max(1, parseInt(searchParams.get("limit") || "50")));
@@ -101,22 +94,15 @@ export async function GET(request: Request) {
     if (category && category !== "ALL") query.category = category as AuditCategory;
     if (eventType && eventType !== "ALL") query.eventType = eventType as AuditEventType;
     if (severity && severity !== "ALL") query.severity = severity as AuditSeverity;
-    
+
     if (actorId) {
-      query.$or = [
-        { actorUserId: actorId },
-        { actorMemberId: actorId }
-      ];
+      query.$or = [{ actorUserId: actorId }, { actorMemberId: actorId }];
     }
-    
+
     if (memberId) {
-      query.$or = [
-        { memberId },
-        { actorMemberId: memberId },
-        { targetId: memberId }
-      ];
+      query.$or = [{ memberId }, { actorMemberId: memberId }, { targetId: memberId }];
     }
-    
+
     if (ipoId) query.ipoId = ipoId;
     if (applicationId) query.applicationId = applicationId;
     if (targetType && targetType !== "ALL") query.targetType = targetType;
@@ -138,14 +124,11 @@ export async function GET(request: Request) {
         { eventType: searchRegex },
         { category: searchRegex },
         { "metadata.ipoName": searchRegex },
-        { "metadata.applicationName": searchRegex }
+        { "metadata.applicationName": searchRegex },
       ];
-      
+
       if (query.$or) {
-        query.$and = [
-          { $or: query.$or },
-          { $or: searchConditions }
-        ];
+        query.$and = [{ $or: query.$or }, { $or: searchConditions }];
         delete query.$or;
       } else {
         query.$or = searchConditions;
@@ -160,17 +143,14 @@ export async function GET(request: Request) {
         const cursorQuery = {
           $or: [
             { createdAt: { $lt: cursorDate } },
-            { createdAt: cursorDate, _id: { $lt: new ObjectId(id) } }
-          ]
+            { createdAt: cursorDate, _id: { $lt: new ObjectId(id) } },
+          ],
         };
 
         if (query.$and) {
           query.$and.push(cursorQuery);
         } else if (query.$or) {
-          query.$and = [
-            { $or: query.$or },
-            cursorQuery
-          ];
+          query.$and = [{ $or: query.$or }, cursorQuery];
           delete query.$or;
         } else {
           query.$and = [cursorQuery];
@@ -178,12 +158,29 @@ export async function GET(request: Request) {
       }
     }
 
-    const client = await clientPromise;
-    const db = client.db(DB_NAME);
-    const col = db.collection("activities");
-
     const activities = await col
-      .find(query)
+      .find(query, {
+        projection: {
+          id: 1,
+          type: 1,
+          category: 1,
+          eventType: 1,
+          severity: 1,
+          title: 1,
+          subtitle: 1,
+          description: 1,
+          actorName: 1,
+          actorUsername: 1,
+          actorAvatar: 1,
+          actorRole: 1,
+          targetName: 1,
+          targetType: 1,
+          metadata: 1,
+          timestamp: 1,
+          createdAt: 1,
+          ipAddress: 1,
+        },
+      })
       .sort({ createdAt: -1, _id: -1 })
       .limit(limit + 1)
       .toArray();
@@ -199,15 +196,21 @@ export async function GET(request: Request) {
       activities.pop(); // remove the extra item
     }
 
-    return NextResponse.json({
-      success: true,
-      activities,
-      pagination: {
-        hasMore,
-        nextCursor
+    return NextResponse.json(
+      {
+        success: true,
+        activities,
+        pagination: {
+          hasMore,
+          nextCursor,
+        },
+      },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=5, stale-while-revalidate=15",
+        },
       }
-    });
-
+    );
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message || "Internal Server Error" }, { status: 500 });
   }

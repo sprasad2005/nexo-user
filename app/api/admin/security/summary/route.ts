@@ -29,104 +29,109 @@ export async function GET() {
     const client = await clientPromise;
     const db = client.db(DB_NAME);
     const now = new Date();
-
-    // 1. Calculate Active Sessions Count
-    const activeSessionsCount = await db.collection("sessions").countDocuments({
-      revokedAt: null,
-      expiresAt: { $gt: now }
-    });
-
-    // 2. Count roles from users collection
-    const activeAdminsCount = await db.collection("users").countDocuments({
-      role: "ADMIN",
-      status: "ACTIVE"
-    });
-
-    const activeMembersCount = await db.collection("users").countDocuments({
-      role: "MEMBER",
-      status: "ACTIVE"
-    });
-
-    const suspendedAccountsCount = await db.collection("users").countDocuments({
-      status: "SUSPENDED"
-    });
-
-    const passwordChangesCount = await db.collection("users").countDocuments({
-      mustChangePassword: true
-    });
-
-    // 3. Count logins and security events today
     const startOfToday = new Date();
     startOfToday.setHours(0, 0, 0, 0);
-
-    const loginsTodayCount = await db.collection("activities").countDocuments({
-      eventType: { $in: ["LOGIN_SUCCESS", "ADMIN_LOGIN_SUCCESS"] },
-      createdAt: { $gte: startOfToday }
-    });
-
-    const failedLoginsTodayCount = await db.collection("activities").countDocuments({
-      eventType: { $in: ["LOGIN_FAILED", "ADMIN_LOGIN_FAILED"] },
-      createdAt: { $gte: startOfToday }
-    });
-
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const recentSecurityEventsCount = await db.collection("activities").countDocuments({
-      category: "SECURITY",
-      createdAt: { $gte: oneDayAgo }
-    });
 
-    // 4. Generate Security Alerts (Requires Attention)
+    const sessionsCol = db.collection("sessions");
+    const usersCol = db.collection("users");
+    const activitiesCol = db.collection("activities");
+
+    // Execute all 9 count queries concurrently in a single parallel Promise.all batch
+    const [
+      activeSessionsCount,
+      activeAdminsCount,
+      activeMembersCount,
+      suspendedAccountsCount,
+      passwordChangesCount,
+      loginsTodayCount,
+      failedLoginsTodayCount,
+      recentSecurityEventsCount,
+      suspendedAdminsCount,
+    ] = await Promise.all([
+      // 1. Active Sessions
+      sessionsCol.countDocuments({ revokedAt: null, expiresAt: { $gt: now } }),
+      // 2. Active Admins
+      usersCol.countDocuments({ role: "ADMIN", status: "ACTIVE" }),
+      // 3. Active Members
+      usersCol.countDocuments({ role: "MEMBER", status: "ACTIVE" }),
+      // 4. Suspended Accounts
+      usersCol.countDocuments({ status: "SUSPENDED" }),
+      // 5. Password Changes Required
+      usersCol.countDocuments({ mustChangePassword: true }),
+      // 6. Logins Today
+      activitiesCol.countDocuments({
+        eventType: { $in: ["LOGIN_SUCCESS", "ADMIN_LOGIN_SUCCESS"] },
+        createdAt: { $gte: startOfToday },
+      }),
+      // 7. Failed Logins Today
+      activitiesCol.countDocuments({
+        eventType: { $in: ["LOGIN_FAILED", "ADMIN_LOGIN_FAILED"] },
+        createdAt: { $gte: startOfToday },
+      }),
+      // 8. Recent Security Events
+      activitiesCol.countDocuments({
+        category: "SECURITY",
+        createdAt: { $gte: oneDayAgo },
+      }),
+      // 9. Suspended Admins
+      usersCol.countDocuments({
+        role: { $in: ["ADMIN", "SUPER_ADMIN"] },
+        status: "SUSPENDED",
+      }),
+    ]);
+
+    // Generate Security Alerts
     const alerts: Array<{ id: string; severity: "WARNING" | "CRITICAL" | "INFO"; title: string; desc: string }> = [];
 
-    // Alert: Elevated Login Failures (5+ failures in the last 24h)
     if (failedLoginsTodayCount >= 5) {
       alerts.push({
         id: "elevated_login_failures",
         severity: "WARNING",
         title: "Elevated failed-login activity",
-        desc: `${failedLoginsTodayCount} failed sign-in attempts detected on the platform today.`
+        desc: `${failedLoginsTodayCount} failed sign-in attempts detected on the platform today.`,
       });
     }
 
-    // Alert: Suspended Admins
-    const suspendedAdminsCount = await db.collection("users").countDocuments({
-      role: { $in: ["ADMIN", "SUPER_ADMIN"] },
-      status: "SUSPENDED"
-    });
     if (suspendedAdminsCount > 0) {
       alerts.push({
         id: "suspended_admins",
         severity: "CRITICAL",
         title: "Suspended admin accounts",
-        desc: `There are ${suspendedAdminsCount} suspended administrator accounts requiring review.`
+        desc: `There are ${suspendedAdminsCount} suspended administrator accounts requiring review.`,
       });
     }
 
-    // Alert: Outstanding Password Changes
     if (passwordChangesCount > 0) {
       alerts.push({
         id: "outstanding_passwords",
         severity: "INFO",
         title: "Password reset active",
-        desc: `${passwordChangesCount} account(s) require a password change on next login.`
+        desc: `${passwordChangesCount} account(s) require a password change on next login.`,
       });
     }
 
-    return NextResponse.json({
-      success: true,
-      summary: {
-        activeSessions: activeSessionsCount,
-        activeAdmins: activeAdminsCount,
-        activeMembers: activeMembersCount,
-        loginsToday: loginsTodayCount,
-        failedLogins: failedLoginsTodayCount,
-        suspendedAccounts: suspendedAccountsCount,
-        passwordChangesRequired: passwordChangesCount,
-        recentSecurityEvents: recentSecurityEventsCount,
-        alerts
+    return NextResponse.json(
+      {
+        success: true,
+        summary: {
+          activeSessions: activeSessionsCount,
+          activeAdmins: activeAdminsCount,
+          activeMembers: activeMembersCount,
+          loginsToday: loginsTodayCount,
+          failedLogins: failedLoginsTodayCount,
+          suspendedAccounts: suspendedAccountsCount,
+          passwordChangesRequired: passwordChangesCount,
+          recentSecurityEvents: recentSecurityEventsCount,
+          alerts,
+        },
+      },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=5, stale-while-revalidate=15",
+        },
       }
-    });
-
+    );
   } catch (err: any) {
     return NextResponse.json({ success: false, error: err.message || "Internal Server Error" }, { status: 500 });
   }

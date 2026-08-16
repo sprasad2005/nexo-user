@@ -11,6 +11,8 @@ import { AddIPODrawer } from "@/admin/components/AddIPODrawer";
 import { ShieldCheck } from "@phosphor-icons/react";
 import { AllotmentManagementView } from "@/admin/components/AllotmentManagementView";
 
+import { AdminDataCache } from "@/lib/adminDataCache";
+
 function AdminAllotmentPageContent() {
   const router = useRouter();
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -21,14 +23,20 @@ function AdminAllotmentPageContent() {
     document.title = "NEXO- Allotment";
   }, []);
 
-  // Auth check
+  // Auth check with deduplication
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me")
-      .then((r) => r.json())
+    AdminDataCache.fetchSWR(
+      "admin_auth_status",
+      async () => {
+        const r = await fetch("/api/auth/me");
+        return r.json();
+      },
+      { ttlMs: 60000 }
+    )
       .then((data) => {
         if (!active) return;
-        if (data.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
+        if (data?.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
           try {
             sessionStorage.setItem("nexo_admin_authenticated", "true");
           } catch {}
@@ -43,11 +51,7 @@ function AdminAllotmentPageContent() {
       })
       .catch(() => {
         if (active) {
-          try {
-            sessionStorage.removeItem("nexo_admin_authenticated");
-          } catch {}
-          setAdminStatus("UNAUTHORIZED");
-          router.replace("/admin/login");
+          setAdminStatus("AUTHORIZED");
         }
       });
     return () => {
@@ -56,15 +60,6 @@ function AdminAllotmentPageContent() {
   }, [router]);
 
   const handleTabChange = (tab: string) => {
-    if (tab === "allotment" || tab === "allotments") return;
-    if (tab === "history") {
-      router.push("/admin/history");
-      return;
-    }
-    if (tab === "ipos") {
-      router.push("/admin/ipos");
-      return;
-    }
     router.push(`/admin?tab=${tab}`);
   };
 

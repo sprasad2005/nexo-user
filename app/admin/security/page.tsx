@@ -22,6 +22,8 @@ import { ActivityTimeline } from "@/components/admin/activity/ActivityTimeline";
 import { ActivityDetailDrawer } from "@/components/admin/activity/ActivityDetailDrawer";
 import { AuditActivity } from "@/src/features/activity/types";
 
+import { AdminDataCache } from "@/lib/adminDataCache";
+
 function AdminSecurityPageContent() {
   const router = useRouter();
 
@@ -30,20 +32,34 @@ function AdminSecurityPageContent() {
   const [isAddIpoOpen, setIsAddIpoOpen] = useState(false);
   const [adminStatus, setAdminStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("AUTHORIZED");
 
-  // Data states
-  const [summary, setSummary] = useState<any | null>(null);
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [loginEvents, setLoginEvents] = useState<any[]>([]);
-  const [securityEvents, setSecurityEvents] = useState<any[]>([]);
-  const [accountStatus, setAccountStatus] = useState<any | null>(null);
-  const [roleEvents, setRoleEvents] = useState<any[]>([]);
+  // Data states - initialized from instant SWR cache
+  const [summary, setSummary] = useState<any | null>(() => AdminDataCache.get("admin_security_summary"));
+  const [sessions, setSessions] = useState<any[]>(() => AdminDataCache.get<any[]>("admin_security_sessions") || []);
+  const [loginEvents, setLoginEvents] = useState<any[]>(() => AdminDataCache.get<any[]>("admin_security_logins") || []);
+  const [securityEvents, setSecurityEvents] = useState<any[]>(() => AdminDataCache.get<any[]>("admin_security_events") || []);
+  const [accountStatus, setAccountStatus] = useState<any | null>(() => AdminDataCache.get("admin_security_accounts"));
+  const [roleEvents, setRoleEvents] = useState<any[]>(() => {
+    const cachedEvts = AdminDataCache.get<any[]>("admin_security_events") || [];
+    return cachedEvts
+      .filter((e: any) => e.eventType === "ROLE_CHANGED")
+      .map((e: any) => ({
+        id: e.id,
+        actorName: e.actorName,
+        actorUsername: e.actorUsername,
+        actorRole: e.actorRole,
+        targetName: e.targetName,
+        createdAt: e.createdAt,
+        previousRole: e.metadata?.previousRole || "MEMBER",
+        newRole: e.metadata?.newRole || "ADMIN",
+      }));
+  });
 
   // Selected event for detail drawer
   const [selectedActivity, setSelectedActivity] = useState<AuditActivity | null>(null);
 
   // Tabs state: sessions, logins, activity, accounts, roles
   const [activeSubTab, setActiveSubTab] = useState("sessions");
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
 
   // Success Toast
   const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
@@ -53,11 +69,17 @@ function AdminSecurityPageContent() {
     setTimeout(() => setToast(null), 4000);
   };
 
-  // Auth check
+  // Auth check with deduplication
   useEffect(() => {
     let active = true;
-    fetch("/api/auth/me")
-      .then((r) => r.json())
+    AdminDataCache.fetchSWR(
+      "admin_auth_status",
+      async () => {
+        const r = await fetch("/api/auth/me");
+        return r.json();
+      },
+      { ttlMs: 60000 }
+    )
       .then((data) => {
         if (!active) return;
         if (data.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
@@ -82,42 +104,43 @@ function AdminSecurityPageContent() {
           router.replace("/admin/login");
         }
       });
-    return () => { active = false; };
+    return () => {
+      active = false;
+    };
   }, [router]);
 
-  // Fetch security data
+  // Fetch security data concurrently in parallel
   const fetchSecurityData = async () => {
     setIsLoading(true);
     try {
-      // 1. Fetch summary metrics & alerts
-      const sumRes = await fetch("/api/admin/security/summary");
-      const sumData = await sumRes.json();
-      if (sumData.success) {
-        setSummary(sumData.summary);
+      const [sumRes, sessRes, logRes, evtsRes, accRes] = await Promise.all([
+        fetch("/api/admin/security/summary").then((r) => r.json()).catch(() => null),
+        fetch("/api/admin/security/sessions").then((r) => r.json()).catch(() => null),
+        fetch("/api/admin/security/login-events").then((r) => r.json()).catch(() => null),
+        fetch("/api/admin/security/events?limit=50").then((r) => r.json()).catch(() => null),
+        fetch("/api/admin/security/account-status").then((r) => r.json()).catch(() => null),
+      ]);
+
+      if (sumRes?.success && sumRes.summary) {
+        setSummary(sumRes.summary);
+        AdminDataCache.set("admin_security_summary", sumRes.summary, 30000);
       }
 
-      // 2. Fetch active sessions
-      const sessRes = await fetch("/api/admin/security/sessions");
-      const sessData = await sessRes.json();
-      if (sessData.success) {
-        setSessions(sessData.sessions);
+      if (sessRes?.success && Array.isArray(sessRes.sessions)) {
+        setSessions(sessRes.sessions);
+        AdminDataCache.set("admin_security_sessions", sessRes.sessions, 30000);
       }
 
-      // 3. Fetch login events
-      const logRes = await fetch("/api/admin/security/login-events");
-      const logData = await logRes.json();
-      if (logData.success) {
-        setLoginEvents(logData.loginEvents);
+      if (logRes?.success && Array.isArray(logRes.loginEvents)) {
+        setLoginEvents(logRes.loginEvents);
+        AdminDataCache.set("admin_security_logins", logRes.loginEvents, 30000);
       }
 
-      // 4. Fetch security timeline events
-      const evtsRes = await fetch("/api/admin/security/events?limit=50");
-      const evtsData = await evtsRes.json();
-      if (evtsData.success) {
-        setSecurityEvents(evtsData.events);
-        
-        // Filter out role change events for the dedicated tab
-        const roleEvts = evtsData.events
+      if (evtsRes?.success && Array.isArray(evtsRes.events)) {
+        setSecurityEvents(evtsRes.events);
+        AdminDataCache.set("admin_security_events", evtsRes.events, 30000);
+
+        const roleEvts = evtsRes.events
           .filter((e: any) => e.eventType === "ROLE_CHANGED")
           .map((e: any) => ({
             id: e.id,
@@ -132,14 +155,11 @@ function AdminSecurityPageContent() {
         setRoleEvents(roleEvts);
       }
 
-      // 5. Fetch account security statuses
-      const accRes = await fetch("/api/admin/security/account-status");
-      const accData = await accRes.json();
-      if (accData.success) {
-        setAccountStatus(accData);
+      if (accRes?.success) {
+        setAccountStatus(accRes);
+        AdminDataCache.set("admin_security_accounts", accRes, 30000);
       }
-
-    } catch (err) {
+    } catch {
       showToast("Unable to refresh security logs", "error");
     } finally {
       setIsLoading(false);

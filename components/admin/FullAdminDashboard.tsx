@@ -17,6 +17,7 @@ import { SuperAdminMemberManagement } from "./SuperAdminMemberManagement";
 import { ActivityPage } from "./activity/ActivityPage";
 import { AllotmentManagementView } from "../../admin/components/AllotmentManagementView";
 import { AdminApplicationsView } from "./AdminApplicationsView";
+import { AdminSecurityView } from "./AdminSecurityView";
 import { MessagesTab } from "@/src/features/admin/components/MessagesTab";
 import { UserCircle, Gear, SignOut } from "@phosphor-icons/react";
 
@@ -129,7 +130,7 @@ function AdminOverview({ setActiveTab }: { setActiveTab: (tab: string) => void }
           </div>
 
           <button
-            onClick={() => router.push("/admin/activity")}
+            onClick={() => setActiveTab("activity")}
             className="w-full text-center py-2.5 rounded-xl bg-slate-50 dark:bg-[#1D2026] hover:bg-slate-100 dark:hover:bg-[#252931] text-[11px] font-bold text-blue-600 dark:text-[#6B93FF] transition-colors border border-slate-200 dark:border-[#252931]/60 cursor-pointer mt-4"
           >
             View all activity →
@@ -145,7 +146,13 @@ function AdminDashboardContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams ? searchParams.get("tab") : null;
 
-  const [activeTab, setActiveTab] = useState("ipos");
+  const [activeTab, setActiveTab] = useState(() => {
+    if (typeof window !== "undefined") {
+      const p = new URLSearchParams(window.location.search).get("tab");
+      if (p) return p;
+    }
+    return "ipos";
+  });
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
@@ -156,43 +163,14 @@ function AdminDashboardContent() {
 
   useEffect(() => {
     if (tabParam && ["ipos", "history", "applications", "allotment", "allotments", "distribute-profit", "members", "messages", "activity", "security", "profile", "settings"].includes(tabParam)) {
-      if (tabParam === "history") {
-        router.push("/admin/history");
-      } else if (tabParam === "allotment" || tabParam === "allotments") {
-        router.push("/admin/allotment");
-      } else if (tabParam === "applications") {
-        router.push("/admin/applications");
-      } else if (tabParam === "members") {
-        router.push("/admin/members");
-      } else if (tabParam === "messages") {
-        router.push("/admin/messages");
-      } else if (tabParam === "activity") {
-        router.push("/admin/activity");
-      } else if (tabParam === "security") {
-        router.push("/admin/security");
-      } else {
-        setActiveTab(tabParam);
-      }
+      setActiveTab(tabParam);
     }
-  }, [tabParam, router]);
+  }, [tabParam]);
 
   const handleSelectTab = (tab: string) => {
-    if (tab === "history") {
-      router.push("/admin/history");
-    } else if (tab === "allotment" || tab === "allotments") {
-      router.push("/admin/allotment");
-    } else if (tab === "applications") {
-      router.push("/admin/applications");
-    } else if (tab === "members") {
-      router.push("/admin/members");
-    } else if (tab === "messages") {
-      router.push("/admin/messages");
-    } else if (tab === "activity") {
-      router.push("/admin/activity");
-    } else if (tab === "security") {
-      router.push("/admin/security");
-    } else {
-      setActiveTab(tab);
+    setActiveTab(tab);
+    if (typeof window !== "undefined") {
+      window.history.pushState(null, "", `/admin?tab=${tab}`);
     }
   };
 
@@ -222,6 +200,8 @@ function AdminDashboardContent() {
         return "Messages";
       case "activity":
         return "Activity & Audit Center";
+      case "security":
+        return "Security Center";
       case "profile":
         return "Admin Profile";
       case "settings":
@@ -260,7 +240,7 @@ function AdminDashboardContent() {
             <NotificationPopover />
             <AdminNavbarProfileMenu
               activeTab={activeTab}
-              onSelectTab={(tab) => setActiveTab(tab)}
+              onSelectTab={(tab) => handleSelectTab(tab)}
               onSignOutClick={() => setIsLogoutModalOpen(true)}
             />
           </div>
@@ -282,6 +262,7 @@ function AdminDashboardContent() {
               : "p-4 sm:p-6 md:p-8 max-w-6xl"
           }`}
         >
+          {activeTab === "overview" && <AdminOverview setActiveTab={handleSelectTab} />}
           {activeTab === "ipos" && <AdminIPOManagement />}
           {activeTab === "history" && <AdminIPOHistoryView />}
           {activeTab === "applications" && <AdminApplicationsView />}
@@ -290,11 +271,13 @@ function AdminDashboardContent() {
           {activeTab === "members" && <SuperAdminMemberManagement />}
           {activeTab === "messages" && <MessagesTab />}
           {activeTab === "activity" && <ActivityPage />}
+          {activeTab === "security" && <AdminSecurityView />}
           {activeTab === "profile" && (
             <AdminProfileView onSignOutClick={() => setIsLogoutModalOpen(true)} />
           )}
           {activeTab === "settings" && <AdminSettingsView />}
-          {activeTab !== "ipos" &&
+          {activeTab !== "overview" &&
+            activeTab !== "ipos" &&
             activeTab !== "history" &&
             activeTab !== "applications" &&
             activeTab !== "allotment" &&

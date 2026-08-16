@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
@@ -47,9 +47,15 @@ function buildDateRange(preset: string): { from?: string; to?: string } {
   return {};
 }
 
+import { AdminDataCache } from "@/lib/adminDataCache";
+
 export function ActivityPage() {
-  const [activities, setActivities] = useState<AuditActivity[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [activities, setActivities] = useState<AuditActivity[]>(() => {
+    return AdminDataCache.get<AuditActivity[]>("admin_activities_default") || [];
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(() => {
+    return !AdminDataCache.has("admin_activities_default");
+  });
   const [isError, setIsError] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
@@ -87,7 +93,9 @@ export function ActivityPage() {
   }, [search, category, severity, datePreset, roleFilter]);
 
   const fetchActivities = useCallback(async () => {
-    setIsLoading(true);
+    if (!hasActiveFilters && !AdminDataCache.has("admin_activities_default")) {
+      setIsLoading(true);
+    }
     setIsError(false);
     setNextCursor(undefined);
     try {
@@ -97,6 +105,10 @@ export function ActivityPage() {
         setActivities(data.activities || []);
         setHasMore(data.pagination?.hasMore || false);
         setNextCursor(data.pagination?.nextCursor);
+
+        if (!hasActiveFilters) {
+          AdminDataCache.set("admin_activities_default", data.activities || [], 15000);
+        }
       } else {
         setIsError(true);
       }
@@ -105,7 +117,7 @@ export function ActivityPage() {
     } finally {
       setIsLoading(false);
     }
-  }, [buildUrl]);
+  }, [buildUrl, hasActiveFilters]);
 
   useEffect(() => {
     if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);

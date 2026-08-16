@@ -23,9 +23,12 @@ export async function GET(req: Request) {
     const client = await clientPromise;
     const db = client.db(DB_NAME);
 
-    // Fetch all users and members to merge
-    const users = await db.collection<UserDocument>("users").find({}).toArray();
-    let members = await db.collection<MemberDocument>("members").find({}).toArray();
+    // Fetch users and members concurrently in parallel
+    const [users, initialMembers] = await Promise.all([
+      db.collection<UserDocument>("users").find({}, { projection: { passwordHash: 0 } }).toArray(),
+      db.collection<MemberDocument>("members").find({}).toArray(),
+    ]);
+    let members = initialMembers;
 
     // Auto-seed if members collection is empty
     if (members.length === 0) {
@@ -178,7 +181,14 @@ export async function GET(req: Request) {
       return dateB - dateA;
     });
 
-    return NextResponse.json({ success: true, members: merged });
+    return NextResponse.json(
+      { success: true, members: merged },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=5, stale-while-revalidate=15",
+        },
+      }
+    );
   } catch (err: any) {
     console.error("GET /api/admin/members error, providing resilient fallback:", err);
     const fallback = MOCK_MEMBERS.map((m) => ({
