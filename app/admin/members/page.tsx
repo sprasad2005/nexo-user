@@ -1191,17 +1191,6 @@ function MembersPageContent() {
                     />
                   </div>
 
-                  <div>
-                    <label className="text-[10px] font-extrabold text-slate-450 dark:text-[#858D99] uppercase tracking-wider block mb-1.5 font-bold">
-                      ASSIGN USER ROLE
-                    </label>
-                    <div className="w-full px-3.5 py-2.5 rounded-xl bg-slate-100 dark:bg-[#15171C] border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-600 dark:text-slate-300 select-none flex items-center justify-between">
-                      <span>Member (Standard member access)</span>
-                      <span className="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-slate-200/60 dark:bg-slate-800 text-slate-500 dark:text-slate-400 uppercase">
-                        MEMBER
-                      </span>
-                    </div>
-                  </div>
 
                   <div className="pt-3 border-t border-slate-100 dark:border-slate-805">
                     <div className="flex items-center justify-between pb-1.5">

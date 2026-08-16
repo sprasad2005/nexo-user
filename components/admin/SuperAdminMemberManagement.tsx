@@ -671,16 +671,7 @@ export function SuperAdminMemberManagement() {
                   />
                 </div>
 
-                <div>
-                  <label className="block text-slate-700 dark:text-[#AEB5C0] mb-1 font-extrabold">Assign Role</label>
-                  <input
-                    type="text"
-                    disabled
-                    readOnly
-                    value="MEMBER — User Workspace Access"
-                    className="w-full p-3 rounded-xl bg-slate-100 dark:bg-[#15171C] border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-500 cursor-not-allowed opacity-80"
-                  />
-                </div>
+
 
                 <div>
                   <label className="block text-slate-700 dark:text-[#AEB5C0] mb-1 font-extrabold">Email Address</label>
