@@ -117,51 +117,51 @@ export function MembersView() {
       };
     }
 
-    // aanikett: Deep Aurora Emerald / Jade
+    // aanikett: Subtle Aurora Emerald Tint (Toned down 50%)
     if (u === "aanikett" || u.startsWith("aaniket") || u === "aniket") {
       return {
         isFeatured: true,
         roleBadge: member.role === "ADMIN" ? "CORE ADMIN" : "CORE MEMBER",
-        cardContainer: "bg-gradient-to-b from-[#061A14] via-[#051410] to-[#040E0B] dark:from-[#061A14] dark:via-[#051410] dark:to-[#040E0B] border-emerald-500/35 hover:border-emerald-400/60 shadow-xl shadow-emerald-950/30 hover:shadow-2xl hover:shadow-emerald-500/10",
-        topAccent: "from-teal-400/0 via-emerald-500 to-teal-400/0",
-        avatarAura: "from-emerald-600/40 via-teal-600/30 to-cyan-400/40",
-        avatarRim: "from-emerald-500 via-teal-500 to-cyan-400 shadow-[0_0_18px_rgba(16,185,129,0.35)] group-hover:shadow-[0_0_26px_rgba(20,184,166,0.5)]",
-        badgePill: "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
+        cardContainer: "bg-surface dark:bg-[#0C1210] border-emerald-500/25 hover:border-emerald-500/50 shadow-md hover:shadow-xl hover:shadow-emerald-950/20",
+        topAccent: "from-emerald-500/0 via-emerald-500/50 to-emerald-500/0",
+        avatarAura: "",
+        avatarRim: "from-emerald-500/70 to-teal-500/70 shadow-xs",
+        badgePill: "bg-emerald-500/10 text-emerald-400 border-emerald-500/25",
         badgeDot: "bg-emerald-400",
-        nameHover: "text-emerald-50 group-hover:text-emerald-400",
-        usernameTag: "text-emerald-300 bg-emerald-500/15 hover:bg-emerald-500/25 border-emerald-500/30",
-        phoneTag: "text-emerald-200 bg-emerald-950/35 border-emerald-500/20",
-        phoneIcon: "text-emerald-400/80",
-        statsCard: "bg-emerald-950/30 dark:bg-[#07241B]/70 border-emerald-500/20 group-hover:border-emerald-500/35 shadow-2xs",
+        nameHover: "text-ink group-hover:text-emerald-400",
+        usernameTag: "text-emerald-400 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/20",
+        phoneTag: "text-ink-secondary bg-surface-alt/90 border-line/80",
+        phoneIcon: "text-ink-tertiary",
+        statsCard: "bg-surface-alt/80 dark:bg-[#101714] border-line/70 group-hover:border-emerald-500/25",
         statsIcon: "text-emerald-400",
-        statsVal: "text-emerald-50",
-        statsMuted: "text-emerald-200/90",
-        footerBorder: "border-emerald-500/20",
-        youBadge: "bg-emerald-950/50 border-emerald-500/30 text-emerald-300",
+        statsVal: "text-ink",
+        statsMuted: "text-ink-tertiary",
+        footerBorder: "border-line/80",
+        youBadge: "bg-surface-alt/90 border-line/80 text-ink-tertiary",
       };
     }
 
-    // shivam_p: Royal Amethyst / Velvet Purple
+    // shivam_p: Subtle Royal Violet Tint (Toned down 50%)
     if (u === "shivam_p" || u.startsWith("shivam")) {
       return {
         isFeatured: true,
         roleBadge: member.role === "ADMIN" ? "CORE ADMIN" : "CORE MEMBER",
-        cardContainer: "bg-gradient-to-b from-[#180E29] via-[#120B20] to-[#0D0717] dark:from-[#180E29] dark:via-[#120B20] dark:to-[#0D0717] border-purple-500/35 hover:border-purple-400/60 shadow-xl shadow-purple-950/30 hover:shadow-2xl hover:shadow-purple-500/10",
-        topAccent: "from-fuchsia-400/0 via-purple-500 to-fuchsia-400/0",
-        avatarAura: "from-purple-600/40 via-indigo-600/30 to-fuchsia-400/40",
-        avatarRim: "from-purple-500 via-indigo-500 to-fuchsia-400 shadow-[0_0_18px_rgba(168,85,247,0.35)] group-hover:shadow-[0_0_26px_rgba(217,70,239,0.5)]",
-        badgePill: "bg-purple-500/15 text-purple-400 border-purple-500/30",
+        cardContainer: "bg-surface dark:bg-[#120E1A] border-purple-500/25 hover:border-purple-500/50 shadow-md hover:shadow-xl hover:shadow-purple-950/20",
+        topAccent: "from-purple-500/0 via-purple-500/50 to-purple-500/0",
+        avatarAura: "",
+        avatarRim: "from-purple-500/70 to-indigo-500/70 shadow-xs",
+        badgePill: "bg-purple-500/10 text-purple-400 border-purple-500/25",
         badgeDot: "bg-purple-400",
-        nameHover: "text-purple-50 group-hover:text-purple-400",
-        usernameTag: "text-purple-300 bg-purple-500/15 hover:bg-purple-500/25 border-purple-500/30",
-        phoneTag: "text-purple-200 bg-purple-950/35 border-purple-500/20",
-        phoneIcon: "text-purple-400/80",
-        statsCard: "bg-purple-950/30 dark:bg-[#1E1133]/70 border-purple-500/20 group-hover:border-purple-500/35 shadow-2xs",
+        nameHover: "text-ink group-hover:text-purple-400",
+        usernameTag: "text-purple-400 bg-purple-500/10 hover:bg-purple-500/20 border-purple-500/20",
+        phoneTag: "text-ink-secondary bg-surface-alt/90 border-line/80",
+        phoneIcon: "text-ink-tertiary",
+        statsCard: "bg-surface-alt/80 dark:bg-[#151120] border-line/70 group-hover:border-purple-500/25",
         statsIcon: "text-purple-400",
-        statsVal: "text-purple-50",
-        statsMuted: "text-purple-200/90",
-        footerBorder: "border-purple-500/20",
-        youBadge: "bg-purple-950/50 border-purple-500/30 text-purple-300",
+        statsVal: "text-ink",
+        statsMuted: "text-ink-tertiary",
+        footerBorder: "border-line/80",
+        youBadge: "bg-surface-alt/90 border-line/80 text-ink-tertiary",
       };
     }
 
