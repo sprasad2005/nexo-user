@@ -9,13 +9,20 @@ const COL = "transactions";
    GET /api/transactions
    Fetches all saved transactions from MongoDB.
 ──────────────────────────────────────────────────────────────── */
-export async function GET() {
+export async function GET(req: Request) {
   try {
+    const { searchParams } = new URL(req.url);
+    const memberId = searchParams.get("memberId");
+    const query: any = {};
+    if (memberId) {
+      query.$or = [{ memberId }, { userId: memberId }];
+    }
+
     const client = await clientPromise;
     const col = client.db(DB).collection<TransactionDocument>(COL);
 
     const transactions = await col
-      .find({})
+      .find(query)
       .sort({ createdAt: -1 })
       .toArray();
 
