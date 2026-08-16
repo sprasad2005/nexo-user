@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, Suspense } from "react";
+import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AdminProvider } from "../../admin/context/AdminContext";
 import { AdminSidebar } from "../../admin/components/AdminSidebar";
@@ -188,21 +188,21 @@ function AdminDashboardContent() {
     }
   }, [tabParam]);
 
-  const handleSelectTab = (tab: string) => {
+  const handleSelectTab = useCallback((tab: string) => {
     setActiveTab(tab);
     if (typeof window !== "undefined") {
       window.history.pushState(null, "", `/admin?tab=${tab}`);
     }
-  };
+  }, []);
 
-  const handleAddSuccess = (msg: string) => {
+  const handleAddSuccess = useCallback((msg: string) => {
     setFeedbackMsg(msg);
     setTimeout(() => {
       setFeedbackMsg(null);
     }, 5000);
-  };
+  }, []);
 
-  const getTabTitle = (tab: string) => {
+  const getTabTitle = useCallback((tab: string) => {
     switch (tab) {
       case "ipos":
         return "IPO Management";
@@ -230,7 +230,7 @@ function AdminDashboardContent() {
       default:
         return "Dashboard";
     }
-  };
+  }, []);
 
   return (
     <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-[#090A0C] text-slate-900 dark:text-[#F5F7FA] font-sans antialiased">

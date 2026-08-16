@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import {
   Users,
   UserPlus,
@@ -82,12 +82,12 @@ export function SuperAdminMemberManagement() {
     canManageMembers: false,
   });
 
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 4000);
-  };
+  }, []);
 
-  const fetchMembers = async () => {
+  const fetchMembers = useCallback(async () => {
     try {
       const freshMembers = await AdminDataCache.fetchSWR(
         "admin_members_list",
@@ -119,11 +119,11 @@ export function SuperAdminMemberManagement() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMembers();
-  }, []);
+  }, [fetchMembers]);
 
   // Filtered members list
   const filteredMembers = useMemo(() => {

@@ -73,6 +73,7 @@ export function ActivityPage() {
   const [roleFilter, setRoleFilter] = useState<string>("");
 
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const hasActiveFilters = category || severity || datePreset || roleFilter || search;
 
@@ -93,13 +94,19 @@ export function ActivityPage() {
   }, [search, category, severity, datePreset, roleFilter]);
 
   const fetchActivities = useCallback(async () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     if (!hasActiveFilters && !AdminDataCache.has("admin_activities_default")) {
       setIsLoading(true);
     }
     setIsError(false);
     setNextCursor(undefined);
     try {
-      const res = await fetch(buildUrl());
+      const res = await fetch(buildUrl(), { signal: controller.signal });
       const data = await res.json();
       if (data.success) {
         setActivities(data.activities || []);
@@ -112,8 +119,10 @@ export function ActivityPage() {
       } else {
         setIsError(true);
       }
-    } catch {
-      setIsError(true);
+    } catch (err: any) {
+      if (err.name !== "AbortError") {
+        setIsError(true);
+      }
     } finally {
       setIsLoading(false);
     }
@@ -124,7 +133,10 @@ export function ActivityPage() {
     searchDebounceRef.current = setTimeout(() => {
       fetchActivities();
     }, 300);
-    return () => { if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current); };
+    return () => {
+      if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
+    };
   }, [fetchActivities]);
 
   const loadMore = async () => {

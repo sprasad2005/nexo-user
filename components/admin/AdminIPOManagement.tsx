@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNexo } from "@/context/NexoContext";
 import { AdminDataCache } from "@/lib/adminDataCache";
 import { IPOOpportunity, AllotmentStatus, IPOLifecycleStage, MemberRole } from "@/types/nexo";
@@ -113,33 +113,59 @@ export function AdminIPOManagement({
   const isAdmin = activeRole === "ADMIN";
 
   // Filter visible IPOs
-  const visibleIpos = ipos.filter((ipo) => !ipo.isHidden);
-  const activeIpos = visibleIpos.filter((i) => i.status !== "COMPLETED" && !(i as any).isCompleted);
-  const completedIpos = visibleIpos.filter((i) => i.status === "COMPLETED" || (i as any).isCompleted);
+  const visibleIpos = useMemo(() => ipos.filter((ipo: IPOOpportunity) => !ipo.isHidden), [ipos]);
+  const activeIpos = useMemo(
+    () => visibleIpos.filter((i: IPOOpportunity) => i.status !== "COMPLETED" && !(i as any).isCompleted),
+    [visibleIpos]
+  );
+  const completedIpos = useMemo(
+    () => visibleIpos.filter((i: IPOOpportunity) => i.status === "COMPLETED" || (i as any).isCompleted),
+    [visibleIpos]
+  );
 
   // All applications across visible IPOs
-  const allApplications = visibleIpos.flatMap((ipo) =>
-    ipo.applications.map((app) => ({
-      ...app,
-      ipoName: ipo.name,
-      ipoId: ipo.id,
-    }))
+  const allApplications = useMemo(
+    () =>
+      visibleIpos.flatMap((ipo: IPOOpportunity) =>
+        ipo.applications.map((app: any) => ({
+          ...app,
+          ipoName: ipo.name,
+          ipoId: ipo.id,
+        }))
+      ),
+    [visibleIpos]
   );
 
   // Calculated Admin Metrics
-  const totalGroupCapital = visibleIpos.reduce((sum, ipo) => sum + (ipo.combinedCapital || 0), 0);
-  const totalAllottedApps = allApplications.filter((a) => a.allotmentStatus === "ALLOTTED").length;
-  const totalRealizedProfit = visibleIpos.reduce((sum, ipo) => {
-    if (ipo.listingGainPercent && (ipo.status === "ALLOTTED" || ipo.status === "SOLD" || ipo.status === "LISTED" || ipo.status === "COMPLETED")) {
-      return sum + Math.round((ipo.combinedCapital * ipo.listingGainPercent) / 100);
-    }
-    return sum;
-  }, 0);
+  const totalGroupCapital = useMemo(
+    () => visibleIpos.reduce((sum: number, ipo: IPOOpportunity) => sum + (ipo.combinedCapital || 0), 0),
+    [visibleIpos]
+  );
+  const totalAllottedApps = useMemo(
+    () => allApplications.filter((a: any) => a.allotmentStatus === "ALLOTTED").length,
+    [allApplications]
+  );
+  const totalRealizedProfit = useMemo(
+    () =>
+      visibleIpos.reduce((sum: number, ipo: IPOOpportunity) => {
+        if (
+          ipo.listingGainPercent &&
+          (ipo.status === "ALLOTTED" ||
+            ipo.status === "SOLD" ||
+            ipo.status === "LISTED" ||
+            ipo.status === "COMPLETED")
+        ) {
+          return sum + Math.round((ipo.combinedCapital * ipo.listingGainPercent) / 100);
+        }
+        return sum;
+      }, 0),
+    [visibleIpos]
+  );
 
-  const showToast = (msg: string) => {
+  const showToast = useCallback((msg: string) => {
     setFeedbackMsg(msg);
     setTimeout(() => setFeedbackMsg(null), 5000);
-  };
+  }, []);
 
   const handleConfirmRemove = () => {
     if (!selectedIpoToRemove) return;
@@ -241,7 +267,7 @@ export function AdminIPOManagement({
     );
   }
 
-  const selectedIpoForApps = visibleIpos.find((i) => i.id === allotmentIpoFilter) || visibleIpos[0];
+  const selectedIpoForApps = visibleIpos.find((i: IPOOpportunity) => i.id === allotmentIpoFilter) || visibleIpos[0];
   const filteredAppsForIpo = selectedIpoForApps ? selectedIpoForApps.applications : [];
 
   return (
@@ -404,7 +430,7 @@ export function AdminIPOManagement({
             </div>
           ) : (
             <div className="divide-y divide-line/60">
-              {(ipoFilterTab === "ACTIVE" ? activeIpos : completedIpos).map((ipo) => {
+              {(ipoFilterTab === "ACTIVE" ? activeIpos : completedIpos).map((ipo: IPOOpportunity) => {
                 const isAllottedOrListed =
                   ipo.status === "ALLOTTED" || ipo.status === "LISTED" || ipo.status === "SOLD" || ipo.status === "COMPLETED";
 
@@ -550,7 +576,7 @@ export function AdminIPOManagement({
               <CustomSelect
                 value={allotmentIpoFilter}
                 onChange={(val) => setAllotmentIpoFilter(val)}
-                options={visibleIpos.map((ipo) => ({
+                options={visibleIpos.map((ipo: IPOOpportunity) => ({
                   value: ipo.id,
                   label: ipo.name,
                 }))}
@@ -577,7 +603,7 @@ export function AdminIPOManagement({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-line/60">
-                  {filteredAppsForIpo.map((app) => (
+                  {filteredAppsForIpo.map((app: any) => (
                     <tr key={app.id} className="hover:bg-surface-alt/50 transition-colors">
                       <td className="py-3 px-3 font-extrabold text-ink">{formatApplicantNames(app)}</td>
                       <td className="py-3 px-3 font-mono text-ink-secondary text-[11px]">
