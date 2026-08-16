@@ -167,13 +167,7 @@ function AdminDashboardContent() {
   const searchParams = useSearchParams();
   const tabParam = searchParams ? searchParams.get("tab") : null;
 
-  const [activeTab, setActiveTab] = useState(() => {
-    if (typeof window !== "undefined") {
-      const p = new URLSearchParams(window.location.search).get("tab");
-      if (p) return p;
-    }
-    return "ipos";
-  });
+  const [activeTab, setActiveTab] = useState(tabParam || "ipos");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
