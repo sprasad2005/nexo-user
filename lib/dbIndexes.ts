@@ -31,7 +31,8 @@ export async function ensureDatabaseIndexes(): Promise<void> {
       membersCol.createIndex({ id: 1 }, { unique: true, background: true }),
       membersCol.createIndex({ username: 1 }, { background: true }),
       membersCol.createIndex({ email: 1 }, { background: true }),
-      membersCol.createIndex({ role: 1, status: 1 }, { background: true }),
+      membersCol.createIndex({ name: 1 }, { background: true }),
+      membersCol.createIndex({ role: 1, status: 1, createdAt: -1 }, { background: true }),
       membersCol.createIndex({ createdAt: -1 }, { background: true }),
     ]);
 
@@ -39,9 +40,10 @@ export async function ensureDatabaseIndexes(): Promise<void> {
     const iposCol = db.collection("ipos");
     await Promise.allSettled([
       iposCol.createIndex({ id: 1 }, { background: true }),
-      iposCol.createIndex({ isHidden: 1, isArchived: 1, createdAt: -1 }, { background: true }),
+      iposCol.createIndex({ isHidden: 1, isArchived: 1, status: 1, createdAt: -1 }, { background: true }),
       iposCol.createIndex({ name: 1 }, { background: true }),
       iposCol.createIndex({ status: 1 }, { background: true }),
+      iposCol.createIndex({ createdAt: -1 }, { background: true }),
     ]);
 
     // 4. Applications collection indexes
@@ -51,6 +53,7 @@ export async function ensureDatabaseIndexes(): Promise<void> {
       appsCol.createIndex({ ipoId: 1, allotmentStatus: 1 }, { background: true }),
       appsCol.createIndex({ memberId: 1, ipoId: 1 }, { background: true }),
       appsCol.createIndex({ userId: 1 }, { background: true }),
+      appsCol.createIndex({ applicationNumber: 1 }, { background: true }),
       appsCol.createIndex({ createdAt: -1 }, { background: true }),
     ]);
 
@@ -59,6 +62,8 @@ export async function ensureDatabaseIndexes(): Promise<void> {
     await Promise.allSettled([
       activitiesCol.createIndex({ createdAt: -1, _id: -1 }, { background: true }),
       activitiesCol.createIndex({ category: 1, createdAt: -1 }, { background: true }),
+      activitiesCol.createIndex({ category: 1, eventType: 1, severity: 1, createdAt: -1 }, { background: true }),
+      activitiesCol.createIndex({ actorRole: 1, createdAt: -1 }, { background: true }),
       activitiesCol.createIndex({ eventType: 1, createdAt: -1 }, { background: true }),
       activitiesCol.createIndex({ severity: 1, createdAt: -1 }, { background: true }),
       activitiesCol.createIndex({ actorUserId: 1, createdAt: -1 }, { background: true }),
@@ -67,7 +72,16 @@ export async function ensureDatabaseIndexes(): Promise<void> {
       activitiesCol.createIndex({ ipoId: 1, createdAt: -1 }, { background: true }),
     ]);
 
-    // 6. Sessions collection indexes
+    // 6. Transactions collection indexes
+    const txnsCol = db.collection("transactions");
+    await Promise.allSettled([
+      txnsCol.createIndex({ id: 1 }, { background: true }),
+      txnsCol.createIndex({ memberId: 1, createdAt: -1 }, { background: true }),
+      txnsCol.createIndex({ ipoId: 1, status: 1 }, { background: true }),
+      txnsCol.createIndex({ createdAt: -1 }, { background: true }),
+    ]);
+
+    // 7. Sessions collection indexes
     const sessionsCol = db.collection("sessions");
     await Promise.allSettled([
       sessionsCol.createIndex({ sessionTokenHash: 1 }, { unique: true, background: true }),
@@ -76,7 +90,14 @@ export async function ensureDatabaseIndexes(): Promise<void> {
       sessionsCol.createIndex({ lastActiveAt: -1 }, { background: true }),
     ]);
 
-    // 7. Conversations & Messages indexes
+    // 8. Notifications collection indexes
+    const notifsCol = db.collection("notifications");
+    await Promise.allSettled([
+      notifsCol.createIndex({ recipientId: 1, isRead: 1, createdAt: -1 }, { background: true }),
+      notifsCol.createIndex({ memberId: 1, createdAt: -1 }, { background: true }),
+    ]);
+
+    // 9. Conversations & Messages indexes
     const messagesCol = db.collection("messages");
     await Promise.allSettled([
       messagesCol.createIndex({ conversationId: 1, createdAt: -1 }, { background: true }),
