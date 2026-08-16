@@ -30,7 +30,7 @@ export function DashboardHeader() {
         {/* Headline */}
         <h1 className="text-[28px] sm:text-[32px] leading-[1.2] font-bold text-ink tracking-tight">
           {getGreeting()},{" "}
-          <span className="text-emerald-400 font-black tracking-tight">{currentUser.name}</span>.
+          <span className="text-accent">{currentUser.name}</span>.
         </h1>
 
         {/* Subtitle */}
@@ -42,7 +42,7 @@ export function DashboardHeader() {
       {/* Right: Date + Quick Stat */}
       <div className="flex flex-col sm:items-end gap-2 self-start sm:self-auto">
         <div className="flex items-center gap-2 text-xs font-semibold text-ink bg-surface border border-line px-3.5 py-2 rounded-xl shadow-2xs">
-          <CalendarBlank size={14} className="text-emerald-400" />
+          <CalendarBlank size={14} className="text-accent" />
           <span className="num-tabular">{formattedDate}</span>
         </div>
 

@@ -62,12 +62,12 @@ export function FeaturedOpportunity({ ipo, onInspect, onApply }: FeaturedOpportu
                 {/* Clickable IPO name */}
                 <button
                   onClick={() => setShowDetail(true)}
-                  className="text-left text-h4 font-bold text-ink hover:text-emerald-400 transition-colors tracking-tight cursor-pointer block leading-snug"
+                  className="text-left text-h4 font-bold text-ink hover:text-accent transition-colors tracking-tight cursor-pointer block leading-snug"
                 >
                   {ipo.name}
                 </button>
                 <div className="flex items-center gap-1 text-[11px] font-medium text-ink-muted mt-0.5">
-                  <Clock size={12} className="text-emerald-400 shrink-0" />
+                  <Clock size={12} className="text-accent shrink-0" />
                   <span>Added: <strong className="text-ink font-mono font-bold">{formatIpoAddedDateTime(ipo)}</strong></span>
                 </div>
               </div>

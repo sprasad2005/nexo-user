@@ -4,7 +4,14 @@ const uri =
   process.env.MONGODB_URI ||
   "mongodb+srv://ankit_database:iamaniket07@cluster0.bpd1pms.mongodb.net/nexo?appName=Cluster0";
 
-const options = {};
+const options = {
+  maxPoolSize: 25,
+  minPoolSize: 3,
+  maxIdleTimeMS: 60000,
+  serverSelectionTimeoutMS: 15000,
+  connectTimeoutMS: 15000,
+  socketTimeoutMS: 30000,
+};
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;

@@ -96,69 +96,24 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       const res = await fetch(`${API_BASE_URL}?admin=true`);
       const data = await res.json();
       if (data?.success && Array.isArray(data.ipos)) {
-        let extraLocal: IPOOpportunity[] = [];
-        let hiddenLocal: string[] = [];
-        let profitDists: Record<string, any> = {};
+        if (typeof window !== "undefined") {
+          try {
+            localStorage.removeItem("nexo_local_admin_ipos");
+            localStorage.removeItem("nexo_ipos");
+          } catch {}
+        }
+
+        const validIpos = data.ipos.filter((item: IPOOpportunity) => !item.isHidden && !item.isArchived);
+        setIpos(validIpos);
         try {
-          extraLocal = JSON.parse(localStorage.getItem("nexo_local_admin_ipos") || "[]");
-          hiddenLocal = JSON.parse(localStorage.getItem("nexo_local_hidden_ipos") || "[]");
-          profitDists = JSON.parse(localStorage.getItem("nexo_shared_profit_dists") || "{}");
-        } catch (e) {}
-
-        const mergedMap = new Map<string, IPOOpportunity>();
-        data.ipos.forEach((ipo: IPOOpportunity) => mergedMap.set(ipo.id, ipo));
-        extraLocal.forEach((ipo) => {
-          if (!mergedMap.has(ipo.id)) {
-            mergedMap.set(ipo.id, ipo);
-          } else if (ipo.isHidden) {
-            const existing = mergedMap.get(ipo.id)!;
-            mergedMap.set(ipo.id, { ...existing, isHidden: true });
-          }
-        });
-
-        const combined = Array.from(mergedMap.values()).map((ipo) => {
-          const dist = profitDists[ipo.id] || ipo.profitDistribution;
-          return {
-            ...ipo,
-            isHidden: hiddenLocal.includes(ipo.id) || ipo.isHidden === true,
-            profitDistribution: dist || ipo.profitDistribution,
-          };
-        });
-
-        setIpos(combined);
-        try {
-          localStorage.setItem("nexo_cached_ipos", JSON.stringify(combined));
+          localStorage.setItem("nexo_cached_ipos", JSON.stringify(validIpos));
         } catch {}
       }
     } catch (err) {
-
-      let extraLocal: IPOOpportunity[] = [];
-      let hiddenLocal: string[] = [];
-      let profitDists: Record<string, any> = {};
-      try {
-        extraLocal = JSON.parse(localStorage.getItem("nexo_local_admin_ipos") || "[]");
-        hiddenLocal = JSON.parse(localStorage.getItem("nexo_local_hidden_ipos") || "[]");
-        profitDists = JSON.parse(localStorage.getItem("nexo_shared_profit_dists") || "{}");
-      } catch (e) {}
-
-      setIpos((prev) => {
-        const mergedMap = new Map<string, IPOOpportunity>();
-        prev.forEach((ipo) => mergedMap.set(ipo.id, ipo));
-        extraLocal.forEach((ipo) => {
-          if (!mergedMap.has(ipo.id)) mergedMap.set(ipo.id, ipo);
-        });
-        return Array.from(mergedMap.values()).map((ipo) => {
-          const dist = profitDists[ipo.id] || ipo.profitDistribution;
-          return {
-            ...ipo,
-            isHidden: hiddenLocal.includes(ipo.id) || ipo.isHidden === true,
-            profitDistribution: dist || ipo.profitDistribution,
-          };
-        });
-      });
+      console.warn("Error refreshing IPOs in AdminContext:", err);
     } finally {
       setIsLoading(false);
-    };
+    }
   };
 
   useEffect(() => {
@@ -186,13 +141,17 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
     }
 
     const isDuplicate = ipos.some(
-      (item) => item.name && item.name.trim().toLowerCase() === cleanName.toLowerCase()
+      (item) =>
+        !item.isHidden &&
+        !item.isArchived &&
+        item.name &&
+        item.name.trim().toLowerCase() === cleanName.toLowerCase()
     );
 
     if (isDuplicate) {
       return {
         success: false,
-        message: `An IPO named "${cleanName}" already exists. IPO names must be unique.`,
+        message: `An active IPO named "${cleanName}" already exists. IPO names must be unique.`,
       };
     }
 

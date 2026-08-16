@@ -185,13 +185,29 @@ function MembersPageContent() {
       });
       const res = await fetch(`/api/admin/members?${q}`);
       const data = await res.json();
-      if (data.success) {
+      if (data?.success && Array.isArray(data.members)) {
         setMembers(data.members);
       } else {
-        showToast(data.error || "Failed to fetch members list", "error");
+        const fallbackRes = await fetch("/api/members");
+        const fallbackData = await fallbackRes.json();
+        if (fallbackData?.success && Array.isArray(fallbackData.members)) {
+          setMembers(fallbackData.members);
+        } else {
+          showToast(data.error || "Failed to fetch members list", "error");
+        }
       }
     } catch {
-      showToast("Unable to connect to administration server", "error");
+      try {
+        const fallbackRes = await fetch("/api/members");
+        const fallbackData = await fallbackRes.json();
+        if (fallbackData?.success && Array.isArray(fallbackData.members)) {
+          setMembers(fallbackData.members);
+        } else {
+          showToast("Unable to connect to administration server", "error");
+        }
+      } catch {
+        showToast("Unable to connect to administration server", "error");
+      }
     } finally {
       setIsLoading(false);
     }

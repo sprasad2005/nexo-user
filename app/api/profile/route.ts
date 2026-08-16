@@ -7,6 +7,8 @@ import {
 } from "@/src/models/Profile";
 import { getAuthenticatedUser } from "@/src/lib/auth/authorization";
 
+import { cleanOldAvatar } from "@/lib/avatarCleanup";
+
 const DB  = "nexo";
 const COL = "profiles";
 
@@ -101,7 +103,18 @@ export async function PUT(req: Request) {
 
     try {
       const client = await clientPromise;
-      const col    = client.db(DB).collection<ProfileDocument>(COL);
+      const db = client.db(DB);
+      const col = db.collection<ProfileDocument>(COL);
+
+      // Check if avatar is changing and cleanup old custom picture
+      if (body.avatar) {
+        const existingProfile = await col.findOne({ userId });
+        const existingMember = await db.collection("members").findOne({ $or: [{ id: auth?.memberId || userId }, { id: userId }] });
+        const oldAvatar = existingProfile?.avatar || (existingMember as any)?.avatar;
+        if (oldAvatar && oldAvatar !== body.avatar) {
+          await cleanOldAvatar(oldAvatar, body.avatar, db);
+        }
+      }
 
       await col.updateOne(
         { userId },

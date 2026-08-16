@@ -68,5 +68,6 @@ export interface IPOOpportunity {
   combinedCapital: number;
   applications: any[];
   isHidden?: boolean;
+  isArchived?: boolean;
   profitDistribution?: ProfitDistribution;
 }

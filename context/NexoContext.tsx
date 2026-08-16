@@ -248,7 +248,10 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
 
   const [unreadMessageCount, setUnreadMessageCount] = useState<number>(0);
 
+  const isRefreshingUnreadRef = React.useRef(false);
   const refreshUnreadMessageCount = useCallback(async () => {
+    if (isRefreshingUnreadRef.current) return;
+    isRefreshingUnreadRef.current = true;
     try {
       const activeMemberId = currentUser?.id || "mem_1";
       const res = await fetch(`/api/conversations?memberId=${activeMemberId}`);
@@ -260,16 +263,21 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
         ).length;
         setUnreadMessageCount(unreadChatsCount);
       }
-    } catch {}
+    } catch {} finally {
+      isRefreshingUnreadRef.current = false;
+    }
   }, [currentUser]);
 
   useEffect(() => {
     refreshUnreadMessageCount();
-    const interval = setInterval(refreshUnreadMessageCount, 3000);
+    const interval = setInterval(refreshUnreadMessageCount, 8000);
     return () => clearInterval(interval);
   }, [refreshUnreadMessageCount]);
 
+  const isRefreshingIposRef = React.useRef(false);
   const refreshIpos = async () => {
+    if (isRefreshingIposRef.current) return;
+    isRefreshingIposRef.current = true;
     try {
       const [ipoRes, appRes] = await Promise.all([
         fetch("/api/ipos").then((r) => r.json()).catch(() => null),
@@ -497,6 +505,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       }
     } catch (err) {
       console.warn("Failed to refresh IPOs from API in NexoContext:", err);
+    } finally {
+      isRefreshingIposRef.current = false;
     }
   };
 
@@ -619,8 +629,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener("hashchange", handleHashChange);
     window.addEventListener("storage", refreshIpos);
 
-    // Auto-fetch fresh data from MongoDB every 3 seconds
-    const ipoInterval = setInterval(refreshIpos, 3000);
+    // Auto-fetch fresh data from MongoDB every 8 seconds
+    const ipoInterval = setInterval(refreshIpos, 8000);
 
     return () => {
       window.removeEventListener("hashchange", handleHashChange);

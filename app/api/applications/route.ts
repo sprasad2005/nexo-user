@@ -47,16 +47,21 @@ export async function GET() {
       console.warn("GET /api/applications MongoDB fetch optional.");
     }
 
+    if (dbApps.length > 0) {
+      return NextResponse.json(
+        { success: true, applications: dbApps },
+        {
+          headers: {
+            "Cache-Control": "public, max-age=5, stale-while-revalidate=15",
+          },
+        }
+      );
+    }
+
     const sharedIpos = readSharedIpos();
     const appMap = new Map<string, any>();
 
-    // Process MongoDB apps first
-    dbApps.forEach((app) => {
-      const id = app.id || app._id?.toString();
-      if (id) appMap.set(id, app);
-    });
-
-    // Process embedded apps from shared_ipos.json
+    // Process embedded apps from shared_ipos.json fallback
     sharedIpos.forEach((ipo) => {
       if (Array.isArray(ipo.applications)) {
         ipo.applications.forEach((app: any) => {
@@ -73,7 +78,14 @@ export async function GET() {
 
     const applications = Array.from(appMap.values());
 
-    return NextResponse.json({ success: true, applications });
+    return NextResponse.json(
+      { success: true, applications },
+      {
+        headers: {
+          "Cache-Control": "public, max-age=5, stale-while-revalidate=15",
+        },
+      }
+    );
   } catch (err: any) {
     console.warn("GET /api/applications error, returning fallback.");
     return NextResponse.json({ success: true, applications: [] });

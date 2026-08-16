@@ -4,6 +4,7 @@ import { MemberDocument } from "@/src/models/Member";
 import { MOCK_MEMBERS } from "@/lib/mockData";
 import { MemberPermissions } from "@/types/nexo";
 import { logActivity } from "@/src/features/activity/activityService";
+import { cleanOldAvatar } from "@/lib/avatarCleanup";
 
 const DB = "nexo";
 const COL = "members";
@@ -256,7 +257,16 @@ export async function PUT(req: Request) {
 
     try {
       const client = await clientPromise;
-      const col = client.db(DB).collection<MemberDocument>(COL);
+      const db = client.db(DB);
+      const col = db.collection<MemberDocument>(COL);
+
+      // Clean old avatar if changing to a new one
+      if (body.avatar) {
+        const existingMember = await col.findOne({ id: body.id });
+        if (existingMember?.avatar && existingMember.avatar !== body.avatar) {
+          await cleanOldAvatar(existingMember.avatar, body.avatar, db);
+        }
+      }
 
       await col.updateOne({ id: body.id }, { $set: updateDoc });
 

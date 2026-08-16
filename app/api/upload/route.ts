@@ -126,3 +126,42 @@ export async function GET(req: Request) {
     return NextResponse.json({ success: false, error: "Failed to fetch file." }, { status: 500 });
   }
 }
+
+/* ────────────────────────────────────────────────────────────────
+   DELETE /api/upload?id=... or body { id: string }
+   Deletes stored image/file from MongoDB by ID.
+──────────────────────────────────────────────────────────────── */
+export async function DELETE(req: Request) {
+  try {
+    const { searchParams } = new URL(req.url);
+    let id = searchParams.get("id");
+
+    if (!id) {
+      const body = await req.json().catch(() => ({}));
+      id = body.id || body.url;
+    }
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: "Missing file ID or URL." }, { status: 400 });
+    }
+
+    // Extract ID if a full URL was passed
+    const match = id.match(/\/api\/upload\?id=([^&]+)/);
+    const mediaId = match ? decodeURIComponent(match[1]) : id;
+
+    const client = await clientPromise;
+    const db = client.db(DB_NAME);
+    const result = await db.collection(COL_MEDIA).deleteMany({
+      $or: [{ id: mediaId }, { _id: mediaId as any }]
+    });
+
+    return NextResponse.json({
+      success: true,
+      message: "File deleted successfully.",
+      deletedCount: result.deletedCount,
+    });
+  } catch (err: any) {
+    console.error("DELETE /api/upload error:", err);
+    return NextResponse.json({ success: false, error: "Failed to delete file." }, { status: 500 });
+  }
+}

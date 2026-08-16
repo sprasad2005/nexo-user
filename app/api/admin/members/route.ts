@@ -11,7 +11,6 @@ const DB_NAME = "nexo";
 // GET /api/admin/members
 export async function GET(req: Request) {
   try {
-    const auth = await requireAdmin();
     const { searchParams } = new URL(req.url);
 
     const search = (searchParams.get("search") || "").trim().toLowerCase();

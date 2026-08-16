@@ -31,106 +31,135 @@ export async function GET(req: Request) {
 
     let myMemberships = await memberCol.find({ memberId: currentMemberId }).toArray();
 
-    /* Automatically sync group memberships for newly added members */
-    await ensureGroupMemberships(db, currentMemberId);
-    myMemberships = await memberCol.find({ memberId: currentMemberId }).toArray();
+    /* Automatically sync group memberships only if user has no memberships */
+    if (myMemberships.length === 0) {
+      await ensureGroupMemberships(db, currentMemberId);
+      myMemberships = await memberCol.find({ memberId: currentMemberId }).toArray();
+    }
 
     const convIds = myMemberships.map((m) => m.conversationId);
-    const conversations = await convCol
-      .find({ id: { $in: convIds } })
-      .sort({ lastMessageAt: -1 })
-      .toArray();
+    if (convIds.length === 0) {
+      return NextResponse.json({ success: true, conversations: [] });
+    }
 
-    const allUsers = await userCol.find({}).toArray();
+    // 1. Fetch conversations, all conversation memberships, users, latest messages, and unread counts in parallel batch queries
+    const [conversations, allMemberships, allUsers, latestMsgsAgg, unreadMsgsAgg] = await Promise.all([
+      convCol.find({ id: { $in: convIds } }).sort({ lastMessageAt: -1 }).toArray(),
+      memberCol.find({ conversationId: { $in: convIds } }).toArray(),
+      userCol.find({}).toArray(),
+      msgCol.aggregate([
+        { $match: { conversationId: { $in: convIds }, isDeletedByAdmin: { $ne: true } } },
+        { $sort: { seq: -1, createdAt: -1 } },
+        { $group: { _id: "$conversationId", latestMsg: { $first: "$$ROOT" } } },
+      ]).toArray(),
+      msgCol.aggregate([
+        {
+          $match: {
+            conversationId: { $in: convIds },
+            senderId: { $ne: currentMemberId },
+            isDeletedByAdmin: { $ne: true },
+          },
+        },
+        {
+          $group: {
+            _id: "$conversationId",
+            messages: { $push: { createdAt: "$createdAt" } },
+          },
+        },
+      ]).toArray(),
+    ]);
+
     const userMap = new Map(allUsers.map((u) => [u.id, u]));
+    const latestMsgMap = new Map(latestMsgsAgg.map((item: any) => [item._id, item.latestMsg]));
 
-    /* Enrich conversations with membership details, unread counts & recipient profiles */
-    const enriched = await Promise.all(
-      conversations.map(async (c) => {
-        const myMembership = myMemberships.find((m) => m.conversationId === c.id);
-        const lastReadAt = myMembership?.lastReadAt
-          ? new Date(myMembership.lastReadAt)
-          : new Date(0);
+    const myLastReadMap = new Map<string, Date>();
+    myMemberships.forEach((m) => {
+      myLastReadMap.set(m.conversationId, m.lastReadAt ? new Date(m.lastReadAt) : new Date(0));
+    });
 
-        // Fetch latest message from MongoDB for accurate WhatsApp-style snippet
-        const latestMsg = await msgCol.findOne(
-          { conversationId: c.id, isDeletedByAdmin: { $ne: true } },
-          { sort: { seq: -1, createdAt: -1 } }
-        );
+    const unreadCountMap = new Map<string, number>();
+    unreadMsgsAgg.forEach((item: any) => {
+      const lastRead = myLastReadMap.get(item._id) || new Date(0);
+      const count = item.messages.filter((m: any) => new Date(m.createdAt) > lastRead).length;
+      unreadCountMap.set(item._id, count);
+    });
 
-        // Count unread messages created after lastReadAt (excluding own messages)
-        const unreadCount = await msgCol.countDocuments({
-          conversationId: c.id,
-          senderId: { $ne: currentMemberId },
-          createdAt: { $gt: lastReadAt },
-          isDeletedByAdmin: { $ne: true },
+    const membershipsByConv = new Map<string, any[]>();
+    allMemberships.forEach((m) => {
+      if (!membershipsByConv.has(m.conversationId)) {
+        membershipsByConv.set(m.conversationId, []);
+      }
+      membershipsByConv.get(m.conversationId)!.push(m);
+    });
+
+    /* Enrich conversations in-memory */
+    const enriched = conversations.map((c) => {
+      const latestMsg = latestMsgMap.get(c.id);
+      const unreadCount = unreadCountMap.get(c.id) || 0;
+      const cMemberships = membershipsByConv.get(c.id) || [];
+
+      const seenPartIds = new Set<string>();
+      const participantMembers = cMemberships
+        .map((m) => userMap.get(m.memberId))
+        .filter((u): u is any => {
+          if (!u || !u.id || seenPartIds.has(u.id)) return false;
+          seenPartIds.add(u.id);
+          return true;
         });
 
-        // Get all members of this conversation
-        const cMemberships = await memberCol.find({ conversationId: c.id }).toArray();
-        const seenPartIds = new Set<string>();
-        const participantMembers = cMemberships
-          .map((m) => userMap.get(m.memberId))
-          .filter((u): u is any => {
-            if (!u || !u.id || seenPartIds.has(u.id)) return false;
-            seenPartIds.add(u.id);
-            return true;
-          });
+      let title = c.title;
+      let avatar = c.avatar;
+      let otherMember = undefined;
 
-        let title = c.title;
-        let avatar = c.avatar;
-        let otherMember = undefined;
-
-        if (c.type === "DIRECT") {
-          const other = participantMembers.find((m) => m?.id !== currentMemberId);
-          if (other) {
-            title = other.name;
-            avatar = other.avatar;
-            otherMember = other;
-          }
+      if (c.type === "DIRECT") {
+        const other = participantMembers.find((m) => m?.id !== currentMemberId);
+        if (other) {
+          title = other.name;
+          avatar = other.avatar;
+          otherMember = other;
         }
+      }
 
-        // Format last message text snippet like WhatsApp
-        let lastMessageText = c.lastMessage || "Start a conversation";
-        let lastMessageAt = c.lastMessageAt || c.createdAt;
+      // Format last message text snippet like WhatsApp
+      let lastMessageText = c.lastMessage || "Start a conversation";
+      let lastMessageAt = c.lastMessageAt || c.createdAt;
 
-        if (latestMsg) {
-          lastMessageAt = latestMsg.createdAt;
-          const senderObj = userMap.get(latestMsg.senderId);
-          const senderPrefix =
-            c.type === "GROUP" && senderObj
-              ? `${senderObj.id === currentMemberId ? "You" : senderObj.name.split(" ")[0]}: `
-              : "";
+      if (latestMsg) {
+        lastMessageAt = latestMsg.createdAt;
+        const senderObj = userMap.get(latestMsg.senderId);
+        const senderPrefix =
+          c.type === "GROUP" && senderObj
+            ? `${senderObj.id === currentMemberId ? "You" : senderObj.name.split(" ")[0]}: `
+            : "";
 
-          if (latestMsg.isDeleted && latestMsg.isDeletedByAdmin) {
-            lastMessageText = `${senderPrefix}Message deleted`;
-          } else if (latestMsg.attachment) {
-            if (latestMsg.attachment.type === "IMAGE") {
-              lastMessageText = `${senderPrefix}📷 Photo`;
-            } else if (latestMsg.attachment.type === "DOCUMENT") {
-              lastMessageText = `${senderPrefix}📄 Document`;
-            } else if (latestMsg.attachment.type === "AUDIO") {
-              lastMessageText = `${senderPrefix}🎙️ Voice note`;
-            } else {
-              lastMessageText = `${senderPrefix}📎 Attachment`;
-            }
-          } else if (latestMsg.text) {
-            lastMessageText = `${senderPrefix}${latestMsg.text}`;
+        if (latestMsg.isDeleted && latestMsg.isDeletedByAdmin) {
+          lastMessageText = `${senderPrefix}Message deleted`;
+        } else if (latestMsg.attachment) {
+          if (latestMsg.attachment.type === "IMAGE") {
+            lastMessageText = `${senderPrefix}📷 Photo`;
+          } else if (latestMsg.attachment.type === "DOCUMENT") {
+            lastMessageText = `${senderPrefix}📄 Document`;
+          } else if (latestMsg.attachment.type === "AUDIO") {
+            lastMessageText = `${senderPrefix}🎙️ Voice note`;
+          } else {
+            lastMessageText = `${senderPrefix}📎 Attachment`;
           }
+        } else if (latestMsg.text) {
+          lastMessageText = `${senderPrefix}${latestMsg.text}`;
         }
+      }
 
-        return {
-          ...c,
-          title,
-          avatar,
-          lastMessage: lastMessageText,
-          lastMessageAt: lastMessageAt,
-          unreadCount,
-          otherMember,
-          participants: participantMembers,
-        };
-      })
-    );
+      return {
+        ...c,
+        title,
+        avatar,
+        lastMessage: lastMessageText,
+        lastMessageAt: lastMessageAt,
+        unreadCount,
+        otherMember,
+        participants: participantMembers,
+      };
+    });
 
     // Deduplicate conversations by conversation ID
     const uniqueMap = new Map<string, (typeof enriched)[0]>();

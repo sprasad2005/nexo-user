@@ -46,6 +46,20 @@ export function AdminNavbarProfileMenu({
 
   const rawUsername = currentUser?.username || "ankitgod";
   const formattedUsername = rawUsername.startsWith("@") ? rawUsername : `@${rawUsername}`;
+  const isSuperAdmin =
+    currentUser?.role === "SUPER_ADMIN" ||
+    rawUsername.toLowerCase() === "ankitgod" ||
+    (currentUser?.name || "").toLowerCase().includes("ankit");
+  const roleLabel = isSuperAdmin
+    ? "SUPER ADMIN"
+    : currentUser?.role === "ADMIN"
+    ? "ADMIN"
+    : "MEMBER";
+  const popoverRoleLabel = isSuperAdmin
+    ? "SUPER ADMINISTRATOR"
+    : currentUser?.role === "ADMIN"
+    ? "ADMINISTRATOR"
+    : "CORE MEMBER";
 
   return (
     <div className="relative" ref={menuRef}>
@@ -68,7 +82,7 @@ export function AdminNavbarProfileMenu({
             {currentUser?.name || "Admin"}
           </span>
           <span className="text-[9px] font-mono font-extrabold px-1.5 py-0.5 rounded bg-accent text-white uppercase tracking-wider shadow-2xs">
-            ADMIN
+            {roleLabel}
           </span>
           <CaretDown
             size={14}
@@ -109,7 +123,7 @@ export function AdminNavbarProfileMenu({
                     <div className="mt-1">
                       <span className="inline-flex items-center gap-1 text-[9px] font-mono font-extrabold px-1.5 py-0.5 rounded bg-accent/15 text-accent border border-accent/30 uppercase">
                         <ShieldCheck size={11} weight="bold" />
-                        SUPER ADMINISTRATOR
+                        {popoverRoleLabel}
                       </span>
                     </div>
                   </div>

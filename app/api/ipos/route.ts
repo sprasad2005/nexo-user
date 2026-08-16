@@ -58,21 +58,18 @@ export async function OPTIONS() {
 
 export async function GET(req: NextRequest) {
   try {
-    let allIpos = readSharedIpos();
+    let allIpos: any[] = [];
 
     try {
       const client = await clientPromise;
       const db = client.db(DB_NAME);
-      
-      // Purge any legacy dummy mock seed IPOs
-      await db.collection("ipos").deleteMany({
-        $or: [
-          { id: { $in: ["ipo_1", "ipo_2", "ipo_3", "ipo_4", "ipo_6", "ipo_ntpc", "ipo_veritas", "ipo_tata_tech"] } },
-          { name: { $in: ["Dhoot Transmission", "Tata Technologies", "Hexaware Tech", "Swiggy Limited", "NTPC Green Energy", "Veritas Pharma Sciences", "Ather Energy", "Bajaj Housing"] } },
-        ],
-      });
 
-      const dbIpos = await db.collection("ipos").find({}).sort({ _id: -1 }).toArray();
+      const dbIpos = await db
+        .collection("ipos")
+        .find({ isHidden: { $ne: true }, isArchived: { $ne: true } })
+        .sort({ _id: -1 })
+        .toArray();
+
       if (Array.isArray(dbIpos) && dbIpos.length > 0) {
         allIpos = dbIpos.map((item: any) => ({
           ...item,
@@ -81,25 +78,24 @@ export async function GET(req: NextRequest) {
           addedAt: item.addedAt || item.createdAt || (item._id?.getTimestamp ? item._id.getTimestamp().toISOString() : new Date().toISOString()),
           _id: undefined,
         }));
-        // Cache to local file
-        writeSharedIpos(allIpos);
-      } else if (allIpos.length > 0) {
-        // Seed MongoDB from shared_ipos.json
-        try {
-          await db.collection("ipos").insertMany(
-            allIpos.map((item: any) => ({
-              ...item,
-              _id: undefined,
-              createdAt: new Date(),
-            }))
-          );
-        } catch (_seedErr) {}
       }
     } catch (dbErr) {
-      // Fallback to local file if MongoDB is temporarily offline
+      console.warn("GET /api/ipos database fallback to local shared store:", dbErr);
     }
 
-    return NextResponse.json({ success: true, ipos: allIpos }, { headers: corsHeaders });
+    if (allIpos.length === 0) {
+      allIpos = readSharedIpos().filter((item: any) => !item.isHidden);
+    }
+
+    return NextResponse.json(
+      { success: true, ipos: allIpos },
+      {
+        headers: {
+          ...corsHeaders,
+          "Cache-Control": "public, max-age=5, stale-while-revalidate=15",
+        },
+      }
+    );
   } catch (err: any) {
     console.error("GET /api/ipos error:", err);
     return NextResponse.json({ success: false, error: err.message }, { status: 500, headers: corsHeaders });
@@ -315,17 +311,21 @@ export async function POST(req: NextRequest) {
 
     const cleanName = name.trim();
 
-    // Enforce Unique IPO Name across all existing active and completed IPOs
+    // Enforce Unique IPO Name across all existing active IPOs (ignoring deleted/hidden ones)
     const isDuplicate = allIpos.some(
-      (item) => item.name && item.name.trim().toLowerCase() === cleanName.toLowerCase()
+      (item) =>
+        !item.isHidden &&
+        !item.isArchived &&
+        item.name &&
+        item.name.trim().toLowerCase() === cleanName.toLowerCase()
     );
 
     if (isDuplicate) {
       return NextResponse.json(
         {
           success: false,
-          error: `An IPO named "${cleanName}" already exists. IPO names must be unique.`,
-          message: `An IPO named "${cleanName}" already exists. IPO names must be unique.`,
+          error: `An active IPO named "${cleanName}" already exists. IPO names must be unique.`,
+          message: `An active IPO named "${cleanName}" already exists. IPO names must be unique.`,
         },
         { status: 400, headers: corsHeaders }
       );
@@ -337,13 +337,15 @@ export async function POST(req: NextRequest) {
       const db = client.db(DB_NAME);
       const dbExisting = await db.collection("ipos").findOne({
         name: { $regex: new RegExp(`^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+        isHidden: { $ne: true },
+        isArchived: { $ne: true },
       });
       if (dbExisting) {
         return NextResponse.json(
           {
             success: false,
-            error: `An IPO named "${cleanName}" already exists in the database.`,
-            message: `An IPO named "${cleanName}" already exists in the database.`,
+            error: `An active IPO named "${cleanName}" already exists in the database.`,
+            message: `An active IPO named "${cleanName}" already exists in the database.`,
           },
           { status: 400, headers: corsHeaders }
         );

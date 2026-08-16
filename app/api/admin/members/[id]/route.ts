@@ -3,6 +3,7 @@ import clientPromise from "@/lib/mongodb";
 import { requireSuperAdmin, requireAdmin } from "@/src/lib/auth/authorization";
 import { UserDocument } from "@/src/models/User";
 import { MemberDocument } from "@/src/models/Member";
+import { cleanOldAvatar } from "@/lib/avatarCleanup";
 
 const DB_NAME = "nexo";
 
@@ -239,6 +240,11 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       if (duplicateEmail) {
         return NextResponse.json({ success: false, error: "Email is already registered by another account." }, { status: 409 });
       }
+    }
+
+    // Clean old avatar if changing to a new one
+    if (avatar && avatar !== member.avatar) {
+      await cleanOldAvatar(member.avatar, avatar, db);
     }
 
     // Perform updates
