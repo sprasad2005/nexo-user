@@ -219,6 +219,17 @@ export function AllotmentManagementView() {
     fetchIpos();
   }, []);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsFinalizeModalOpen(false);
+        setIsReopenModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   const handleSelectIpo = useCallback((newId: string) => {
     if (!newId || newId === selectedIpoId) return;
     setSelectedIpoId(newId);

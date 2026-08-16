@@ -125,6 +125,21 @@ export function SuperAdminMemberManagement() {
     fetchMembers();
   }, [fetchMembers]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsCreateModalOpen(false);
+        setEditingMember(null);
+        setPermissionsMember(null);
+        setActivityMember(null);
+        setResetPassMember(null);
+        setIsSendNotifOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   // Filtered members list
   const filteredMembers = useMemo(() => {
     return members.filter((m) => {
