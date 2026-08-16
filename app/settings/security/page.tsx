@@ -137,7 +137,7 @@ export default function SecuritySettingsPage() {
               <p className="text-xs text-ink-secondary">Manage HTTP-only cookie device sessions and password security</p>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-semibold">
+          <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-500 text-xs font-semibold">
             <ShieldCheck className="w-4 h-4" />
             <span>Encrypted Identity Layer</span>
           </div>

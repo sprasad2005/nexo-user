@@ -84,8 +84,7 @@ export function ProfileView() {
 
   return (
     <div
-      className="relative h-full flex flex-col items-center justify-center font-sans animate-fade-in overflow-hidden py-8 transition-colors duration-500"
-      style={{ minHeight: "calc(100vh - 60px)" }}
+      className="relative min-h-[calc(100vh-60px)] flex flex-col items-center justify-center font-sans animate-fade-in overflow-hidden py-8 pb-24 sm:pb-8 transition-colors duration-500"
     >
       {/* ── Background image (Theme Responsive) ── */}
       <div

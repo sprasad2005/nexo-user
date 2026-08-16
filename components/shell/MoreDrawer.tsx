@@ -4,16 +4,22 @@ import React from "react";
 import { useNexo } from "@/context/NexoContext";
 import {
   Users,
-  Lightning,
   Gear,
   X,
   ShieldCheck,
   Moon,
   Sun,
   ChatCircleDots,
+  User,
+  LockKey,
+  SignOut,
+  Sliders,
+  CheckCircle,
 } from "@phosphor-icons/react";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { formatINR } from "@/lib/mockData";
+import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface MoreDrawerProps {
   isOpen: boolean;
@@ -21,15 +27,26 @@ interface MoreDrawerProps {
 }
 
 export function MoreDrawer({ isOpen, onClose }: MoreDrawerProps) {
-  const { activeTab, setActiveTab, members, portfolioSummary, unreadMessageCount } = useNexo();
+  const {
+    activeTab,
+    setActiveTab,
+    members,
+    portfolioSummary,
+    unreadMessageCount,
+    currentUser: sessionUser,
+    logout,
+  } = useNexo();
   const { theme, toggleTheme } = useTheme();
+  const router = useRouter();
 
   if (!isOpen) return null;
 
-  const adminMember = members[0];
+  const activeUser = sessionUser || members[0];
+  const role = String(activeUser?.role || "MEMBER").toUpperCase();
+  const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
 
   const handleNavClick = (tabId: string) => {
-    if (["dashboard", "ipos", "applications", "portfolio", "messages", "members"].includes(tabId)) {
+    if (["dashboard", "ipos", "applications", "portfolio", "messages", "members", "profile", "admin"].includes(tabId)) {
       setActiveTab(tabId as any);
     }
     onClose();
@@ -41,36 +58,41 @@ export function MoreDrawer({ isOpen, onClose }: MoreDrawerProps) {
       <div className="absolute inset-0" onClick={onClose} />
 
       {/* Bottom Sheet */}
-      <div className="relative z-10 w-full max-h-[85vh] overflow-y-auto bg-surface rounded-t-3xl border-t border-line shadow-2xl animate-slide-up flex flex-col p-5 space-y-5 pb-safe-nav">
+      <div className="relative z-10 w-full max-h-[88vh] overflow-y-auto bg-surface rounded-t-3xl border-t border-line shadow-2xl animate-slide-up flex flex-col p-5 space-y-4 pb-safe-nav">
         {/* Handle / Drag Pill */}
         <div className="w-12 h-1.5 bg-surface-alt rounded-full mx-auto shrink-0" />
 
-        {/* Header: User Profile */}
-        <div className="flex items-center justify-between pb-4 border-b border-line">
-          <div className="flex items-center gap-3">
+        {/* Header: User Profile Card (Clickable to open profile) */}
+        <div
+          onClick={() => handleNavClick("profile")}
+          className="flex items-center justify-between p-3.5 bg-surface-alt/70 hover:bg-surface-hover rounded-2xl border border-line cursor-pointer transition-colors"
+        >
+          <div className="flex items-center gap-3 min-w-0">
             <img
-              src={adminMember?.avatar || "/oggy.png"}
-              alt={adminMember?.name || "Member"}
-              className="w-10 h-10 rounded-full object-cover ring-2 ring-accent/20"
+              src={activeUser?.avatar || "/oggy.png"}
+              alt={activeUser?.name || "Member"}
+              className="w-11 h-11 rounded-full object-cover ring-2 ring-accent/20 shrink-0"
             />
-            <div>
+            <div className="min-w-0">
               <div className="flex items-center gap-1.5">
-                <h3 className="text-base font-bold text-ink tracking-tight">
-                  {adminMember?.name || "Member"}
+                <h3 className="text-base font-bold text-ink tracking-tight truncate">
+                  {activeUser?.name || "Member"}
                 </h3>
-                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-accent-soft text-accent border border-accent/30">
-                  ADMIN
-                </span>
+                <CheckCircle size={14} weight="fill" className="text-positive shrink-0" />
               </div>
-              <p className="text-xs text-ink-tertiary font-medium">
-                Group Admin • {adminMember?.panMasked || "ABCDE2741D"}
+              <p className="text-xs text-ink-tertiary font-medium truncate">
+                {role === "SUPER_ADMIN" ? "Super Admin" : role === "ADMIN" ? "Admin" : "Member"} • @{activeUser?.username || "user"}
               </p>
             </div>
           </div>
 
           <button
-            onClick={onClose}
-            className="p-2 rounded-xl text-ink-muted hover:text-ink-secondary hover:bg-surface-hover transition-colors cursor-pointer"
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose();
+            }}
+            className="p-2 rounded-xl text-ink-muted hover:text-ink-secondary hover:bg-surface-alt transition-colors cursor-pointer shrink-0"
           >
             <X size={20} />
           </button>
@@ -98,16 +120,71 @@ export function MoreDrawer({ isOpen, onClose }: MoreDrawerProps) {
 
         {/* Extended Navigation Options */}
         <div className="space-y-1">
-          <span className="text-[11px] font-bold text-ink-muted uppercase tracking-wider px-2">
-            Community & Management
+          <span className="text-[11px] font-bold text-ink-muted uppercase tracking-wider px-2 block mb-1">
+            Account & Preferences
           </span>
 
+          {/* View Profile */}
+          <button
+            onClick={() => handleNavClick("profile")}
+            className={`w-full flex items-center justify-between p-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
+              activeTab === "profile"
+                ? "bg-accent-soft text-accent border border-accent/30"
+                : "text-ink hover:bg-surface-hover"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-accent-soft text-accent flex items-center justify-center">
+                <User size={18} />
+              </div>
+              <span>Profile & Identity</span>
+            </div>
+            <span className="text-xs text-ink-tertiary">View →</span>
+          </button>
+
+          {/* Security & Password */}
+          <Link
+            href="/settings/security"
+            onClick={onClose}
+            className="w-full flex items-center justify-between p-3 rounded-xl text-sm font-semibold text-ink hover:bg-surface-hover transition-all cursor-pointer"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-surface-alt flex items-center justify-center text-ink-secondary">
+                <LockKey size={18} />
+              </div>
+              <span>Security & Password</span>
+            </div>
+            <span className="text-xs text-ink-tertiary">Manage →</span>
+          </Link>
+
+          {/* Admin Panel Button (if Admin) */}
+          {isAdmin && (
+            <button
+              onClick={() => {
+                router.push("/admin");
+                onClose();
+              }}
+              className="w-full flex items-center justify-between p-3 rounded-xl text-sm font-semibold text-accent hover:bg-accent-soft/40 transition-all cursor-pointer"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-accent/15 text-accent flex items-center justify-center">
+                  <Sliders size={18} />
+                </div>
+                <span>Admin Management Panel</span>
+              </div>
+              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-accent text-white">
+                ADMIN
+              </span>
+            </button>
+          )}
+
+          {/* Messages */}
           <button
             onClick={() => handleNavClick("messages")}
-            className={`w-full flex items-center justify-between p-3 rounded-xl text-sm font-semibold transition-all ${
+            className={`w-full flex items-center justify-between p-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
               activeTab === "messages"
                 ? "bg-accent-soft text-accent border border-accent/30"
-                : "text-ink-secondary hover:bg-surface-hover"
+                : "text-ink hover:bg-surface-hover"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -123,12 +200,13 @@ export function MoreDrawer({ isOpen, onClose }: MoreDrawerProps) {
             )}
           </button>
 
+          {/* Group Members */}
           <button
             onClick={() => handleNavClick("members")}
-            className={`w-full flex items-center justify-between p-3 rounded-xl text-sm font-semibold transition-all ${
+            className={`w-full flex items-center justify-between p-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
               activeTab === "members"
                 ? "bg-accent-soft text-accent border border-accent/30"
-                : "text-ink-secondary hover:bg-surface-hover"
+                : "text-ink hover:bg-surface-hover"
             }`}
           >
             <div className="flex items-center gap-3">
@@ -142,49 +220,38 @@ export function MoreDrawer({ isOpen, onClose }: MoreDrawerProps) {
             </span>
           </button>
 
-          <button
-            onClick={() => handleNavClick("members")}
-            className="w-full flex items-center justify-between p-3 rounded-xl text-sm font-semibold text-ink-secondary hover:bg-surface-hover transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-surface-alt flex items-center justify-center text-ink-secondary">
-                <Lightning size={18} />
-              </div>
-              <span>Activity Log</span>
-            </div>
-            <span className="text-[10px] font-bold bg-positive-soft text-positive px-2 py-0.5 rounded-full border border-positive/30">
-              LIVE
-            </span>
-          </button>
-
-          <button
-            onClick={() => handleNavClick("members")}
-            className="w-full flex items-center justify-between p-3 rounded-xl text-sm font-semibold text-ink-secondary hover:bg-surface-hover transition-all"
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-surface-alt flex items-center justify-center text-ink-secondary">
-                <Gear size={18} />
-              </div>
-              <span>Settings & Rules</span>
-            </div>
-          </button>
-
+          {/* Theme Toggle */}
           <button
             onClick={() => {
               toggleTheme();
-              onClose();
             }}
-            className="w-full flex items-center justify-between p-3 rounded-xl text-sm font-semibold text-ink-secondary hover:bg-surface-hover transition-all"
+            className="w-full flex items-center justify-between p-3 rounded-xl text-sm font-semibold text-ink hover:bg-surface-hover transition-all cursor-pointer"
           >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-lg bg-surface-alt flex items-center justify-center text-ink-secondary">
-                {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
+                {theme === "dark" ? <Sun size={18} className="text-amber-500" /> : <Moon size={18} className="text-indigo-400" />}
               </div>
-              <span>{theme === 'dark' ? 'Light Mode' : 'Dark Mode'}</span>
+              <span>Theme Appearance</span>
             </div>
-            <span className="text-[10px] font-bold bg-surface-alt text-ink-tertiary px-2 py-0.5 rounded-full border border-line">
-              Ctrl+Shift+D
+            <span className="text-caption font-semibold text-ink-tertiary uppercase">
+              {theme}
             </span>
+          </button>
+
+          {/* Logout Button */}
+          <button
+            onClick={() => {
+              onClose();
+              logout();
+            }}
+            className="w-full flex items-center justify-between p-3 rounded-xl text-sm font-semibold text-rose-500 hover:bg-rose-500/10 transition-all cursor-pointer mt-1"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-lg bg-rose-500/10 text-rose-500 flex items-center justify-center">
+                <SignOut size={18} />
+              </div>
+              <span>Log Out</span>
+            </div>
           </button>
         </div>
 
