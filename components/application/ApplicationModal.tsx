@@ -56,6 +56,22 @@ export function ApplicationModal() {
   const minInvest = activeApplicationIpo?.metrics?.minInvestment || 14964;
   const targetRequiredCapital = minInvest * effectiveIpos;
 
+  // Resolve current logged-in user profile
+  const ownMember = useMemo(() => {
+    return (
+      members.find(
+        (m) =>
+          (currentUser?.id && m.id === currentUser.id) ||
+          (currentUser?.username && m.username?.toLowerCase() === currentUser.username.toLowerCase()) ||
+          (currentUser?.name && m.name?.toLowerCase() === currentUser.name.toLowerCase())
+      ) || currentUser
+    );
+  }, [members, currentUser]);
+
+  const ownMemberId = currentUser?.id || ownMember?.id || "mem_1";
+  const ownUsername = (currentUser?.username || ownMember?.username || currentUser?.name || "user").replace(/^@+/, "");
+  const ownDisplayName = currentUser?.name || ownMember?.name || ownUsername;
+
   // Filter out ADMIN and SUPER_ADMIN usernames from form filling options
   const selectableMembers = useMemo(() => {
     const regular = members.filter(
@@ -68,15 +84,20 @@ export function ApplicationModal() {
     return regular.length > 0 ? regular : members;
   }, [members]);
 
-  const defaultMember0 = selectableMembers[0] || members[0];
-  const defaultMember1 = selectableMembers[1] || selectableMembers[0] || members[0];
+  // Friends available to add in multi-friend pool (excluding self)
+  const selectableFriends = useMemo(() => {
+    const friends = selectableMembers.filter(
+      (m) => m.id !== ownMemberId && m.username?.toLowerCase() !== ownUsername.toLowerCase()
+    );
+    return friends.length > 0 ? friends : selectableMembers;
+  }, [selectableMembers, ownMemberId, ownUsername]);
 
-  const activeUserUsername = (currentUser?.role === "MEMBER" ? currentUser?.username : defaultMember0?.username) || defaultMember0?.username || defaultMember0?.name || "user";
+  const defaultFriend = selectableFriends[0] || selectableMembers[0];
 
-  // Dynamic Contributors State
+  // Dynamic Contributors State: Row #1 is ALWAYS compulsory current user
   const [contributors, setContributors] = useState<ContributorEntry[]>([
-    { memberId: defaultMember0?.id || "mem_1", memberName: activeUserUsername, amount: Math.floor(targetRequiredCapital / 2) },
-    { memberId: defaultMember1?.id || "mem_2", memberName: defaultMember1?.username || defaultMember1?.name || "partner", amount: targetRequiredCapital - Math.floor(targetRequiredCapital / 2) },
+    { memberId: ownMemberId, memberName: ownUsername, amount: Math.floor(targetRequiredCapital / 2) },
+    { memberId: defaultFriend?.id || "mem_2", memberName: defaultFriend?.username || defaultFriend?.name || "friend", amount: targetRequiredCapital - Math.floor(targetRequiredCapital / 2) },
   ]);
 
   const [panNumbers, setPanNumbers] = useState<string[]>([""]);
@@ -98,12 +119,28 @@ export function ApplicationModal() {
     }
   }, [isApplicationModalOpen]);
 
-  // Set default applicant username only when modal opens
+  // Set default applicant username only when modal opens and ensure #1 is own user
   useEffect(() => {
     if (isApplicationModalOpen) {
-      setApplicantName((currentUser?.role === "MEMBER" ? currentUser?.username : selectableMembers[0]?.username) || selectableMembers[0]?.username || "user");
+      setApplicantName(`@${ownUsername}`);
+      const half = Math.floor(targetRequiredCapital / 2);
+      setContributors((prev) => {
+        const friend = selectableFriends[0] || selectableMembers[0];
+        const existingOthers = prev.slice(1);
+        const secondEntry = existingOthers[0] || {
+          memberId: friend?.id || "mem_2",
+          memberName: friend?.username || friend?.name || "friend",
+          amount: targetRequiredCapital - half,
+        };
+
+        return [
+          { memberId: ownMemberId, memberName: ownUsername, amount: half },
+          secondEntry,
+          ...existingOthers.slice(1),
+        ];
+      });
     }
-  }, [isApplicationModalOpen, currentUser, selectableMembers]);
+  }, [isApplicationModalOpen, ownMemberId, ownUsername, targetRequiredCapital, selectableFriends, selectableMembers]);
 
   // Synchronize array length: 1 PAN per IPO
   useEffect(() => {
@@ -130,13 +167,9 @@ export function ApplicationModal() {
         setApplicantName(formatApplicantNames(validNames));
       }
     } else {
-      if (!applicantName || applicantName.includes(",") || applicantName.includes(" and ") || applicantName.includes(" & ")) {
-        const rawUname = selectableMembers[0]?.username || selectableMembers[0]?.name || "user";
-        const formatted = rawUname.trim().startsWith("@") ? rawUname.trim() : `@${rawUname.trim()}`;
-        setApplicantName(formatted);
-      }
+      setApplicantName(`@${ownUsername}`);
     }
-  }, [applicantMode, contributors, selectableMembers]);
+  }, [applicantMode, contributors, ownUsername]);
 
   const handleEqualSplit = () => {
     const count = contributors.length || 1;
@@ -163,19 +196,21 @@ export function ApplicationModal() {
 
   const handleAddContributor = () => {
     const remainingNeeded = Math.max(0, targetRequiredCapital - totalPooledCapital);
-    const unselectedMember = selectableMembers[contributors.length % selectableMembers.length] || selectableMembers[0];
+    const existingIds = new Set(contributors.map((c) => c.memberId));
+    const nextFriend = selectableFriends.find((f) => !existingIds.has(f.id)) || selectableFriends[0] || selectableMembers[0];
 
     setContributors((prev) => [
       ...prev,
       {
-        memberId: unselectedMember.id,
-        memberName: unselectedMember.username || unselectedMember.name,
+        memberId: nextFriend.id,
+        memberName: nextFriend.username || nextFriend.name,
         amount: remainingNeeded > 0 ? remainingNeeded : 0,
       },
     ]);
   };
 
   const handleRemoveContributor = (index: number) => {
+    if (index === 0) return; // Row #1 is compulsory own user
     if (contributors.length > 1) {
       setContributors((prev) => prev.filter((_, idx) => idx !== index));
     }
@@ -418,17 +453,35 @@ export function ApplicationModal() {
             </div>
           </div>
 
-          {/* 1. Primary Applicant Username (Searchable Dropdown Selection) */}
+          {/* 1. Primary Applicant Username (Locked to Own Username) */}
           <div className="space-y-1.5">
             <label className="block text-xs font-bold text-ink flex items-center gap-1.5">
               <User size={15} className="text-accent" /> Primary Applicant Username <span className="text-rose-500">*</span>
             </label>
-            <SearchableUserSelect
-              members={selectableMembers}
-              selectedUsername={applicantName}
-              onSelect={(m) => setApplicantName(m.username || m.name)}
-              placeholder="Type to search username..."
-            />
+            {applicantMode === "SOLO" ? (
+              <div className="w-full bg-surface-alt/90 border border-line rounded-xl px-3.5 py-2.5 text-xs font-bold text-ink flex items-center justify-between shadow-2xs select-none">
+                <div className="flex items-center gap-2 truncate">
+                  <span className="truncate text-accent font-extrabold">
+                    @{ownUsername}
+                  </span>
+                  <span className="text-ink-muted font-normal text-[11px] truncate">
+                    ({ownDisplayName})
+                  </span>
+                </div>
+                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-accent/10 text-accent border border-accent/20">
+                  You (Compulsory)
+                </span>
+              </div>
+            ) : (
+              <div className="w-full bg-surface-alt/90 border border-line rounded-xl px-3.5 py-2.5 text-xs font-bold text-ink flex items-center justify-between shadow-2xs select-none">
+                <span className="truncate text-accent font-bold">
+                  {applicantName || `@${ownUsername}`}
+                </span>
+                <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-accent/10 text-accent border border-accent/20">
+                  Lead: @{ownUsername}
+                </span>
+              </div>
+            )}
           </div>
 
 
@@ -472,24 +525,40 @@ export function ApplicationModal() {
                         #{idx + 1}
                       </span>
 
-                      {/* Clean Searchable Friend Username Dropdown Selection */}
-                      <SearchableUserSelect
-                        members={selectableMembers}
-                        selectedMemberId={c.memberId}
-                        onSelect={(selectedMember) => {
-                          setContributors((prev) => {
-                            const updated = [...prev];
-                            updated[idx] = {
-                              ...updated[idx],
-                              memberId: selectedMember.id,
-                              memberName: selectedMember.username || selectedMember.name,
-                            };
-                            return updated;
-                          });
-                        }}
-                        placeholder="Search friend..."
-                        className="flex-1 min-w-0"
-                      />
+                      {/* Row #1 is Compulsory Own Username; Row #2+ is Searchable Friend Selector */}
+                      {idx === 0 ? (
+                        <div className="flex-1 min-w-0 bg-surface-alt/90 border border-blue-500/30 rounded-xl px-3 py-2 text-xs font-bold text-ink flex items-center justify-between shadow-2xs select-none">
+                          <div className="flex items-center gap-1.5 truncate">
+                            <span className="truncate text-blue-500 dark:text-blue-400 font-extrabold">
+                              @{ownUsername}
+                            </span>
+                            <span className="text-ink-muted font-normal text-[11px] truncate">
+                              ({ownDisplayName})
+                            </span>
+                          </div>
+                          <span className="text-[10px] font-extrabold px-1.5 py-0.5 rounded bg-blue-500/15 text-blue-500 dark:text-blue-400 border border-blue-500/30 shrink-0">
+                            You (Compulsory)
+                          </span>
+                        </div>
+                      ) : (
+                        <SearchableUserSelect
+                          members={selectableFriends}
+                          selectedMemberId={c.memberId}
+                          onSelect={(selectedMember) => {
+                            setContributors((prev) => {
+                              const updated = [...prev];
+                              updated[idx] = {
+                                ...updated[idx],
+                                memberId: selectedMember.id,
+                                memberName: selectedMember.username || selectedMember.name,
+                              };
+                              return updated;
+                            });
+                          }}
+                          placeholder="Search friend..."
+                          className="flex-1 min-w-0"
+                        />
+                      )}
 
                       {/* Clean Custom Amount Input */}
                       <div className="flex items-center gap-1 w-28 shrink-0">
@@ -509,9 +578,9 @@ export function ApplicationModal() {
                         {pctStr}
                       </span>
 
-                      {/* Delete Button */}
+                      {/* Delete Button: Disabled for Row #1 */}
                       <div className="w-5 shrink-0 flex justify-end">
-                        {contributors.length > 1 && (
+                        {idx > 0 && contributors.length > 1 && (
                           <button
                             type="button"
                             onClick={() => handleRemoveContributor(idx)}
