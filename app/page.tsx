@@ -20,15 +20,15 @@ import { AddIPOModal } from "@/components/ipo/AddIPOModal";
 export default function Home() {
   const { activeTab, isAuthenticated, isAuthLoaded, currentUser } = useNexo();
 
-  if (!isAuthLoaded || !isAuthenticated) {
-    return <LoginForm />;
-  }
-
   React.useEffect(() => {
     if (activeTab === ("admin" as any)) {
       window.location.href = "/admin";
     }
   }, [activeTab]);
+
+  if (!isAuthLoaded || !isAuthenticated) {
+    return <LoginForm />;
+  }
 
   return (
     <div className="flex h-screen overflow-hidden bg-page text-ink font-sans antialiased">
