@@ -463,37 +463,48 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
               const dist = ipo.profitDistribution as any;
               const minInv = ipo.metrics?.minInvestment || 15000;
 
-              const totalAppliedLots =
-                (ipo.applications || []).reduce((sum, app) => {
-                  if (Array.isArray(app.participants) && app.participants.length > 0) {
-                    return (
-                      sum +
-                      app.participants.reduce(
-                        (pSum: number, p: any) =>
-                          pSum + (p.contribution ? p.contribution / minInv : 1),
-                        0
-                      )
-                    );
-                  }
-                  return sum + (app.lotCount || 1);
-                }, 0) || dist.totalLots || 1;
-
-              const totalProfitNum = Number(dist.totalProfit) || 0;
-              const oneLotProfit =
-                totalProfitNum && totalAppliedLots > 0
-                  ? Math.round(totalProfitNum / totalAppliedLots)
-                  : dist.oneLotProfit || 0;
-
               let userProfits: ListedIPOUserProfit[] = [];
-
               if (Array.isArray(dist.memberPayouts) && dist.memberPayouts.length > 0) {
                 userProfits = dist.memberPayouts.map((p: any) => ({
                   memberId: p.memberId || p.id || `mem_${p.name}`,
                   memberName: p.name || p.memberName || "Member",
                   profit: Number(p.profit) || 0,
                   lotsApplied: Number(p.lots) || 1,
+                  lots: Number(p.lots) || 1,
                 }));
               }
+
+              const userProfitsTotalLots = userProfits.reduce(
+                (sum, u) => sum + (Number(u.lotsApplied) || Number(u.lots) || 0),
+                0
+              );
+
+              const appsLots = (ipo.applications || []).reduce((sum, app) => {
+                if (Array.isArray(app.participants) && app.participants.length > 0) {
+                  return (
+                    sum +
+                    app.participants.reduce(
+                      (pSum: number, p: any) =>
+                        pSum + (p.contribution ? p.contribution / minInv : 1),
+                      0
+                    )
+                  );
+                }
+                return sum + (app.lotCount || 1);
+              }, 0);
+
+              const totalAppliedLots =
+                userProfitsTotalLots > 0
+                  ? userProfitsTotalLots
+                  : appsLots > 0
+                  ? appsLots
+                  : Number(dist.totalLots) || 1;
+
+              const totalProfitNum = Number(dist.totalProfit) || 0;
+              const oneLotProfit =
+                totalProfitNum > 0 && totalAppliedLots > 0
+                  ? Math.round(totalProfitNum / totalAppliedLots)
+                  : dist.oneLotProfit || 0;
 
               publishedCards.push({
                 id: `pub_${ipo.id}`,

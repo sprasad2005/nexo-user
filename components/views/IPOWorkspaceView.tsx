@@ -471,6 +471,16 @@ export function IPOWorkspaceView() {
               ? myProfits!.reduce((sum, u) => sum + (Number(u.lotsApplied) || Number(u.lots) || 1), 0)
               : 0;
 
+            const totalAppliedLots =
+              ipo.userProfits && ipo.userProfits.length > 0
+                ? ipo.userProfits.reduce((sum, u) => sum + (Number(u.lotsApplied) || Number(u.lots) || 0), 0)
+                : Number(ipo.lotsApplied) || Number(ipo.lotsAllotted) || 1;
+
+            const calculatedOneLotProfit =
+              totalAppliedLots > 0 && typeof ipo.totalProfit === "number" && ipo.totalProfit > 0
+                ? Math.round(ipo.totalProfit / totalAppliedLots)
+                : ipo.oneLotProfit || 0;
+
             return (
               <div
                 key={ipo.id}
@@ -539,7 +549,7 @@ export function IPOWorkspaceView() {
                         Total Applied
                       </span>
                       <span className="text-small sm:text-body-md font-semibold text-ink num-tabular">
-                        {formatLotCount(ipo.lotsApplied || ipo.lotsAllotted || 1)}
+                        {formatLotCount(totalAppliedLots)}
                       </span>
                     </div>
                   </div>
@@ -579,7 +589,7 @@ export function IPOWorkspaceView() {
                         <span className="text-small font-medium text-ink-secondary">1 Lot Profit</span>
                       </div>
                       <span className="text-small font-semibold text-ink-secondary num-tabular">
-                        +{formatINR(ipo.oneLotProfit)}
+                        +{formatINR(calculatedOneLotProfit)}
                       </span>
                     </div>
 

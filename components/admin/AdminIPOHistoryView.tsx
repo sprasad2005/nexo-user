@@ -107,8 +107,14 @@ export function AdminIPOHistoryView() {
                 0
               ) || 15000;
 
+        const memberPayoutsTotalLots = Array.isArray((dist as any)?.memberPayouts)
+          ? (dist as any).memberPayouts.reduce((s: number, p: any) => s + (Number(p.lots) || 0), 0)
+          : 0;
+
         const lotsApplied =
-          dist?.totalLots !== undefined
+          memberPayoutsTotalLots > 0
+            ? memberPayoutsTotalLots
+            : dist?.totalLots !== undefined
             ? dist.totalLots
             : ipo.applications?.reduce((s, a) => s + (a.lotCount || (a as any).lotsCount || 1), 0) || 1;
 
@@ -123,7 +129,7 @@ export function AdminIPOHistoryView() {
         const oneLotProfit =
           dist?.oneLotProfit !== undefined
             ? dist.oneLotProfit
-            : (lotsAllotted > 0 ? Math.round(totalProfit / lotsAllotted) : totalProfit);
+            : (lotsApplied > 0 ? Math.round(totalProfit / lotsApplied) : totalProfit);
 
         const formattedListingDate = dist?.publishedAt
           ? new Date(dist.publishedAt).toLocaleDateString("en-GB", {
