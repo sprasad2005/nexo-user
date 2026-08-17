@@ -321,20 +321,9 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
-    // ── PAN VALIDATION & NORMALIZATION ──
+    // ── PAN NORMALIZATION ──
     const rawPan = pan || panCard || panFull || "";
-    let panNormalized: string | undefined = undefined;
-    if (rawPan && typeof rawPan === "string" && rawPan.trim()) {
-      if (!isValidPan(rawPan)) {
-        return NextResponse.json({
-          success: false,
-          code: "INVALID_PAN",
-          error: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
-          message: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
-        }, { status: 400 });
-      }
-      panNormalized = normalizePan(rawPan);
-    }
+    const panNormalized = (rawPan && typeof rawPan === "string" && rawPan.trim()) ? normalizePan(rawPan) : undefined;
 
     // ── PHONE VALIDATION & NORMALIZATION ──
     const rawPhone = phone || "";
