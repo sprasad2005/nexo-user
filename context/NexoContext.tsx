@@ -148,7 +148,7 @@ export interface NexoContextType {
     description: string;
     closeDate: string;
   }) => { success: boolean; message?: string };
-  removeIPO: (ipoId: string) => { success: boolean; message?: string };
+  removeIPO: (ipoId: string) => Promise<{ success: boolean; message?: string }>;
   searchQuery: string;
   setSearchQuery: (query: string) => void;
   revealedPans: Record<string, boolean>;
@@ -1770,12 +1770,30 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     return { success: true, message: `✓ IPO published successfully. ${data.name} is now visible on the user website.` };
   };
 
-  const removeIPO = (ipoId: string) => {
+  const removeIPO = async (ipoId: string): Promise<{ success: boolean; message?: string }> => {
     const targetIpo = ipos.find((i) => i.id === ipoId || i.id === ipoId.replace(/^pub_/, "") || `pub_${i.id}` === ipoId);
     const ipoName = targetIpo?.name || ipoId;
     const cleanId = ipoId.replace(/^pub_/, "");
 
-    // 1. Remove permanently from IPO state
+    let message = "";
+
+    // 1. Call API endpoint to cascade delete permanently from MongoDB first
+    try {
+      const res = await fetch(`/api/ipos?id=${encodeURIComponent(ipoId)}`, {
+        method: "DELETE",
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        message = data.message || `✓ IPO "${ipoName}" permanently deleted.`;
+      } else {
+        throw new Error(data.message || data.error || "Failed to delete IPO from database.");
+      }
+    } catch (e: any) {
+      console.error("Failed to DELETE /api/ipos in removeIPO:", e);
+      throw e;
+    }
+
+    // 2. Remove permanently from IPO state
     setIpos((prev) =>
       prev.filter(
         (ipo) =>
@@ -1786,7 +1804,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       )
     );
 
-    // 2. Remove from Listed IPOs / Published Cards in state
+    // 3. Remove from Listed IPOs / Published Cards in state
     setListedIpos((prev) =>
       prev.filter(
         (item) =>
@@ -1797,7 +1815,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       )
     );
 
-    // 3. Remove associated transactions and activities
+    // 4. Remove associated transactions and activities
     setTransactions((prev) =>
       prev.filter(
         (t) =>
@@ -1816,12 +1834,12 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       )
     );
 
-    // 4. Invalidate data caches
+    // 5. Invalidate data caches
     nexoDataCache.invalidate("ipos_apps");
     AdminDataCache.invalidate("admin_ipos");
     AdminDataCache.invalidate("admin_dashboard_summary");
 
-    // 5. Clean local storage for instant sync across tabs and reloads
+    // 6. Clean local storage for instant sync across tabs and reloads
     try {
       const filterOutDeleted = (items: any[]) =>
         items.filter(
@@ -1855,16 +1873,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       window.dispatchEvent(new Event("storage"));
     } catch (e) {}
 
-    // 6. Call API endpoint to cascade delete permanently from MongoDB
-    try {
-      fetch(`/api/ipos?id=${encodeURIComponent(ipoId)}`, {
-        method: "DELETE",
-      }).then(() => refreshIpos(true));
-    } catch (e) {
-      console.warn("Failed to DELETE /api/ipos in removeIPO:", e);
-    }
-
-    const adminName = currentUser?.name || members[0]?.name || "Shivam Prasad";
+    const adminName = currentUser?.name || members[0]?.name || "Admin";
     const newActivity: ActivityItem = {
       id: `act_${Date.now()}`,
       type: "IPO_ADDED",
@@ -1881,7 +1890,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
 
     return {
       success: true,
-      message: `✓ IPO "${ipoName}" and all associated data permanently deleted from database and user website.`,
+      message: message || `✓ IPO "${ipoName}" permanently deleted from database and user website.`,
     };
   };
 

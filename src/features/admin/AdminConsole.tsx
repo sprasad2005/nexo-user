@@ -543,14 +543,18 @@ export function AdminConsole() {
                           </td>
                           <td className="py-2 px-3 text-right">
                             <button
-                              onClick={() => {
-                                if (confirm(`Remove ${ipo.name} from catalog?`)) {
-                                  removeIPO(ipo.id);
-                                  showToast(`Removed ${ipo.name}`);
+                              onClick={async () => {
+                                if (confirm(`Permanently delete ${ipo.name} from catalog and user website?`)) {
+                                  try {
+                                    const res = await removeIPO(ipo.id);
+                                    showToast(res.message || `✓ Removed ${ipo.name}`);
+                                  } catch (err: any) {
+                                    showToast(`❌ Failed to delete ${ipo.name}: ${err.message}`);
+                                  }
                                 }
                               }}
                               className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-50 transition-colors cursor-pointer"
-                              title="Remove IPO"
+                              title="Delete IPO"
                             >
                               <Trash size={15} />
                             </button>

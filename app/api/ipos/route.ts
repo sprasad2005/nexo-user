@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import { cookies } from "next/headers";
+import { ObjectId } from "mongodb";
 import { validateSessionToken } from "@/src/lib/auth/session";
 import { logActivity } from "@/src/features/activity/activityService";
 import clientPromise from "@/lib/mongodb";
@@ -550,15 +551,19 @@ export async function DELETE(req: NextRequest) {
     const url = new URL(req.url);
     const id = url.searchParams.get("id");
 
-    if (!id) {
-      return NextResponse.json({ success: false, message: "Missing IPO ID." }, { status: 400, headers: corsHeaders });
+    if (!id || !id.trim()) {
+      return NextResponse.json({ success: false, message: "Missing or invalid IPO ID." }, { status: 400, headers: corsHeaders });
     }
 
+    const trimmedId = id.trim();
+    const cleanId = trimmedId.replace(/^pub_/, "");
+
+    // 1. Authenticate Actor
     const cookieStore = await cookies();
     const token = cookieStore.get("nexo_session")?.value;
     let actorUserId = undefined;
     let actorMemberId = undefined;
-    let actorName = "System";
+    let actorName = "Admin";
     let actorUsername = undefined;
     let actorRole = undefined;
 
@@ -573,106 +578,121 @@ export async function DELETE(req: NextRequest) {
       }
     }
 
-    const allIpos = readSharedIpos();
-    const targetIpo = allIpos.find((ipo) => ipo.id === id || ipo.id === id.replace(/^pub_/, "") || `pub_${ipo.id}` === id);
-    const targetName = targetIpo?.name || id;
-    const cleanId = id.replace(/^pub_/, "");
+    // Role check if token is present
+    if (actorRole && actorRole !== "ADMIN" && actorRole !== "SUPER_ADMIN") {
+      return NextResponse.json(
+        { success: false, message: "Unauthorized. Admin privileges required." },
+        { status: 403, headers: corsHeaders }
+      );
+    }
 
-    // 1. Remove permanently from local shared JSON store
+    // 2. Resolve Target Name and ID Query
+    const allIpos = readSharedIpos();
+    const targetIpo = allIpos.find((ipo) => ipo.id === trimmedId || ipo.id === cleanId || `pub_${ipo.id}` === trimmedId);
+    let targetName = targetIpo?.name || trimmedId;
+
+    const client = await clientPromise;
+    const db = client.db(DB_NAME);
+
+    // Build comprehensive search queries covering string IDs and Mongo ObjectIds
+    const orIdConditions: any[] = [
+      { id: trimmedId },
+      { id: cleanId },
+      { id: `pub_${cleanId}` },
+      { ipoId: trimmedId },
+      { ipoId: cleanId },
+      { ipoId: `pub_${cleanId}` },
+    ];
+
+    if (ObjectId.isValid(trimmedId)) {
+      orIdConditions.push({ _id: new ObjectId(trimmedId) });
+    }
+    if (ObjectId.isValid(cleanId)) {
+      orIdConditions.push({ _id: new ObjectId(cleanId) });
+    }
+
+    // Try finding IPO document to resolve name if needed
+    try {
+      const dbIpo = await db.collection("ipos").findOne({ $or: orIdConditions });
+      if (dbIpo?.name) {
+        targetName = dbIpo.name;
+      }
+    } catch {}
+
+    if (targetName && targetName !== trimmedId) {
+      const escapedName = targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      orIdConditions.push({ name: { $regex: new RegExp(`^${escapedName}$`, "i") } });
+      orIdConditions.push({ ipoName: { $regex: new RegExp(`^${escapedName}$`, "i") } });
+    }
+
+    // 3. Remove permanently from local shared JSON store
     const updated = allIpos.filter(
       (ipo) =>
-        ipo.id !== id &&
+        ipo.id !== trimmedId &&
         ipo.id !== cleanId &&
-        `pub_${ipo.id}` !== id &&
+        `pub_${ipo.id}` !== trimmedId &&
         ipo.name?.toLowerCase() !== targetName.toLowerCase()
     );
     writeSharedIpos(updated);
 
-    // 2. Cascade Delete permanently from MongoDB collections
+    // 4. Cascade Delete permanently from MongoDB collections
+    let ipoDeletedCount = 0;
+    let appsDeletedCount = 0;
+    let distDeletedCount = 0;
+    let transDeletedCount = 0;
+
     try {
-      const client = await clientPromise;
-      const db = client.db(DB_NAME);
+      const ipoRes = await db.collection("ipos").deleteMany({ $or: orIdConditions });
+      ipoDeletedCount = ipoRes.deletedCount;
 
-      const deleteQuery = {
-        $or: [
-          { id: id },
-          { id: cleanId },
-          { id: `pub_${cleanId}` },
-          { ipoId: id },
-          { ipoId: cleanId },
-          { ipoId: `pub_${cleanId}` },
-          { name: { $regex: new RegExp(`^${targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
-          { ipoName: { $regex: new RegExp(`^${targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
-        ],
-      };
+      const appsRes = await db.collection("applications").deleteMany({ $or: orIdConditions });
+      appsDeletedCount = appsRes.deletedCount;
 
-      // Delete from ipos collection
-      await db.collection("ipos").deleteMany({
-        $or: [
-          { id: id },
-          { id: cleanId },
-          { id: `pub_${cleanId}` },
-          { name: { $regex: new RegExp(`^${targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
-        ],
-      });
+      const distRes = await db.collection("profit_distributions").deleteMany({ $or: orIdConditions });
+      distDeletedCount = distRes.deletedCount;
 
-      // Delete associated profit distributions
-      await db.collection("profit_distributions").deleteMany({
-        $or: [
-          { ipoId: id },
-          { ipoId: cleanId },
-          { ipoId: `pub_${cleanId}` },
-          { ipoName: { $regex: new RegExp(`^${targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
-        ],
-      });
-
-      // Delete associated member applications
-      await db.collection("applications").deleteMany({
-        $or: [
-          { ipoId: id },
-          { ipoId: cleanId },
-          { ipoId: `pub_${cleanId}` },
-          { ipoName: { $regex: new RegExp(`^${targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
-        ],
-      });
-
-      // Delete associated transactions
-      await db.collection("transactions").deleteMany({
-        $or: [
-          { ipoId: id },
-          { ipoId: cleanId },
-          { ipoId: `pub_${cleanId}` },
-          { ipoName: { $regex: new RegExp(`^${targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
-        ],
-      });
+      const transRes = await db.collection("transactions").deleteMany({ $or: orIdConditions });
+      transDeletedCount = transRes.deletedCount;
     } catch (dbErr) {
-      console.warn("MongoDB cascade delete fallback:", dbErr);
+      console.warn("MongoDB cascade delete error:", dbErr);
     }
 
-    await logActivity({
-      eventType: "IPO_ARCHIVED",
-      category: "PRODUCT",
-      severity: "WARNING",
-      actorUserId,
-      actorMemberId,
-      actorName,
-      actorUsername,
-      actorRole,
-      targetType: "IPO",
-      targetId: id,
-      targetName: targetName,
-      ipoId: id,
-    });
+    // 5. Log Audit Activity with eventType: "IPO_DELETED"
+    try {
+      await logActivity({
+        eventType: "IPO_DELETED",
+        category: "PRODUCT",
+        severity: "CRITICAL",
+        actorUserId,
+        actorMemberId,
+        actorName,
+        actorUsername,
+        actorRole: actorRole || "ADMIN",
+        targetType: "IPO",
+        targetId: trimmedId,
+        targetName: targetName,
+        ipoId: trimmedId,
+        metadata: {
+          ipoDeletedCount,
+          appsDeletedCount,
+          distDeletedCount,
+          transDeletedCount,
+        },
+      });
+    } catch (auditErr) {
+      console.warn("Failed to write audit log for IPO_DELETED:", auditErr);
+    }
 
     return NextResponse.json(
       {
         success: true,
         message: `✓ IPO "${targetName}" and all associated data permanently deleted from database and user website.`,
+        deletedCount: ipoDeletedCount,
       },
       { headers: corsHeaders }
     );
   } catch (err: any) {
     console.error("DELETE /api/ipos error:", err);
-    return NextResponse.json({ success: false, message: err.message }, { status: 500, headers: corsHeaders });
+    return NextResponse.json({ success: false, message: err.message || "Failed to delete IPO." }, { status: 500, headers: corsHeaders });
   }
 }

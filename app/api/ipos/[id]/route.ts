@@ -219,36 +219,73 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    if (!id || !ObjectId.isValid(id)) {
+    if (!id || !id.trim()) {
       return NextResponse.json(
-        { error: "Invalid IPO ID parameter" },
+        { success: false, error: "Invalid IPO ID parameter" },
         { status: 400 }
       );
     }
 
-    const collection = await getIposCollection();
-    const result = await collection.updateOne(
-      { _id: new ObjectId(id) },
-      {
-        $set: {
-          isArchived: true,
-          updatedAt: new Date().toISOString(),
-        },
-      }
-    );
+    const trimmedId = id.trim();
+    const cleanId = trimmedId.replace(/^pub_/, "");
 
-    if (result.matchedCount === 0) {
-      return NextResponse.json(
-        { error: "IPO opportunity not found" },
-        { status: 404 }
-      );
+    const { default: clientPromise } = await import("@/lib/mongodb");
+    const { logActivity } = await import("@/src/features/activity/activityService");
+    const client = await clientPromise;
+    const db = client.db("nexo");
+
+    const orIdConditions: any[] = [
+      { id: trimmedId },
+      { id: cleanId },
+      { id: `pub_${cleanId}` },
+      { ipoId: trimmedId },
+      { ipoId: cleanId },
+      { ipoId: `pub_${cleanId}` },
+    ];
+
+    if (ObjectId.isValid(trimmedId)) {
+      orIdConditions.push({ _id: new ObjectId(trimmedId) });
+    }
+    if (ObjectId.isValid(cleanId)) {
+      orIdConditions.push({ _id: new ObjectId(cleanId) });
     }
 
-    return NextResponse.json({ success: true });
+    const dbIpo = await db.collection("ipos").findOne({ $or: orIdConditions });
+    const targetName = dbIpo?.name || trimmedId;
+
+    if (targetName && targetName !== trimmedId) {
+      const escapedName = targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      orIdConditions.push({ name: { $regex: new RegExp(`^${escapedName}$`, "i") } });
+      orIdConditions.push({ ipoName: { $regex: new RegExp(`^${escapedName}$`, "i") } });
+    }
+
+    const result = await db.collection("ipos").deleteMany({ $or: orIdConditions });
+    await db.collection("applications").deleteMany({ $or: orIdConditions }).catch(() => {});
+    await db.collection("profit_distributions").deleteMany({ $or: orIdConditions }).catch(() => {});
+    await db.collection("transactions").deleteMany({ $or: orIdConditions }).catch(() => {});
+
+    try {
+      await logActivity({
+        eventType: "IPO_DELETED",
+        category: "PRODUCT",
+        severity: "CRITICAL",
+        actorRole: "ADMIN",
+        targetType: "IPO",
+        targetId: trimmedId,
+        targetName,
+        ipoId: trimmedId,
+      });
+    } catch {}
+
+    return NextResponse.json({
+      success: true,
+      message: `✓ IPO "${targetName}" deleted successfully.`,
+      deletedCount: result.deletedCount,
+    });
   } catch (error: any) {
     console.error("DELETE /api/ipos/[id] error:", error);
     return NextResponse.json(
-      { error: "Failed to archive IPO opportunity" },
+      { success: false, error: error?.message || "Failed to delete IPO opportunity" },
       { status: 500 }
     );
   }
