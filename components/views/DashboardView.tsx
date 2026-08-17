@@ -9,7 +9,7 @@ import { Sparkle, Hourglass } from "@phosphor-icons/react";
 export function DashboardView() {
   const { ipos, openIpoDetail, openApplicationModal } = useNexo();
 
-  const visibleIpos = ipos.filter((i) => !i.isHidden);
+  const visibleIpos = ipos.filter((i) => !i.isHidden && !i.hideFromHome && !i.isArchived);
 
   const isOpenStatus = (st?: string) => {
     if (!st) return true;

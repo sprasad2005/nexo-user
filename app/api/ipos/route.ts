@@ -73,7 +73,7 @@ export async function GET(req: NextRequest) {
 
       const dbIpos = await db
         .collection("ipos")
-        .find({ isHidden: { $ne: true }, isArchived: { $ne: true } })
+        .find({ isArchived: { $ne: true } })
         .sort({ _id: -1 })
         .toArray();
 
@@ -91,7 +91,7 @@ export async function GET(req: NextRequest) {
     }
 
     if (allIpos.length === 0) {
-      allIpos = readSharedIpos().filter((item: any) => !item.isHidden);
+      allIpos = readSharedIpos().filter((item: any) => !item.isArchived);
     }
 
     return NextResponse.json(
@@ -288,6 +288,10 @@ export async function POST(req: NextRequest) {
             company: formattedName || ipo.company,
             thesis: data.description ? data.description.trim() : ipo.thesis,
             registrarUrl: data.registrarUrl !== undefined ? data.registrarUrl.trim() : ipo.registrarUrl,
+            status: data.status || ipo.status,
+            hideFromHome: data.hideFromHome !== undefined ? Boolean(data.hideFromHome) : ipo.hideFromHome,
+            isHidden: data.isHidden !== undefined ? Boolean(data.isHidden) : ipo.isHidden,
+            isCompleted: data.isCompleted !== undefined ? Boolean(data.isCompleted) : ipo.isCompleted,
             metrics: {
               ...currentMetrics,
               issueSize: formattedIssueSize,
@@ -320,6 +324,9 @@ export async function POST(req: NextRequest) {
               ...(data.description ? { thesis: data.description.trim() } : {}),
               ...(data.registrarUrl !== undefined ? { registrarUrl: data.registrarUrl.trim() } : {}),
               ...(data.status ? { status: data.status } : {}),
+              ...(data.hideFromHome !== undefined ? { hideFromHome: Boolean(data.hideFromHome) } : {}),
+              ...(data.isHidden !== undefined ? { isHidden: Boolean(data.isHidden) } : {}),
+              ...(data.isCompleted !== undefined ? { isCompleted: Boolean(data.isCompleted) } : {}),
               "metrics.issueSize": formattedIssueSize,
               ...(data.minInvestment !== undefined ? { "metrics.minInvestment": Number(data.minInvestment) } : {}),
               ...(data.gmpPercent !== undefined ? { "metrics.gmpPercent": Number(data.gmpPercent) } : {}),

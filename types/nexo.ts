@@ -135,6 +135,8 @@ export interface IPOOpportunity {
   registrarUrl?: string;
   tags?: string[];
   isHidden?: boolean;
+  hideFromHome?: boolean;
+  isCompleted?: boolean;
   isArchived?: boolean;
   isFeatured?: boolean;
   closeCountdown?: string;

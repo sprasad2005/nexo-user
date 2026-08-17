@@ -350,7 +350,7 @@ export function DistributeProfitView() {
     for (const ipo of activeIpos) {
       if (!ipo?.id || !ipo?.name || seen.has(ipo.id)) continue;
       seen.add(ipo.id);
-      const isHistory = ipo.status === "COMPLETED" || ipo.isHidden || (ipo as any).isCompleted;
+      const isHistory = ipo.status === "COMPLETED" || ipo.hideFromHome || (ipo as any).isCompleted;
       list.push({
         value: ipo.id,
         label: ipo.name,

@@ -145,13 +145,13 @@ export function AdminIPOManagement({
   const isAdmin = activeRole === "ADMIN" || activeRole === "SUPER_ADMIN" || activeRole !== "MEMBER";
 
   // Filter visible IPOs
-  const visibleIpos = useMemo(() => ipos.filter((ipo: IPOOpportunity) => !ipo.isHidden), [ipos]);
+  const visibleIpos = useMemo(() => ipos.filter((ipo: IPOOpportunity) => !ipo.isArchived), [ipos]);
   const activeIpos = useMemo(
-    () => visibleIpos.filter((i: IPOOpportunity) => i.status !== "COMPLETED" && !(i as any).isCompleted),
+    () => visibleIpos.filter((i: IPOOpportunity) => !i.hideFromHome && i.status !== "COMPLETED" && !(i as any).isCompleted),
     [visibleIpos]
   );
   const completedIpos = useMemo(
-    () => visibleIpos.filter((i: IPOOpportunity) => i.status === "COMPLETED" || (i as any).isCompleted),
+    () => visibleIpos.filter((i: IPOOpportunity) => i.status === "COMPLETED" || (i as any).isCompleted || i.hideFromHome),
     [visibleIpos]
   );
 
@@ -206,8 +206,8 @@ export function AdminIPOManagement({
     if (!selectedIpoToRemove) return;
     const target = selectedIpoToRemove;
     try {
-      // 1. Hide from user home page / complete in backend
-      const res = await fetch("/api/ipos", {
+      // 1. Hide from user home page / mark complete in backend
+      await fetch("/api/ipos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -215,12 +215,13 @@ export function AdminIPOManagement({
           ipoId: target.id,
           data: {
             status: "COMPLETED",
-            isHidden: true,
+            isCompleted: true,
+            hideFromHome: true,
           },
         }),
       });
 
-      // Also call complete route to ensure consistency
+      // Also call complete route
       await fetch("/api/admin/ipos/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -228,10 +229,14 @@ export function AdminIPOManagement({
       }).catch(() => {});
 
       if (typeof updateIpo === "function") {
-        updateIpo(target.id, { isHidden: true, status: "COMPLETED" as any });
+        updateIpo(target.id, {
+          status: "COMPLETED" as any,
+          isCompleted: true,
+          hideFromHome: true,
+        });
       }
 
-      showToast(`✓ "${target.name}" removed from user home page. It remains safely available in Applications, Workspace, and IPO History.`);
+      showToast(`✓ "${target.name}" removed from user home page. It remains fully accessible in Applications, Workspace, and IPO History.`);
       AdminDataCache.invalidate("admin_ipos");
       AdminDataCache.invalidate("admin_dashboard_summary");
       if (typeof refreshIpos === "function") {
@@ -240,7 +245,11 @@ export function AdminIPOManagement({
       window.dispatchEvent(new Event("storage"));
     } catch {
       if (typeof updateIpo === "function") {
-        updateIpo(target.id, { isHidden: true, status: "COMPLETED" as any });
+        updateIpo(target.id, {
+          status: "COMPLETED" as any,
+          isCompleted: true,
+          hideFromHome: true,
+        });
       }
       showToast(`✓ "${target.name}" removed from user home page.`);
     } finally {

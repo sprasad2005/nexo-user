@@ -35,7 +35,8 @@ export function AdminIPOManagement() {
           ipoId: target.id,
           data: {
             status: "COMPLETED",
-            isHidden: true,
+            isCompleted: true,
+            hideFromHome: true,
           },
         }),
       });

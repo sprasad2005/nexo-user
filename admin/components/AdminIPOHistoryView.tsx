@@ -75,9 +75,10 @@ export function AdminIPOHistoryView() {
     ipos.forEach((ipo) => {
       const dist = ipo.profitDistribution;
       const isCompleted =
-        !ipo.isHidden &&
+        !ipo.isArchived &&
         (ipo.status === "COMPLETED" ||
           (ipo as any).isCompleted ||
+          ipo.hideFromHome ||
           ipo.status === "LISTED" ||
           ipo.status === "SOLD" ||
           Boolean(dist) ||

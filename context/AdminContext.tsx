@@ -123,7 +123,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           const res = await fetch(`${API_BASE_URL}?admin=true`);
           const json = await res.json();
           if (json?.success && Array.isArray(json.ipos)) {
-            return json.ipos.filter((item: IPOOpportunity) => !item.isHidden && !item.isArchived);
+            return json.ipos.filter((item: IPOOpportunity) => !item.isArchived);
           }
           return [];
         },
@@ -151,7 +151,7 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         const res = await fetch(`${API_BASE_URL}?admin=true`);
         const json = await res.json();
         if (json?.success && Array.isArray(json.ipos)) {
-          return json.ipos.filter((item: IPOOpportunity) => !item.isHidden && !item.isArchived);
+          return json.ipos.filter((item: IPOOpportunity) => !item.isArchived);
         }
         return [];
       },
