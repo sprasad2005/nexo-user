@@ -243,6 +243,7 @@ export function ProfileView() {
             name: updated.name,
             avatar: updated.avatar,
             username: updated.username,
+            phone: updated.phone,
           });
         }}
       />
