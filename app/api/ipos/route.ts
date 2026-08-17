@@ -635,6 +635,16 @@ export async function DELETE(req: NextRequest) {
           { ipoName: { $regex: new RegExp(`^${targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
         ],
       });
+
+      // Delete associated transactions
+      await db.collection("transactions").deleteMany({
+        $or: [
+          { ipoId: id },
+          { ipoId: cleanId },
+          { ipoId: `pub_${cleanId}` },
+          { ipoName: { $regex: new RegExp(`^${targetName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") } },
+        ],
+      });
     } catch (dbErr) {
       console.warn("MongoDB cascade delete fallback:", dbErr);
     }

@@ -32,7 +32,7 @@ import { mapIPOToOpportunity } from "@/src/features/ipo/mappers";
 import { logActivity } from "@/src/features/activity/activityService";
 import { UserLogoutModal } from "@/components/auth/UserLogoutModal";
 import { LoginSuccessModal } from "@/components/auth/LoginSuccessModal";
-import { nexoDataCache } from "@/lib/nexoDataCache";
+import { nexoDataCache, AdminDataCache } from "@/lib/nexoDataCache";
 import { chatRealtime } from "@/src/features/chat/utils/chatRealtime";
 
 type ViewTab = "dashboard" | "ipos" | "applications" | "portfolio" | "messages" | "members" | "profile";
@@ -1508,8 +1508,9 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
   };
 
   const deleteListedIpo = (id: string) => {
+    const cleanId = id.replace(/^pub_/, "");
     setListedIpos((prev) => {
-      const updated = prev.filter((item) => item.id !== id);
+      const updated = prev.filter((item) => item.id !== id && item.id !== cleanId && `pub_${item.id}` !== id);
       try {
         const customOnly = updated.filter((item) => item.id.startsWith("l_"));
         localStorage.setItem("nexo_custom_listed_ipos", JSON.stringify(customOnly));
@@ -1748,11 +1749,6 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
   };
 
   const removeIPO = (ipoId: string) => {
-    const activeRole = currentUser?.role || currentUserRole;
-    if (activeRole !== "ADMIN" && activeRole !== "SUPER_ADMIN") {
-      return { success: false, message: "Unauthorized. Admin privileges required." };
-    }
-
     const targetIpo = ipos.find((i) => i.id === ipoId || i.id === ipoId.replace(/^pub_/, "") || `pub_${i.id}` === ipoId);
     const ipoName = targetIpo?.name || ipoId;
     const cleanId = ipoId.replace(/^pub_/, "");
@@ -1778,28 +1774,35 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       )
     );
 
-    // 4. Clean local storage
-    try {
-      const stored = localStorage.getItem("nexo_local_admin_ipos") || "[]";
-      const parsed = JSON.parse(stored);
-      const filtered = parsed.filter(
-        (ipo: any) =>
-          ipo.id !== ipoId &&
-          ipo.id !== cleanId &&
-          `pub_${ipo.id}` !== ipoId &&
-          ipo.name?.toLowerCase() !== ipoName.toLowerCase()
-      );
-      localStorage.setItem("nexo_local_admin_ipos", JSON.stringify(filtered));
+    // 3. Invalidate data caches
+    nexoDataCache.invalidate("ipos_apps");
+    AdminDataCache.invalidate("admin_ipos");
+    AdminDataCache.invalidate("admin_dashboard_summary");
 
-      const listedStored = localStorage.getItem("nexo_listed_ipos_db") || "[]";
-      const listedParsed = JSON.parse(listedStored);
-      const listedFiltered = listedParsed.filter(
-        (item: any) =>
-          item.id !== ipoId &&
-          item.id !== cleanId &&
-          item.name?.toLowerCase() !== ipoName.toLowerCase()
+    // 4. Clean local storage for instant sync across tabs and reloads
+    try {
+      const filterOutDeleted = (items: any[]) =>
+        items.filter(
+          (item: any) =>
+            item.id !== ipoId &&
+            item.id !== cleanId &&
+            `pub_${item.id}` !== ipoId &&
+            item.name?.toLowerCase() !== ipoName.toLowerCase()
+        );
+
+      ["nexo_cached_ipos", "nexo_local_admin_ipos", "nexo_listed_ipos_db", "nexo_custom_listed_ipos"].forEach(
+        (key) => {
+          try {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) {
+                localStorage.setItem(key, JSON.stringify(filterOutDeleted(parsed)));
+              }
+            }
+          } catch {}
+        }
       );
-      localStorage.setItem("nexo_listed_ipos_db", JSON.stringify(listedFiltered));
 
       window.dispatchEvent(new Event("storage"));
     } catch (e) {}
@@ -1808,7 +1811,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     try {
       fetch(`/api/ipos?id=${encodeURIComponent(ipoId)}`, {
         method: "DELETE",
-      }).then(() => refreshIpos());
+      }).then(() => refreshIpos(true));
     } catch (e) {
       console.warn("Failed to DELETE /api/ipos in removeIPO:", e);
     }

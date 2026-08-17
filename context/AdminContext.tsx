@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react";
 import { IPOOpportunity, Member, Application } from "@/types/nexo";
-import { AdminDataCache } from "@/lib/nexoDataCache";
+import { AdminDataCache, nexoDataCache } from "@/lib/nexoDataCache";
 
 interface AdminContextType {
   ipos: IPOOpportunity[];
@@ -355,34 +355,53 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
       const ipoName = targetIpo?.name || "IPO";
 
       // 1. Immediately update state optimistically
-      setIpos((prev) => prev.filter((item) => item.id !== ipoId));
+      setIpos((prev) =>
+        prev.filter(
+          (item) =>
+            item.id !== ipoId &&
+            item.id !== cleanId &&
+            `pub_${item.id}` !== ipoId &&
+            item.name?.toLowerCase() !== ipoName.toLowerCase()
+        )
+      );
 
-      // 2. Clean up from localStorage for cross-tab sync
+      // 2. Invalidate caches
+      AdminDataCache.invalidate("admin_ipos");
+      AdminDataCache.invalidate("admin_dashboard_summary");
+      nexoDataCache.invalidate("ipos_apps");
+
+      // 3. Clean up from localStorage for cross-tab and cross-session sync
       try {
-        const stored = localStorage.getItem("nexo_local_admin_ipos") || "[]";
-        const parsed = JSON.parse(stored);
-        const updatedExtra = parsed.filter(
-          (item: any) =>
-            item.id !== ipoId &&
-            item.id !== cleanId &&
-            item.name?.toLowerCase() !== ipoName.toLowerCase()
-        );
-        localStorage.setItem("nexo_local_admin_ipos", JSON.stringify(updatedExtra));
+        const filterOutDeleted = (items: any[]) =>
+          items.filter(
+            (item: any) =>
+              item.id !== ipoId &&
+              item.id !== cleanId &&
+              `pub_${item.id}` !== ipoId &&
+              item.name?.toLowerCase() !== ipoName.toLowerCase()
+          );
 
-        const listedStored = localStorage.getItem("nexo_listed_ipos_db") || "[]";
-        const listedParsed = JSON.parse(listedStored);
-        const listedFiltered = listedParsed.filter(
-          (item: any) =>
-            item.id !== ipoId &&
-            item.id !== cleanId &&
-            item.name?.toLowerCase() !== ipoName.toLowerCase()
-        );
-        localStorage.setItem("nexo_listed_ipos_db", JSON.stringify(listedFiltered));
+        [
+          "nexo_cached_ipos",
+          "nexo_local_admin_ipos",
+          "nexo_listed_ipos_db",
+          "nexo_custom_listed_ipos",
+        ].forEach((key) => {
+          try {
+            const raw = localStorage.getItem(key);
+            if (raw) {
+              const parsed = JSON.parse(raw);
+              if (Array.isArray(parsed)) {
+                localStorage.setItem(key, JSON.stringify(filterOutDeleted(parsed)));
+              }
+            }
+          } catch {}
+        });
 
         window.dispatchEvent(new Event("storage"));
       } catch (e) {}
 
-      // 3. Call API endpoint to cascade delete permanently from MongoDB
+      // 4. Call API endpoint to cascade delete permanently from MongoDB
       try {
         const res = await fetch(`${API_BASE_URL}?id=${encodeURIComponent(ipoId)}`, {
           method: "DELETE",
@@ -391,7 +410,9 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         await refreshIpos();
         return {
           success: true,
-          message: result.message || `✓ IPO "${ipoName}" and all associated data permanently deleted from database and user website.`,
+          message:
+            result.message ||
+            `✓ IPO "${ipoName}" and all associated data permanently deleted from database and user website.`,
         };
       } catch (err) {
         console.warn("API network call error in removeIPO:", err);
