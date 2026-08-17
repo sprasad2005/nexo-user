@@ -1,6 +1,7 @@
-﻿"use client";
+"use client";
 
 import React from "react";
+import { ArrowUUpLeft, CheckCircle } from "@phosphor-icons/react";
 import { AuditActivity } from "@/src/features/activity/types";
 import {
   formatActivityDescription,
@@ -8,14 +9,16 @@ import {
   getSeverityClasses,
   formatCategory,
 } from "@/src/features/activity/formatters";
+import { isActivityReversible } from "@/src/features/activity/undoRules";
 import { ActivityIcon } from "./ActivityIcon";
 
 interface ActivityTableProps {
   activities: AuditActivity[];
   onSelect: (a: AuditActivity) => void;
+  onUndo?: (a: AuditActivity) => void;
 }
 
-export function ActivityTable({ activities, onSelect }: ActivityTableProps) {
+export function ActivityTable({ activities, onSelect, onUndo }: ActivityTableProps) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-[#252931]">
       <table className="w-full text-left text-xs font-medium">
@@ -27,6 +30,7 @@ export function ActivityTable({ activities, onSelect }: ActivityTableProps) {
             <th className="px-4 py-3">Category</th>
             <th className="px-4 py-3">Target</th>
             <th className="px-4 py-3">Severity</th>
+            <th className="px-4 py-3 text-right">Action</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-100 dark:divide-[#1B1E23] bg-white dark:bg-[#101114]">
@@ -37,7 +41,8 @@ export function ActivityTable({ activities, onSelect }: ActivityTableProps) {
             const actorName = activity.actorName || (activity as any).memberName || "System";
             const timeLabel = formatShortTime(activity.createdAt || (activity as any).timestamp);
             const category = formatCategory(activity.category);
-            const isAdminActor = activity.actorRole === "ADMIN" || activity.actorRole === "SUPER_ADMIN";
+            const reversible = isActivityReversible(activity);
+            const isReversed = activity.isReversed;
 
             return (
               <tr
@@ -76,6 +81,27 @@ export function ActivityTable({ activities, onSelect }: ActivityTableProps) {
                     <span className={`w-1.5 h-1.5 rounded-full ${sc.dot}`} />
                     {sev}
                   </span>
+                </td>
+                <td className="px-4 py-3 text-right">
+                  {isReversed ? (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 dark:bg-[#2A200B] text-amber-700 dark:text-[#E5B544] border border-amber-200 dark:border-[#E5B544]/30">
+                      <CheckCircle size={11} weight="fill" />
+                      Reversed
+                    </span>
+                  ) : reversible && onUndo ? (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onUndo(activity);
+                      }}
+                      title="Safely reverse this action"
+                      className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl text-[11px] font-extrabold bg-slate-100 dark:bg-[#1D2026] text-slate-700 dark:text-[#D4D9E2] border border-slate-200 dark:border-[#252931] hover:border-amber-400 dark:hover:border-[#E5B544] hover:text-amber-600 dark:hover:text-[#E5B544] hover:bg-amber-50 dark:hover:bg-[#2A200B]/60 transition-all cursor-pointer shadow-2xs active:scale-95"
+                    >
+                      <ArrowUUpLeft size={12} weight="bold" />
+                      Undo
+                    </button>
+                  ) : null}
                 </td>
               </tr>
             );

@@ -420,6 +420,22 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       targetType: "MEMBER",
       targetId: memberId,
       targetName: name.trim(),
+      previousValue: {
+        name: member.name,
+        displayName: member.displayName || member.name,
+        username: member.username,
+        email: member.email,
+        phone: member.phone || "",
+        avatar: member.avatar,
+      },
+      newValue: {
+        name: name.trim(),
+        displayName: (displayName || name).trim(),
+        username: cleanUsername,
+        email: emailNorm,
+        phone: memberUpdate.phone || "",
+        avatar: memberUpdate.avatar,
+      },
       metadata: { username: cleanUsername },
     });
 

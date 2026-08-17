@@ -10,8 +10,10 @@ import { ActivitySummary } from "./ActivitySummary";
 import { ActivityTimeline } from "./ActivityTimeline";
 import { ActivityTable } from "./ActivityTable";
 import { ActivityDetailDrawer } from "./ActivityDetailDrawer";
+import { UndoConfirmationModal } from "./UndoConfirmationModal";
 import { ActivityTimelineSkeleton, ActivityTableSkeleton } from "./ActivitySkeleton";
 import { ActivityEmptyState, ActivityErrorState } from "./ActivityEmptyState";
+import { AdminDataCache, nexoDataCache } from "@/lib/nexoDataCache";
 
 type ViewMode = "timeline" | "table";
 
@@ -47,8 +49,6 @@ function buildDateRange(preset: string): { from?: string; to?: string } {
   return {};
 }
 
-import { AdminDataCache } from "@/lib/nexoDataCache";
-
 export function ActivityPage() {
   const [activities, setActivities] = useState<AuditActivity[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -56,6 +56,10 @@ export function ActivityPage() {
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Undo state
+  const [undoTargetActivity, setUndoTargetActivity] = useState<AuditActivity | null>(null);
+  const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   // Apply cache on mount
   useEffect(() => {
@@ -163,6 +167,67 @@ export function ActivityPage() {
     window.open("/api/admin/activity?export=csv", "_blank");
   };
 
+  const handleOpenUndo = (act: AuditActivity) => {
+    setUndoTargetActivity(act);
+  };
+
+  const handleConfirmUndo = async (activityId: string) => {
+    const res = await fetch(`/api/admin/activity/${activityId}/undo`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+    });
+
+    const data = await res.json();
+    if (!res.ok || !data.success) {
+      throw new Error(data.error || "Failed to reverse activity.");
+    }
+
+    // Update local activities optimistically
+    setActivities((prev) => {
+      const updated = prev.map((item) => {
+        if (item.id === activityId) {
+          return {
+            ...item,
+            isReversed: true,
+            reversedAt: new Date(),
+            reversalActivityId: data.reversalActivity?.id,
+          };
+        }
+        return item;
+      });
+
+      if (data.reversalActivity) {
+        return [data.reversalActivity, ...updated];
+      }
+      return updated;
+    });
+
+    if (selectedActivity?.id === activityId) {
+      setSelectedActivity((prev) =>
+        prev
+          ? {
+              ...prev,
+              isReversed: true,
+              reversedAt: new Date(),
+              reversalActivityId: data.reversalActivity?.id,
+            }
+          : null
+      );
+    }
+
+    // Invalidate caches
+    AdminDataCache.invalidate("admin_activities_default");
+    AdminDataCache.invalidate("admin_ipos");
+    AdminDataCache.invalidate("admin_dashboard_summary");
+    nexoDataCache.invalidate("ipos_apps");
+    nexoDataCache.invalidate("members");
+
+    window.dispatchEvent(new Event("storage"));
+
+    setToastMessage(data.message || "✓ Action successfully reversed and audit log recorded.");
+    setTimeout(() => setToastMessage(null), 6000);
+  };
+
   const clearFilters = () => {
     setCategory("");
     setSeverity("");
@@ -173,6 +238,16 @@ export function ActivityPage() {
 
   return (
     <div className="space-y-5 font-sans antialiased text-slate-900 dark:text-[#F5F7FA] pb-12">
+      {/* Toast Notification */}
+      {toastMessage && (
+        <div className="p-4 rounded-2xl bg-emerald-50 dark:bg-[#102C22] border border-emerald-200 dark:border-[#32C98B]/30 text-xs font-extrabold text-emerald-800 dark:text-[#32C98B] flex items-center justify-between gap-3 shadow-md animate-fade-in">
+          <span>{toastMessage}</span>
+          <button onClick={() => setToastMessage(null)} className="text-emerald-600 dark:text-[#32C98B] cursor-pointer">
+            <X size={15} />
+          </button>
+        </div>
+      )}
+
       {/* ── HEADER ── */}
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
@@ -248,90 +323,79 @@ export function ActivityPage() {
           )}
         </div>
 
-        {/* Filter toggle button */}
+        {/* Filter Toggle */}
         <button
-          onClick={() => setShowFilters((p) => !p)}
-          className={`flex items-center gap-2 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-colors cursor-pointer ${
+          onClick={() => setShowFilters(!showFilters)}
+          className={`flex items-center gap-1.5 px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all cursor-pointer ${
             hasActiveFilters
-              ? "bg-blue-600 dark:bg-[#6B93FF] text-white dark:text-[#101114] border-blue-600 dark:border-[#6B93FF]"
+              ? "bg-blue-50 dark:bg-[#17233D] border-blue-200 dark:border-[#6B93FF]/30 text-blue-600 dark:text-[#6B93FF]"
               : "bg-white dark:bg-[#101114] border-slate-200 dark:border-[#252931] text-slate-700 dark:text-[#AEB5C0] hover:bg-slate-50 dark:hover:bg-[#1D2026]"
           }`}
         >
           <Funnel size={14} />
-          Filters
+          <span>Filters</span>
           {hasActiveFilters && (
-            <span className="w-4 h-4 rounded-full bg-white/30 dark:bg-[#101114]/40 text-[9px] font-extrabold flex items-center justify-center">
-              {[category, severity, datePreset, roleFilter].filter(Boolean).length}
-            </span>
+            <span className="w-1.5 h-1.5 rounded-full bg-blue-600 dark:bg-[#6B93FF]" />
           )}
         </button>
 
+        {/* Refresh */}
         <button
           onClick={fetchActivities}
-          className="p-2.5 rounded-xl border border-slate-200 dark:border-[#252931] bg-white dark:bg-[#101114] text-slate-500 dark:text-[#858D99] hover:bg-slate-50 dark:hover:bg-[#1D2026] transition-colors cursor-pointer"
-          title="Refresh"
+          className="flex items-center gap-1.5 px-3 py-2.5 rounded-xl border border-slate-200 dark:border-[#252931] bg-white dark:bg-[#101114] text-xs font-bold text-slate-700 dark:text-[#AEB5C0] hover:bg-slate-50 dark:hover:bg-[#1D2026] transition-colors cursor-pointer"
+          title="Refresh activities"
         >
-          <ArrowClockwise size={15} />
+          <ArrowClockwise size={14} className={isLoading ? "animate-spin" : ""} />
         </button>
       </div>
 
-      {/* ── FILTER PANEL ── */}
+      {/* ── EXPANDABLE FILTERS PANEL ── */}
       {showFilters && (
-        <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl p-4 shadow-sm space-y-4">
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
-            {/* Date Preset */}
-            <div>
-              <label className="block font-extrabold text-slate-500 dark:text-[#858D99] uppercase text-[10px] tracking-wider mb-1.5">Date Range</label>
-              <div className="flex flex-wrap gap-1.5">
-                {DATE_PRESETS.map((p) => (
-                  <button
-                    key={p.value}
-                    onClick={() => setDatePreset(datePreset === p.value ? "" : p.value)}
-                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold cursor-pointer transition-colors ${
-                      datePreset === p.value
-                        ? "bg-blue-600 dark:bg-[#6B93FF] text-white dark:text-[#101114]"
-                        : "bg-slate-100 dark:bg-[#14161A] text-slate-600 dark:text-[#AEB5C0] hover:bg-slate-200 dark:hover:bg-[#1D2026]"
-                    }`}
-                  >
-                    {p.label}
-                  </button>
-                ))}
-              </div>
-            </div>
-
+        <div className="p-4 rounded-2xl bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] shadow-xs space-y-3 animate-fade-in text-xs">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             {/* Category */}
             <div>
-              <label className="block font-extrabold text-slate-500 dark:text-[#858D99] uppercase text-[10px] tracking-wider mb-1.5">Category</label>
+              <label className="block text-[10px] font-extrabold text-slate-400 dark:text-[#626A75] uppercase tracking-wider mb-1">
+                Category
+              </label>
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] text-[11px] font-bold text-slate-700 dark:text-[#AEB5C0] focus:outline-none"
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-[#1D2026] border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-800 dark:text-[#D4D9E2] focus:outline-none focus:border-blue-600"
               >
                 <option value="">All Categories</option>
-                {CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
               </select>
             </div>
 
             {/* Severity */}
             <div>
-              <label className="block font-extrabold text-slate-500 dark:text-[#858D99] uppercase text-[10px] tracking-wider mb-1.5">Severity</label>
+              <label className="block text-[10px] font-extrabold text-slate-400 dark:text-[#626A75] uppercase tracking-wider mb-1">
+                Severity
+              </label>
               <select
                 value={severity}
                 onChange={(e) => setSeverity(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] text-[11px] font-bold text-slate-700 dark:text-[#AEB5C0] focus:outline-none"
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-[#1D2026] border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-800 dark:text-[#D4D9E2] focus:outline-none focus:border-blue-600"
               >
                 <option value="">All Severities</option>
-                {SEVERITIES.map((s) => <option key={s} value={s}>{s}</option>)}
+                {SEVERITIES.map((s) => (
+                  <option key={s} value={s}>{s}</option>
+                ))}
               </select>
             </div>
 
             {/* Actor Role */}
             <div>
-              <label className="block font-extrabold text-slate-500 dark:text-[#858D99] uppercase text-[10px] tracking-wider mb-1.5">Actor Role</label>
+              <label className="block text-[10px] font-extrabold text-slate-400 dark:text-[#626A75] uppercase tracking-wider mb-1">
+                Actor Role
+              </label>
               <select
                 value={roleFilter}
                 onChange={(e) => setRoleFilter(e.target.value)}
-                className="w-full px-2.5 py-1.5 rounded-xl bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] text-[11px] font-bold text-slate-700 dark:text-[#AEB5C0] focus:outline-none"
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-[#1D2026] border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-800 dark:text-[#D4D9E2] focus:outline-none focus:border-blue-600"
               >
                 <option value="">All Roles</option>
                 <option value="SUPER_ADMIN">Super Admin</option>
@@ -339,13 +403,30 @@ export function ActivityPage() {
                 <option value="MEMBER">Member</option>
               </select>
             </div>
+
+            {/* Date Preset */}
+            <div>
+              <label className="block text-[10px] font-extrabold text-slate-400 dark:text-[#626A75] uppercase tracking-wider mb-1">
+                Date Range
+              </label>
+              <select
+                value={datePreset}
+                onChange={(e) => setDatePreset(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-50 dark:bg-[#1D2026] border border-slate-200 dark:border-[#252931] text-xs font-bold text-slate-800 dark:text-[#D4D9E2] focus:outline-none focus:border-blue-600"
+              >
+                <option value="">All Time</option>
+                {DATE_PRESETS.map((d) => (
+                  <option key={d.value} value={d.value}>{d.label}</option>
+                ))}
+              </select>
+            </div>
           </div>
 
           {hasActiveFilters && (
-            <div className="flex justify-end">
+            <div className="flex justify-end pt-1">
               <button
                 onClick={clearFilters}
-                className="flex items-center gap-1.5 text-xs font-bold text-rose-600 dark:text-[#FF6B6B] hover:underline cursor-pointer"
+                className="flex items-center gap-1 text-[11px] font-bold text-slate-500 dark:text-[#858D99] hover:text-slate-800 dark:hover:text-[#F5F7FA] cursor-pointer"
               >
                 <X size={12} />
                 Clear all filters
@@ -392,14 +473,22 @@ export function ActivityPage() {
         {/* Timeline */}
         {!isLoading && !isError && activities.length > 0 && viewMode === "timeline" && (
           <div className="p-4">
-            <ActivityTimeline activities={activities} onSelect={setSelectedActivity} />
+            <ActivityTimeline
+              activities={activities}
+              onSelect={setSelectedActivity}
+              onUndo={handleOpenUndo}
+            />
           </div>
         )}
 
         {/* Table */}
         {!isLoading && !isError && activities.length > 0 && viewMode === "table" && (
           <div className="p-4">
-            <ActivityTable activities={activities} onSelect={setSelectedActivity} />
+            <ActivityTable
+              activities={activities}
+              onSelect={setSelectedActivity}
+              onUndo={handleOpenUndo}
+            />
           </div>
         )}
 
@@ -421,6 +510,15 @@ export function ActivityPage() {
       <ActivityDetailDrawer
         activity={selectedActivity}
         onClose={() => setSelectedActivity(null)}
+        onUndo={handleOpenUndo}
+      />
+
+      {/* Undo Confirmation Modal */}
+      <UndoConfirmationModal
+        activity={undoTargetActivity}
+        isOpen={Boolean(undoTargetActivity)}
+        onClose={() => setUndoTargetActivity(null)}
+        onConfirm={handleConfirmUndo}
       />
     </div>
   );

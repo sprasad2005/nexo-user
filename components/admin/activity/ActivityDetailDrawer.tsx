@@ -1,7 +1,7 @@
-﻿"use client";
+"use client";
 
 import React, { useEffect } from "react";
-import { X, ArrowRight } from "@phosphor-icons/react";
+import { X, ArrowRight, ArrowUUpLeft } from "@phosphor-icons/react";
 import { AuditActivity } from "@/src/features/activity/types";
 import {
   formatActivityDescription,
@@ -9,14 +9,16 @@ import {
   formatCategory,
   formatShortTime,
 } from "@/src/features/activity/formatters";
+import { isActivityReversible } from "@/src/features/activity/undoRules";
 import { ActivityIcon } from "./ActivityIcon";
 
 interface ActivityDetailDrawerProps {
   activity: AuditActivity | null;
   onClose: () => void;
+  onUndo?: (a: AuditActivity) => void;
 }
 
-export function ActivityDetailDrawer({ activity, onClose }: ActivityDetailDrawerProps) {
+export function ActivityDetailDrawer({ activity, onClose, onUndo }: ActivityDetailDrawerProps) {
   // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -199,12 +201,48 @@ export function ActivityDetailDrawer({ activity, onClose }: ActivityDetailDrawer
             </div>
           </section>
 
+          {/* Reversal History Banner if Already Reversed */}
+          {activity.isReversed && (
+            <div className="p-4 rounded-2xl bg-amber-50 dark:bg-[#2A200B] border border-amber-200 dark:border-[#E5B544]/30 space-y-1.5 text-xs">
+              <div className="flex items-center gap-2 text-amber-800 dark:text-[#E5B544] font-extrabold">
+                <ArrowUUpLeft size={16} weight="bold" />
+                <span>Action Reversed</span>
+              </div>
+              <p className="text-amber-700/90 dark:text-[#E5B544]/80 text-[11px] leading-relaxed">
+                This operation was safely reversed
+                {activity.reversedAt
+                  ? ` on ${new Date(activity.reversedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}`
+                  : ""}
+                {activity.reversedBy?.name ? ` by ${activity.reversedBy.name}` : ""}.
+              </p>
+              {activity.reversalActivityId && (
+                <p className="text-[10px] font-mono text-amber-600/70 dark:text-[#E5B544]/60 pt-0.5">
+                  Reversal Log ID: {activity.reversalActivityId}
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Activity ID */}
           <div className="flex items-center justify-between pt-1 text-[10px] text-slate-300 dark:text-[#343943] font-mono">
             <span>Activity ID</span>
             <span className="truncate max-w-[200px]">{activity.id}</span>
           </div>
         </div>
+
+        {/* Footer Action */}
+        {!activity.isReversed && isActivityReversible(activity) && onUndo && (
+          <div className="p-4 border-t border-slate-200 dark:border-[#252931] bg-slate-50/50 dark:bg-[#101114]/50">
+            <button
+              type="button"
+              onClick={() => onUndo(activity)}
+              className="w-full py-2.5 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 active:scale-[0.98] text-white font-extrabold text-xs transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+            >
+              <ArrowUUpLeft size={16} weight="bold" />
+              <span>Undo This Action</span>
+            </button>
+          </div>
+        )}
       </div>
     </>
   );

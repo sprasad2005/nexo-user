@@ -128,7 +128,12 @@ export function formatActivityDescription(activity: AuditActivity): string {
     case "MEMBER_REMOVED_FROM_CONVERSATION":
       return `${target || "Member"} removed from conversation`;
 
-    // ─── System ──────────────────────────────────────────────────
+    // ─── System & Reversals ──────────────────────────────────────
+    case "ACTION_REVERSED": {
+      const origEvent = (activity.metadata?.originalEventType as string) || "action";
+      const origTarget = activity.targetName ? ` (${activity.targetName})` : "";
+      return `${actor} reversed ${origEvent.toLowerCase().replace(/_/g, " ")}${origTarget}`;
+    }
     case "SYSTEM_SEEDED":
       return "System data seeded";
     case "ADMIN_ACTION":

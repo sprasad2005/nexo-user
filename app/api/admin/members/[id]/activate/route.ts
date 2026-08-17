@@ -47,6 +47,8 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       targetType: "MEMBER",
       targetId: targetMemberId,
       targetName: member.name,
+      previousValue: { status: user.status || "SUSPENDED" },
+      newValue: { status: "ACTIVE" },
       metadata: { targetUserId: user.id },
     });
 

@@ -98,13 +98,20 @@ export async function POST(req: Request) {
     // 3. Log activity
     try {
       await logActivity({
-        eventType: "IPO_UPDATED",
+        eventType: "IPO_ARCHIVED",
         category: "PRODUCT",
+        severity: "INFO",
+        actorUserId: auth.userId,
+        actorMemberId: auth.memberId,
         actorName: adminName,
+        actorUsername: auth.username,
+        actorRole: auth.role,
         targetType: "IPO",
         targetId: ipoId,
         targetName: updatedIpoName,
-        metadata: { status: "COMPLETED", completedAt, action: `Marked IPO "${updatedIpoName}" as Completed and moved to History.` },
+        previousValue: { status: "APPLICATION_OPEN" },
+        newValue: { status: "COMPLETED" },
+        metadata: { status: "COMPLETED", completedAt, action: `Archived IPO "${updatedIpoName}" and moved to History.` },
       });
     } catch (_e) {}
 

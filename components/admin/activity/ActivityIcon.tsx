@@ -5,7 +5,7 @@ import {
   SignIn, SignOut, Warning, ShieldCheck, ShieldStar,
   Monitor, Key, Prohibit, CheckCircle, User, UserCircle,
   ChartLineUp, ClipboardText, UsersThree, TrendUp, ChartBar,
-  ArrowsLeftRight, ChatCircle, Gear, ClockCountdown,
+  ArrowsLeftRight, ChatCircle, Gear, ClockCountdown, ArrowUUpLeft,
 } from "@phosphor-icons/react";
 import { AuditEventType, AuditSeverity } from "@/src/features/activity/types";
 import { getSeverityClasses, getActivityIconName } from "@/src/features/activity/formatters";
@@ -14,7 +14,7 @@ const ICON_MAP: Record<string, React.ComponentType<any>> = {
   SignIn, SignOut, Warning, ShieldCheck, ShieldStar,
   Monitor, Key, Prohibit, CheckCircle, User, UserCircle,
   ChartLineUp, ClipboardText, UsersThree, TrendUp, ChartBar,
-  ArrowsLeftRight, ChatCircle, Gear, ClockCountdown,
+  ArrowsLeftRight, ChatCircle, Gear, ClockCountdown, ArrowUUpLeft,
 };
 
 interface ActivityIconProps {

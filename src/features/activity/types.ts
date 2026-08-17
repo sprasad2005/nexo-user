@@ -51,7 +51,7 @@ export type AuditEventType =
   | "TRANSACTION_CREATED" | "TRANSACTION_UPDATED" | "REFUND_UPDATED"
   | "CONVERSATION_CREATED" | "IPO_CHAT_CREATED" | "MESSAGE_SENT"
   | "MEMBER_ADDED_TO_CONVERSATION" | "MEMBER_REMOVED_FROM_CONVERSATION"
-  | "SYSTEM_SEEDED" | "ADMIN_ACTION";
+  | "SYSTEM_SEEDED" | "ADMIN_ACTION" | "ACTION_REVERSED";
 
 export interface AuditActivity {
   _id?: ObjectId;
@@ -77,6 +77,19 @@ export interface AuditActivity {
   ipAddress?: string;
   userAgent?: string;
   createdAt: Date;
+  // Reversal Tracking fields
+  isReversed?: boolean;
+  reversedAt?: Date | string;
+  reversedBy?: {
+    userId?: string;
+    memberId?: string;
+    name?: string;
+    username?: string;
+    role?: string;
+  };
+  reversalActivityId?: string;
+  originalActivityId?: string;
+  isReversible?: boolean;
   // Legacy compat fields from old security.ts shape
   isSecurityEvent?: boolean;
   title?: string;
@@ -108,6 +121,17 @@ export interface LogActivityInput {
   newValue?: Record<string, unknown>;
   ipAddress?: string;
   userAgent?: string;
+  isReversed?: boolean;
+  reversedAt?: Date | string;
+  reversedBy?: {
+    userId?: string;
+    memberId?: string;
+    name?: string;
+    username?: string;
+    role?: string;
+  };
+  reversalActivityId?: string;
+  originalActivityId?: string;
 }
 
 export interface ActivityListResponse {
@@ -179,4 +203,5 @@ export const DEFAULT_SEVERITY_MAP: Record<AuditEventType, AuditSeverity> = {
   ALL_SESSIONS_REVOKED: "CRITICAL",
   ROLE_CHANGED: "CRITICAL",
   SUPER_ADMIN_ACTION: "CRITICAL",
+  ACTION_REVERSED: "WARNING",
 };

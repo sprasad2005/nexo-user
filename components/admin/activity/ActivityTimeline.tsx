@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import React from "react";
 import { AuditActivity } from "@/src/features/activity/types";
@@ -8,9 +8,10 @@ import { ActivityRow } from "./ActivityRow";
 interface ActivityTimelineProps {
   activities: AuditActivity[];
   onSelect: (a: AuditActivity) => void;
+  onUndo?: (a: AuditActivity) => void;
 }
 
-export function ActivityTimeline({ activities, onSelect }: ActivityTimelineProps) {
+export function ActivityTimeline({ activities, onSelect, onUndo }: ActivityTimelineProps) {
   const groups = groupActivitiesByDate(activities);
 
   return (
@@ -33,6 +34,7 @@ export function ActivityTimeline({ activities, onSelect }: ActivityTimelineProps
                 key={activity.id || String((activity as any)._id)}
                 activity={activity}
                 onClick={onSelect}
+                onUndo={onUndo}
               />
             ))}
           </div>
