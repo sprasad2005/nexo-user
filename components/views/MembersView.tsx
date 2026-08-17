@@ -307,7 +307,7 @@ export function MembersView() {
     setEditUsername(member.username || member.name.toLowerCase());
     setEditPassword(member.password || (member.role === "ADMIN" ? "admin123" : "user123"));
     setEditPhone(member.phone || "+91 98200 12345");
-    setEditPan(member.panFull || member.panMasked);
+    setEditPan(member.panFull || member.panMasked || "");
     setEditRole(member.role);
   };
 

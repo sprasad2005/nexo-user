@@ -41,8 +41,8 @@ export interface Member {
   avatar: string;
   role: MemberRole;
   status?: MemberStatus;
-  panMasked: string;
-  panFull: string;
+  panMasked?: string;
+  panFull?: string;
   defaultContribution: number;
   joinedAt: string;
   phone?: string;
