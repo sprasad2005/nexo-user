@@ -1,34 +1,58 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect, useCallback } from "react";
 import { Coins, CheckCircle, ArrowRight, User, Users, Calculator, Package, Wallet, MagnifyingGlass, X } from "@phosphor-icons/react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { useAdmin } from "@/context/AdminContext";
+import { useNexo } from "@/context/NexoContext";
 import { AdminDataCache } from "@/lib/nexoDataCache";
 
 export function DistributeProfitView() {
-  const { ipos, publishProfitDistribution } = useAdmin();
+  const { ipos: adminIpos, publishProfitDistribution } = useAdmin();
+  const { ipos: nexoIpos } = useNexo();
 
   // Show all IPOs (active + historical/hidden) for profit distribution
-  const activeIpos = ipos || [];
+  const activeIpos = nexoIpos && nexoIpos.length > 0 ? nexoIpos : adminIpos || [];
 
-  const [selectedIpoId, setSelectedIpoId] = useState<string>(() => {
+  const [storedIpoId, setStoredIpoId] = useState<string>(() => {
     if (typeof window !== "undefined") {
       return localStorage.getItem("nexo_distribute_selected_ipo_id") || "";
     }
     return "";
   });
 
+  const selectedIpoId = useMemo(() => {
+    if (storedIpoId && activeIpos.some((i) => i.id === storedIpoId)) {
+      return storedIpoId;
+    }
+    return activeIpos[0]?.id || "";
+  }, [storedIpoId, activeIpos]);
+
   const [allottedLots, setAllottedLots] = useState<number | "">(1);
   const [totalProfit, setTotalProfit] = useState<number | "">("");
   const [isSuccessToast, setIsSuccessToast] = useState(false);
-  const [realApplications, setRealApplications] = useState<any[]>([]);
+  const [fetchedApps, setFetchedApps] = useState<any[]>([]);
   const [isFetchingApps, setIsFetchingApps] = useState(false);
   const [autoAllottedBadge, setAutoAllottedBadge] = useState<string | null>(null);
 
+  const selectedIpo = useMemo(() => {
+    return activeIpos.find((ipo) => ipo.id === selectedIpoId) || activeIpos[0];
+  }, [activeIpos, selectedIpoId]);
+
+  const effectiveApplications = useMemo(() => {
+    if (fetchedApps.length > 0) {
+      return fetchedApps;
+    }
+    const target = activeIpos.find((i) => i.id === selectedIpoId) || activeIpos[0];
+    if (target && Array.isArray(target.applications) && target.applications.length > 0) {
+      return target.applications;
+    }
+    return [];
+  }, [fetchedApps, activeIpos, selectedIpoId]);
+
   // Helper to calculate auto allotted count
-  const updateAutoAllotted = (apps: any[], hasDraftOrPublished: boolean) => {
+  const updateAutoAllotted = useCallback((apps: any[], hasDraftOrPublished: boolean) => {
     let autoCount = 0;
     apps.forEach((app: any) => {
       if (Array.isArray(app.allottedIndices) && app.allottedIndices.length > 0) {
@@ -53,36 +77,18 @@ export function DistributeProfitView() {
       }
       setAutoAllottedBadge("ℹ No lots marked Allotted yet in Allotment Section (showing total applied)");
     }
-  };
-
-  // Ensure selectedIpoId points to a valid IPO once activeIpos load
-  React.useEffect(() => {
-    if (!activeIpos || activeIpos.length === 0) return;
-
-    const isValid = activeIpos.some((i) => i.id === selectedIpoId);
-    if (!isValid) {
-      const stored = typeof window !== "undefined" ? localStorage.getItem("nexo_distribute_selected_ipo_id") : null;
-      if (stored && activeIpos.some((i) => i.id === stored)) {
-        setSelectedIpoId(stored);
-      } else if (activeIpos[0]?.id) {
-        setSelectedIpoId(activeIpos[0].id);
-      }
-    }
-  }, [activeIpos, selectedIpoId]);
-
-  const selectedIpo = useMemo(() => {
-    return activeIpos.find((ipo) => ipo.id === selectedIpoId) || activeIpos[0];
-  }, [activeIpos, selectedIpoId]);
+  }, []);
 
   const handleSelectIpo = (newId: string) => {
-    setSelectedIpoId(newId);
+    setStoredIpoId(newId);
+    setFetchedApps([]);
     try {
       localStorage.setItem("nexo_distribute_selected_ipo_id", newId);
     } catch {}
   };
 
   // Sync draft/published profits and fetch live applications for selected IPO
-  React.useEffect(() => {
+  useEffect(() => {
     if (!selectedIpoId) return;
 
     let isMounted = true;
@@ -105,7 +111,7 @@ export function DistributeProfitView() {
       }
     } catch {}
 
-    const targetIpo = activeIpos.find((i) => i.id === selectedIpoId);
+    const targetIpo = activeIpos.find((i) => i.id === selectedIpoId) || selectedIpo;
     if (!hasDraftOrPublished && targetIpo?.profitDistribution) {
       const dist = targetIpo.profitDistribution;
       if (typeof dist.totalProfit === "number" && dist.totalProfit > 0) {
@@ -125,43 +131,48 @@ export function DistributeProfitView() {
       setAllottedLots(1);
     }
 
-    // 2. Fetch or reuse cached applications using shared AdminDataCache SWR
+    if (effectiveApplications.length > 0) {
+      updateAutoAllotted(effectiveApplications, hasDraftOrPublished);
+    }
+
+    // 2. Fetch fresh live applications from endpoints
     setIsFetchingApps(true);
-    AdminDataCache.fetchSWR(
-      `admin_allotment_apps_${selectedIpoId}`,
-      async () => {
+    const fetchApps = async () => {
+      try {
+        let apps: any[] = [];
         const res = await fetch(`/api/admin/allotment?ipoId=${encodeURIComponent(selectedIpoId)}`);
-        const json = await res.json();
-        if (res.ok && json.success) return json;
-        throw new Error(json.error || "Failed to load applications");
-      },
-      {
-        ttlMs: 30000,
-        onUpdate: (freshData) => {
-          if (!isMounted) return;
-          if (freshData?.success && Array.isArray(freshData.applications)) {
-            setRealApplications(freshData.applications);
-            updateAutoAllotted(freshData.applications, hasDraftOrPublished);
+        if (res.ok) {
+          const json = await res.json();
+          if (json?.success && Array.isArray(json.applications) && json.applications.length > 0) {
+            apps = json.applications;
           }
-        },
-      }
-    )
-      .then((data) => {
-        if (!isMounted) return;
-        if (data?.success && Array.isArray(data.applications)) {
-          setRealApplications(data.applications);
-          updateAutoAllotted(data.applications, hasDraftOrPublished);
         }
-      })
-      .catch(() => {})
-      .finally(() => {
+
+        if (apps.length === 0) {
+          const fallbackRes = await fetch(`/api/applications?ipoId=${encodeURIComponent(selectedIpoId)}`);
+          if (fallbackRes.ok) {
+            const fallbackJson = await fallbackRes.json();
+            if (fallbackJson?.success && Array.isArray(fallbackJson.applications) && fallbackJson.applications.length > 0) {
+              apps = fallbackJson.applications;
+            }
+          }
+        }
+
+        if (isMounted && apps.length > 0) {
+          setFetchedApps(apps);
+          updateAutoAllotted(apps, hasDraftOrPublished);
+        }
+      } catch {} finally {
         if (isMounted) setIsFetchingApps(false);
-      });
+      }
+    };
+
+    fetchApps();
 
     return () => {
       isMounted = false;
     };
-  }, [selectedIpoId, activeIpos]);
+  }, [selectedIpoId, activeIpos, updateAutoAllotted]);
 
   const handleProfitChange = (val: number | "") => {
     setTotalProfit(val);
@@ -194,7 +205,7 @@ export function DistributeProfitView() {
 
   // ── Auto-fetch individual member contributions & lots ──
   const memberApplications = useMemo(() => {
-    const rawApps = realApplications.length > 0 ? realApplications : selectedIpo?.applications || [];
+    const rawApps = effectiveApplications;
     if (!rawApps || rawApps.length === 0) {
       return [];
     }
@@ -295,7 +306,7 @@ export function DistributeProfitView() {
     });
 
     return Array.from(membersMap.values());
-  }, [selectedIpo, realApplications]);
+  }, [selectedIpo, effectiveApplications]);
 
   // Filtered members based on PAN or Name search
   const filteredMemberApplications = useMemo(() => {

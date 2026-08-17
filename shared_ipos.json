@@ -32,8 +32,10 @@
     "createdAt": "2026-08-17T12:55:35.240Z",
     "addedAt": "2026-08-17T12:55:35.241Z",
     "isCompleted": true,
-    "allotmentFinalized": true,
+    "allotmentFinalized": false,
     "completedAt": "2026-08-17T16:58:53.797Z",
-    "completedBy": "Ankit"
+    "completedBy": "Ankit",
+    "allotmentFinalizedAt": null,
+    "allotmentFinalizedBy": null
   }
 ]
