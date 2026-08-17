@@ -139,6 +139,7 @@ export interface IPOOpportunity {
   isCompleted?: boolean;
   isArchived?: boolean;
   isFeatured?: boolean;
+  allotmentFinalized?: boolean;
   closeCountdown?: string;
   createdAt?: string;
   addedAt?: string;

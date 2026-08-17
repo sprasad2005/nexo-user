@@ -9,8 +9,8 @@ import { Sparkle, Hourglass } from "@phosphor-icons/react";
 export function DashboardView() {
   const { ipos, openIpoDetail, openApplicationModal } = useNexo();
 
-  // IPOs visible on user home: not hidden globally, not removed by admin, not archived
-  const visibleIpos = ipos.filter((i) => !i.isHidden && !i.hideFromHome && !i.isArchived);
+  // All visible IPOs on User Home page (not hidden, not archived, and not removed from home)
+  const homeIpos = ipos.filter((i) => !i.isHidden && !i.isArchived && !i.hideFromHome);
 
   const isOpenStatus = (st?: string) => {
     if (!st) return true;
@@ -25,10 +25,10 @@ export function DashboardView() {
   };
 
   // 1. Current Open IPOs
-  const openIpos = visibleIpos.filter((i) => isOpenStatus(i.status));
+  const openIpos = homeIpos.filter((i) => isOpenStatus(i.status));
 
-  // 2. Previous & Closed IPOs (naturally completed, without admin hideFromHome flag)
-  const previousIpos = visibleIpos.filter((i) => !isOpenStatus(i.status));
+  // 2. Previous & Closed IPOs
+  const previousIpos = homeIpos.filter((i) => !isOpenStatus(i.status));
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto animate-fade-in pb-8 font-sans select-none">

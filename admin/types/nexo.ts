@@ -71,5 +71,6 @@ export interface IPOOpportunity {
   hideFromHome?: boolean;
   isCompleted?: boolean;
   isArchived?: boolean;
+  allotmentFinalized?: boolean;
   profitDistribution?: ProfitDistribution;
 }

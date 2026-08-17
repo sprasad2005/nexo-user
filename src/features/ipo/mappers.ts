@@ -46,5 +46,11 @@ export function mapIPOToOpportunity(ipo: IPO, existingApps: any[] = []): IPOOppo
     },
     applications: existingApps,
     isFeatured: true,
+    hideFromHome: (ipo as any).hideFromHome,
+    isHidden: (ipo as any).isHidden,
+    isArchived: (ipo as any).isArchived,
+    isCompleted: (ipo as any).isCompleted,
+    profitDistribution: (ipo as any).profitDistribution,
+    allotmentFinalized: (ipo as any).allotmentFinalized,
   };
 }

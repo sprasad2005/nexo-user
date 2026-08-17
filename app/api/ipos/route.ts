@@ -275,8 +275,11 @@ export async function POST(req: NextRequest) {
         }
       }
 
+      const trimmedIpoId = String(ipoId).trim();
+      const cleanIpoId = trimmedIpoId.replace(/^pub_/, "");
+
       const updated = allIpos.map((ipo) => {
-        if (ipo.id === ipoId) {
+        if (ipo.id === trimmedIpoId || ipo.id === cleanIpoId || `pub_${ipo.id}` === trimmedIpoId) {
           const currentMetrics = ipo.metrics || {};
           const issueSizeVal = data.issueSize !== undefined ? data.issueSize : currentMetrics.issueSize;
           const formattedIssueSize = typeof issueSizeVal === "number" ? `₹${issueSizeVal.toLocaleString("en-IN")} Cr` : String(issueSizeVal || "—");
@@ -316,8 +319,20 @@ export async function POST(req: NextRequest) {
         const issueSizeVal = data.issueSize !== undefined ? data.issueSize : currentMetrics.issueSize;
         const formattedIssueSize = typeof issueSizeVal === "number" ? `₹${issueSizeVal.toLocaleString("en-IN")} Cr` : String(issueSizeVal || "—");
 
+        const orConditions: any[] = [
+          { id: trimmedIpoId },
+          { id: cleanIpoId },
+          { id: `pub_${cleanIpoId}` },
+        ];
+        if (ObjectId.isValid(trimmedIpoId)) {
+          orConditions.push({ _id: new ObjectId(trimmedIpoId) });
+        }
+        if (ObjectId.isValid(cleanIpoId)) {
+          orConditions.push({ _id: new ObjectId(cleanIpoId) });
+        }
+
         await db.collection("ipos").updateOne(
-          { $or: [{ id: ipoId }, { _id: ipoId as any }] },
+          { $or: orConditions },
           {
             $set: {
               ...(formattedName ? { name: formattedName, company: formattedName, nameNormalized: nameNorm } : {}),
