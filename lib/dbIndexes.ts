@@ -1,3 +1,4 @@
+import { Db } from "mongodb";
 import clientPromise from "./mongodb";
 
 const DB_NAME = "nexo";
@@ -7,12 +8,11 @@ let indexesInitialized = false;
  * Initializes optimal MongoDB indexes for the NEXO platform.
  * Runs once in the background to ensure sub-millisecond query execution.
  */
-export async function ensureDatabaseIndexes(): Promise<void> {
+export async function ensureDatabaseIndexes(dbInstance?: Db): Promise<void> {
   if (indexesInitialized) return;
 
   try {
-    const client = await clientPromise;
-    const db = client.db(DB_NAME);
+    const db = dbInstance || (await clientPromise).db(DB_NAME);
 
     // 0. Backfill normalized fields for existing records if missing
     try {
