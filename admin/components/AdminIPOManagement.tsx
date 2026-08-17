@@ -27,19 +27,19 @@ export function AdminIPOManagement() {
     if (!selectedIpoToRemove) return;
     const target = selectedIpoToRemove;
     try {
-      const res = await fetch("/api/admin/ipos/complete", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ipoId: target.id }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (res.ok && data.success) {
-        setFeedbackMsg(data.message || `✓ "${target.name}" removed from active IPOs and moved to History.`);
+      if (typeof removeIPO === "function") {
+        const res = await Promise.resolve(removeIPO(target.id));
+        setFeedbackMsg((res as any)?.message || `✓ "${target.name}" permanently removed.`);
       } else {
-        setFeedbackMsg(`✓ "${target.name}" moved to History section.`);
+        const res = await fetch(`/api/ipos?id=${encodeURIComponent(target.id)}`, {
+          method: "DELETE",
+        });
+        const data = await res.json().catch(() => ({}));
+        setFeedbackMsg(data.message || `✓ "${target.name}" permanently removed.`);
       }
+      window.dispatchEvent(new Event("storage"));
     } catch {
-      setFeedbackMsg(`✓ "${target.name}" moved to History section.`);
+      setFeedbackMsg(`❌ Failed to delete "${target.name}".`);
     }
 
     setSelectedIpoToRemove(null);

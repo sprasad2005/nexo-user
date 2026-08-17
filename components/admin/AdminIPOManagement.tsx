@@ -88,6 +88,8 @@ export function AdminIPOManagement({
   const isDrawerOpen = externalIsDrawerOpen !== undefined ? externalIsDrawerOpen : internalDrawerOpen;
   const setIsDrawerOpen = externalSetIsDrawerOpen || setInternalDrawerOpen;
   const [selectedIpoToRemove, setSelectedIpoToRemove] = useState<IPOOpportunity | null>(null);
+  const [selectedIpoToDelete, setSelectedIpoToDelete] = useState<IPOOpportunity | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Completed IPO / History State
   const [ipoFilterTab, setIpoFilterTab] = useState<"ACTIVE" | "COMPLETED">("ACTIVE");
@@ -128,6 +130,7 @@ export function AdminIPOManagement({
     const isAnyModalOpen = Boolean(
       editingIpo ||
       selectedIpoToRemove ||
+      selectedIpoToDelete ||
       selectedIpoToComplete ||
       isAddMemberModalOpen ||
       isDrawerOpen
@@ -139,7 +142,7 @@ export function AdminIPOManagement({
         document.body.style.overflow = prev;
       };
     }
-  }, [editingIpo, selectedIpoToRemove, selectedIpoToComplete, isAddMemberModalOpen, isDrawerOpen]);
+  }, [editingIpo, selectedIpoToRemove, selectedIpoToDelete, selectedIpoToComplete, isAddMemberModalOpen, isDrawerOpen]);
 
   const activeRole = currentMember?.role || currentUser?.role || currentUserRole;
   const isAdmin = activeRole === "ADMIN" || activeRole === "SUPER_ADMIN" || activeRole !== "MEMBER";
@@ -234,6 +237,35 @@ export function AdminIPOManagement({
       showToast(`✓ "${target.name}" moved to History section.`);
     } finally {
       setSelectedIpoToRemove(null);
+    }
+  };
+
+  const handleConfirmDelete = async () => {
+    if (!selectedIpoToDelete) return;
+    const target = selectedIpoToDelete;
+    setIsDeleting(true);
+    try {
+      if (typeof removeIPO === "function") {
+        const res = await Promise.resolve(removeIPO(target.id));
+        showToast((res as any)?.message || `✓ "${target.name}" permanently deleted from database and user website.`);
+      } else {
+        const res = await fetch(`/api/ipos?id=${encodeURIComponent(target.id)}`, {
+          method: "DELETE",
+        });
+        const data = await res.json().catch(() => ({}));
+        showToast(data.message || `✓ "${target.name}" permanently deleted from database and user website.`);
+      }
+      AdminDataCache.invalidate("admin_ipos");
+      AdminDataCache.invalidate("admin_dashboard_summary");
+      if (typeof refreshIpos === "function") {
+        await refreshIpos();
+      }
+      window.dispatchEvent(new Event("storage"));
+    } catch {
+      showToast(`❌ Failed to delete "${target.name}".`);
+    } finally {
+      setIsDeleting(false);
+      setSelectedIpoToDelete(null);
     }
   };
 
@@ -718,9 +750,9 @@ export function AdminIPOManagement({
                       </button>
 
                       <button
-                        onClick={() => setSelectedIpoToRemove(ipo)}
+                        onClick={() => setSelectedIpoToDelete(ipo)}
                         className="p-1.5 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 transition-all cursor-pointer"
-                        title="Remove IPO"
+                        title="Delete IPO Permanently"
                       >
                         <Trash size={15} />
                       </button>
@@ -1064,6 +1096,46 @@ export function AdminIPOManagement({
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* PERMANENT DELETE CONFIRMATION MODAL */}
+      {selectedIpoToDelete && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-fade-in font-sans">
+          <div className="bg-surface rounded-3xl p-6 max-w-md w-full border border-line shadow-2xl space-y-4">
+            <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/80 border border-rose-500/30 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+              <Trash size={24} weight="bold" />
+            </div>
+
+            <div>
+              <h3 className="text-base font-extrabold text-ink">Permanently Delete IPO?</h3>
+              <p className="text-xs text-ink-secondary font-medium mt-1 leading-relaxed">
+                Are you sure you want to delete <span className="font-bold text-ink">{selectedIpoToDelete.name}</span>?
+              </p>
+              <div className="mt-2.5 p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 text-rose-400 dark:text-rose-300 text-[11px] font-medium leading-relaxed">
+                ⚠️ This will permanently delete this IPO and all its associated applications, allocations, and profit records from <strong>all user pages (Home, Applications, Workspace)</strong> and the entire database.
+              </div>
+            </div>
+
+            <div className="flex items-center justify-end gap-3 pt-2">
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={() => setSelectedIpoToDelete(null)}
+                className="px-4 py-2.5 rounded-xl border border-line text-xs font-bold text-ink-secondary hover:bg-surface-alt transition-colors cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isDeleting}
+                onClick={handleConfirmDelete}
+                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer flex items-center gap-2"
+              >
+                {isDeleting ? "Deleting..." : "Delete Permanently"}
+              </button>
+            </div>
           </div>
         </div>
       )}
