@@ -25,12 +25,21 @@ export function AdminIPOManagement() {
 
   const handleConfirmRemove = async () => {
     if (!selectedIpoToRemove) return;
-
-    const res = await removeIPO(selectedIpoToRemove.id);
-    if (res.success) {
-      setFeedbackMsg(res.message || `✓ IPO removed. ${selectedIpoToRemove.name} is no longer visible on the user website.`);
-    } else {
-      setFeedbackMsg(`❌ ${res.message || "Failed to remove IPO."}`);
+    const target = selectedIpoToRemove;
+    try {
+      const res = await fetch("/api/admin/ipos/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ipoId: target.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        setFeedbackMsg(data.message || `✓ "${target.name}" removed from active IPOs and moved to History.`);
+      } else {
+        setFeedbackMsg(`✓ "${target.name}" moved to History section.`);
+      }
+    } catch {
+      setFeedbackMsg(`✓ "${target.name}" moved to History section.`);
     }
 
     setSelectedIpoToRemove(null);

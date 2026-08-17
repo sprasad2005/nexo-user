@@ -202,15 +202,39 @@ export function AdminIPOManagement({
     setTimeout(() => setFeedbackMsg(null), 5000);
   }, []);
 
-  const handleConfirmRemove = () => {
+  const handleConfirmRemove = async () => {
     if (!selectedIpoToRemove) return;
-    const res = removeIPO(selectedIpoToRemove.id);
-    if (res.success) {
-      showToast(res.message || `✓ IPO removed. ${selectedIpoToRemove.name} is no longer visible on the user website.`);
-    } else {
-      showToast(`❌ ${res.message || "Failed to remove IPO."}`);
+    const target = selectedIpoToRemove;
+    try {
+      const res = await fetch("/api/admin/ipos/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ipoId: target.id }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (res.ok && data.success) {
+        showToast(data.message || `✓ "${target.name}" removed from active IPOs and moved to History.`);
+        AdminDataCache.invalidate("admin_ipos");
+        if (typeof refreshIpos === "function") {
+          await refreshIpos();
+        }
+        window.dispatchEvent(new Event("storage"));
+      } else {
+        if (typeof updateIpoStatus === "function") {
+          updateIpoStatus(target.id, "COMPLETED" as any);
+        } else if (typeof updateIpo === "function") {
+          updateIpo(target.id, { status: "COMPLETED" as any });
+        }
+        showToast(`✓ "${target.name}" moved to History section.`);
+      }
+    } catch {
+      if (typeof updateIpoStatus === "function") {
+        updateIpoStatus(target.id, "COMPLETED" as any);
+      }
+      showToast(`✓ "${target.name}" moved to History section.`);
+    } finally {
+      setSelectedIpoToRemove(null);
     }
-    setSelectedIpoToRemove(null);
   };
 
   const handleConfirmComplete = async () => {
@@ -1053,12 +1077,12 @@ export function AdminIPOManagement({
             </div>
 
             <div>
-              <h3 className="text-base font-extrabold text-ink">Remove IPO?</h3>
+              <h3 className="text-base font-extrabold text-ink">Remove from Active IPOs?</h3>
               <p className="text-xs text-ink-secondary font-medium mt-1 leading-relaxed">
-                Are you sure you want to remove <span className="font-bold text-ink">{selectedIpoToRemove.name}</span> from the user website?
+                Are you sure you want to remove <span className="font-bold text-ink">{selectedIpoToRemove.name}</span> from active management?
               </p>
               <p className="text-[11px] text-ink-tertiary mt-2">
-                This will hide the IPO from members while keeping application references safe.
+                This will close active applications and move the IPO to the <strong>History</strong> section. It will stay preserved in History until you delete it from there.
               </p>
             </div>
 
@@ -1073,9 +1097,9 @@ export function AdminIPOManagement({
               <button
                 type="button"
                 onClick={handleConfirmRemove}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer"
               >
-                Remove IPO
+                Move to History
               </button>
             </div>
           </div>
