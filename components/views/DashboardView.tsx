@@ -9,7 +9,8 @@ import { Sparkle, Hourglass } from "@phosphor-icons/react";
 export function DashboardView() {
   const { ipos, openIpoDetail, openApplicationModal } = useNexo();
 
-  const visibleIpos = ipos.filter((i) => !i.isHidden && !i.hideFromHome && !i.isArchived);
+  // All non-archived, non-isHidden IPOs (admin permanent-hide)
+  const allVisibleIpos = ipos.filter((i) => !i.isHidden && !i.isArchived);
 
   const isOpenStatus = (st?: string) => {
     if (!st) return true;
@@ -23,11 +24,13 @@ export function DashboardView() {
     );
   };
 
-  // 1. Current Open IPOs
-  const openIpos = visibleIpos.filter((i) => isOpenStatus(i.status));
+  // 1. Current Open IPOs — only truly active, not removed from home by admin
+  const openIpos = allVisibleIpos.filter((i) => !i.hideFromHome && isOpenStatus(i.status));
 
-  // 2. Previous & Closed IPOs
-  const previousIpos = visibleIpos.filter((i) => !isOpenStatus(i.status));
+  // 2. Previous & Closed IPOs — completed IPOs AND admin-removed-from-active ones
+  const previousIpos = allVisibleIpos.filter(
+    (i) => !isOpenStatus(i.status) || i.hideFromHome
+  ).filter((i) => !openIpos.includes(i)); // deduplicate
 
   return (
     <div className="space-y-8 max-w-5xl mx-auto animate-fade-in pb-8 font-sans select-none">
