@@ -43,9 +43,11 @@ export interface Member {
   status?: MemberStatus;
   panMasked?: string;
   panFull?: string;
+  panNormalized?: string;
   defaultContribution: number;
   joinedAt: string;
   phone?: string;
+  phoneNormalized?: string;
   upiId?: string;
   permissions?: MemberPermissions;
   sessionsRevokedAt?: string;

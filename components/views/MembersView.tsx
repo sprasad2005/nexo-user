@@ -29,6 +29,7 @@ import {
 import { useRouter } from "next/navigation";
 import { Member, MemberRole } from "@/types/nexo";
 import { SendNotificationModal } from "../admin/SendNotificationModal";
+import { normalizePan, isValidPan } from "@/src/lib/validation/uniqueness";
 
 export function MembersView() {
   const router = useRouter();
@@ -73,6 +74,28 @@ export function MembersView() {
   const [editPhone, setEditPhone] = useState("");
   const [editPan, setEditPan] = useState("");
   const [editRole, setEditRole] = useState<MemberRole>("MEMBER");
+
+  // Live Edit PAN Validation (excluding editingMember)
+  const editPanError = useMemo(() => {
+    if (!editingMember) return null;
+    const raw = editPan.trim();
+    if (!raw) return null;
+    const norm = normalizePan(raw);
+    if (!isValidPan(norm)) {
+      return "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).";
+    }
+    const duplicate = members.find(
+      (m) =>
+        m.id !== editingMember.id &&
+        ((m.panNormalized && m.panNormalized === norm) ||
+          (m.panFull && normalizePan(m.panFull) === norm) ||
+          (m.panMasked && normalizePan(m.panMasked) === norm))
+    );
+    if (duplicate) {
+      return `This PAN number is already registered to member '${duplicate.name}'.`;
+    }
+    return null;
+  }, [editPan, editingMember, members]);
 
   // Calculate applied IPO count for a member
   const getAppliedIpoCount = (member: Member): number => {
@@ -279,10 +302,7 @@ export function MembersView() {
       name: formattedName,
       username: cleanUser,
       password: cleanPass,
-      phone: "+91 98200 12345",
       role: "MEMBER",
-      panMasked: "ABCDE1234F",
-      panFull: "ABCDE1234F",
       email: `${cleanUser}@nexo.private`,
       avatar: "/oggy.png",
     });
@@ -960,11 +980,38 @@ export function MembersView() {
                 </div>
               </div>
 
+              <div>
+                <label className="block text-caption font-semibold text-ink mb-1 flex items-center justify-between">
+                  <span>PAN Card Number</span>
+                  {editPanError && (
+                    <span className="text-[11px] text-rose-500 font-bold">{editPanError}</span>
+                  )}
+                </label>
+                <input
+                  type="text"
+                  maxLength={10}
+                  value={editPan}
+                  onChange={(e) => setEditPan(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
+                  placeholder="e.g. ABCDE1234F"
+                  className={`w-full px-3.5 py-2 bg-surface-alt border rounded-xl text-small font-mono text-ink outline-none transition-colors ${
+                    editPanError
+                      ? "border-rose-500 focus:border-rose-500"
+                      : "border-line focus:border-accent"
+                  }`}
+                />
+              </div>
+
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
                 <Button type="button" variant="outline" size="sm" onClick={() => setEditingMember(null)}>
                   Cancel
                 </Button>
-                <Button type="submit" variant="primary" size="sm">
+                <Button
+                  type="submit"
+                  variant="primary"
+                  size="sm"
+                  disabled={Boolean(editPanError)}
+                  className={Boolean(editPanError) ? "opacity-50 cursor-not-allowed" : ""}
+                >
                   <CheckCircle size={16} /> Save Changes
                 </Button>
               </div>
