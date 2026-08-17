@@ -20,8 +20,8 @@ export function AdminIPOManagement() {
   const [selectedIpoToRemove, setSelectedIpoToRemove] = useState<IPOOpportunity | null>(null);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
-  // Filter visible IPOs for management list
-  const visibleIpos = ipos.filter((ipo) => !ipo.isArchived && !ipo.hideFromHome);
+  // Filter visible IPOs for management list — include hideFromHome so admin can see & manage them
+  const visibleIpos = ipos.filter((ipo) => !ipo.isArchived);
 
   const handleConfirmRemove = async () => {
     if (!selectedIpoToRemove) return;
