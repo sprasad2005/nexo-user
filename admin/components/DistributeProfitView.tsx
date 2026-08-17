@@ -1,16 +1,138 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
-import { Coins, CheckCircle, ArrowRight, User, Users, Calculator, Package, Wallet, MagnifyingGlass, X } from "@phosphor-icons/react";
+import React, { useState, useMemo, useEffect, Component, ErrorInfo, ReactNode } from "react";
+import {
+  Coins,
+  CheckCircle,
+  ArrowRight,
+  User,
+  Users,
+  Calculator,
+  Package,
+  Wallet,
+  MagnifyingGlass,
+  X,
+  WarningCircle,
+  ArrowClockwise,
+} from "@phosphor-icons/react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { useAdmin } from "../context/AdminContext";
 
-export function DistributeProfitView() {
-  const { ipos, publishProfitDistribution } = useAdmin();
+// ─────────────────────────────────────────────────────────────────────────────
+// SAFE NUMERIC & STRING HELPERS (100% crash-proof against NaN/Infinity/null)
+// ─────────────────────────────────────────────────────────────────────────────
 
-  // Show all IPOs (active + historical/hidden) for profit distribution
-  const activeIpos = ipos;
+function safeNum(val: any, fallback = 0): number {
+  if (typeof val === "number") {
+    return isFinite(val) && !isNaN(val) ? val : fallback;
+  }
+  if (typeof val === "string") {
+    const cleaned = val.replace(/[^0-9.-]+/g, "");
+    const parsed = parseFloat(cleaned);
+    return isFinite(parsed) && !isNaN(parsed) ? parsed : fallback;
+  }
+  return fallback;
+}
+
+function safeFormatINR(val: number | string | undefined | null): string {
+  const n = safeNum(val, 0);
+  return n.toLocaleString("en-IN");
+}
+
+function formatHandle(str: any): string {
+  if (typeof str !== "string") return "@member";
+  const trimmed = str.replace(/^@+/, "").trim();
+  return trimmed ? `@${trimmed}` : "@member";
+}
+
+function splitMultiNames(str: any): string[] {
+  if (typeof str !== "string" || !str.trim()) return [];
+  return str
+    .split(/,|\band\b|&|\+/i)
+    .map((s) => (typeof s === "string" ? s.replace(/^@+/, "").trim() : ""))
+    .filter(Boolean);
+}
+
+function cleanPanNumber(panStr: any): string {
+  if (typeof panStr !== "string") return "ABCDE1234F";
+  const upper = panStr.trim().toUpperCase();
+  if (upper.length === 10 && !upper.includes("X")) return upper;
+  return upper || "ABCDE1234F";
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// ERROR BOUNDARY COMPONENT
+// ─────────────────────────────────────────────────────────────────────────────
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class DistributeProfitErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("[DistributeProfitView] Caught crash:", error, errorInfo);
+  }
+
+  handleRetry = () => {
+    this.setState({ hasError: false, error: null });
+  };
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="bg-white dark:bg-[#101114] border border-rose-200 dark:border-rose-900/40 rounded-3xl p-8 shadow-sm space-y-4 text-center">
+          <div className="w-14 h-14 rounded-2xl bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto border border-rose-200 dark:border-rose-900/30">
+            <WarningCircle size={28} weight="bold" />
+          </div>
+          <div className="space-y-1">
+            <h3 className="text-base font-extrabold text-slate-900 dark:text-[#F5F7FA]">
+              Distributive Profit Encountered an Issue
+            </h3>
+            <p className="text-xs text-slate-500 dark:text-[#858D99] max-w-md mx-auto">
+              A temporary rendering or data error occurred. Click retry below to reload the calculations safely.
+            </p>
+          </div>
+          <button
+            type="button"
+            onClick={this.handleRetry}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-slate-900 dark:bg-white text-white dark:text-[#101114] font-extrabold text-xs hover:opacity-90 transition-all cursor-pointer shadow-md"
+          >
+            <ArrowClockwise size={15} weight="bold" />
+            <span>Retry Distributive Profit</span>
+          </button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// MAIN DISTRIBUTE PROFIT VIEW
+// ─────────────────────────────────────────────────────────────────────────────
+
+function DistributeProfitInner() {
+  const adminCtx = useAdmin();
+  const rawIpos = adminCtx?.ipos;
+  const publishProfitDistribution = adminCtx?.publishProfitDistribution;
+
+  // Ensure activeIpos is always an array
+  const activeIpos = Array.isArray(rawIpos) ? rawIpos : [];
 
   const [selectedIpoId, setSelectedIpoId] = useState<string>("");
   const [allottedLots, setAllottedLots] = useState<number | "">(1);
@@ -18,25 +140,42 @@ export function DistributeProfitView() {
   const [isSuccessToast, setIsSuccessToast] = useState(false);
   const [realApplications, setRealApplications] = useState<any[]>([]);
   const [isFetchingApps, setIsFetchingApps] = useState(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [autoAllottedBadge, setAutoAllottedBadge] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
 
-  React.useEffect(() => {
-    if (typeof window !== "undefined") {
+  // Initialize selected IPO from storage or fallback
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    if (activeIpos.length === 0) return;
+
+    try {
       const stored = localStorage.getItem("nexo_distribute_selected_ipo_id");
-      if (stored && activeIpos.some((i) => i.id === stored)) {
+      if (stored && activeIpos.some((i) => i && i.id === stored)) {
         setSelectedIpoId(stored);
       } else if (activeIpos[0]?.id && !selectedIpoId) {
         setSelectedIpoId(activeIpos[0].id);
       }
+    } catch {
+      if (activeIpos[0]?.id && !selectedIpoId) {
+        setSelectedIpoId(activeIpos[0].id);
+      }
     }
-  }, [activeIpos]);
+  }, [activeIpos, selectedIpoId]);
 
-  const selectedIpo = activeIpos.find((ipo) => ipo.id === selectedIpoId) || activeIpos[0];
+  // Selected IPO object
+  const selectedIpo = useMemo(() => {
+    if (activeIpos.length === 0) return null;
+    return activeIpos.find((ipo) => ipo && ipo.id === selectedIpoId) || activeIpos[0] || null;
+  }, [activeIpos, selectedIpoId]);
 
-  const [autoAllottedBadge, setAutoAllottedBadge] = useState<string | null>(null);
-
-  // Fetch real applications from API whenever selected IPO changes
-  React.useEffect(() => {
-    if (!selectedIpoId) return;
+  // Fetch real applications from API whenever selected IPO changes with AbortController
+  useEffect(() => {
+    if (!selectedIpoId) {
+      setRealApplications([]);
+      setIsFetchingApps(false);
+      return;
+    }
 
     try {
       localStorage.setItem("nexo_distribute_selected_ipo_id", selectedIpoId);
@@ -49,11 +188,17 @@ export function DistributeProfitView() {
       }
     } catch {}
 
+    const controller = new AbortController();
     setIsFetchingApps(true);
-    fetch(`/api/admin/allotment?ipoId=${selectedIpoId}`)
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.applications)) {
+    setFetchError(null);
+
+    fetch(`/api/admin/allotment?ipoId=${encodeURIComponent(selectedIpoId)}`, {
+      signal: controller.signal,
+    })
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        const data = await res.json();
+        if (data && data.success && Array.isArray(data.applications)) {
           setRealApplications(data.applications);
           try {
             localStorage.setItem(`nexo_admin_apps_${selectedIpoId}`, JSON.stringify(data.applications));
@@ -62,10 +207,11 @@ export function DistributeProfitView() {
           // Auto-calculate allotted lots from the allotment section
           let autoCount = 0;
           data.applications.forEach((app: any) => {
+            if (!app) return;
             if (Array.isArray(app.allottedIndices) && app.allottedIndices.length > 0) {
               autoCount += app.allottedIndices.length;
             } else if (app.allotmentStatus === "ALLOTTED") {
-              autoCount += Number(app.lotsApplied || app.lotCount || 1);
+              autoCount += safeNum(app.lotsApplied || app.lotCount, 1);
             }
           });
 
@@ -74,7 +220,7 @@ export function DistributeProfitView() {
             setAutoAllottedBadge(`✓ Auto-fetched ${autoCount} Allotted Lot${autoCount > 1 ? "s" : ""} from Allotment Section`);
           } else {
             const totalApplied = data.applications.reduce(
-              (sum: number, app: any) => sum + Number(app.lotsApplied || app.lotCount || 1),
+              (sum: number, app: any) => sum + safeNum(app?.lotsApplied || app?.lotCount, 1),
               0
             );
             setAllottedLots(totalApplied > 0 ? totalApplied : 1);
@@ -82,19 +228,25 @@ export function DistributeProfitView() {
           }
         }
       })
-      .catch(() => {})
-      .finally(() => setIsFetchingApps(false));
+      .catch((err) => {
+        if (err.name !== "AbortError") {
+          console.warn("[DistributeProfitView] Applications fetch warning:", err);
+          setFetchError("Unable to fetch fresh application data. Displaying cached records.");
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setIsFetchingApps(false);
+        }
+      });
+
+    return () => {
+      controller.abort();
+    };
   }, [selectedIpoId]);
 
-  // Auto-select first IPO if none selected
-  React.useEffect(() => {
-    if (!selectedIpoId && activeIpos.length > 0) {
-      setSelectedIpoId(activeIpos[0].id);
-    }
-  }, [activeIpos, selectedIpoId]);
-
   // Sync state with published profit distribution or local draft whenever selected IPO changes
-  React.useEffect(() => {
+  useEffect(() => {
     if (!selectedIpo) return;
 
     // Check draft first
@@ -102,7 +254,7 @@ export function DistributeProfitView() {
       const draftsStr = localStorage.getItem("nexo_distribute_drafts");
       if (draftsStr) {
         const drafts = JSON.parse(draftsStr);
-        if (drafts[selectedIpo.id]) {
+        if (drafts && drafts[selectedIpo.id]) {
           const d = drafts[selectedIpo.id];
           if (d.totalProfit !== undefined) setTotalProfit(d.totalProfit);
           if (d.allottedLots !== undefined) setAllottedLots(d.allottedLots);
@@ -124,7 +276,7 @@ export function DistributeProfitView() {
       setTotalProfit("");
       setAllottedLots(1);
     }
-  }, [selectedIpo?.id, selectedIpo?.profitDistribution]);
+  }, [selectedIpo]);
 
   const handleProfitChange = (val: number | "") => {
     setTotalProfit(val);
@@ -150,44 +302,30 @@ export function DistributeProfitView() {
     }
   };
 
-  const numProfit = typeof totalProfit === "number" ? totalProfit : 0;
-  const numAllottedLots = typeof allottedLots === "number" ? allottedLots : 0;
-
-  const [searchQuery, setSearchQuery] = useState("");
+  const numProfit = safeNum(totalProfit, 0);
+  const numAllottedLots = safeNum(allottedLots, 1);
 
   // ── Auto-fetch individual member contributions & lots ──
   const memberApplications = useMemo(() => {
     const rawApps = realApplications.length > 0 ? realApplications : selectedIpo?.applications || [];
-    if (!rawApps || rawApps.length === 0) {
+    if (!Array.isArray(rawApps) || rawApps.length === 0) {
       return [];
     }
 
-    const minInv = selectedIpo.metrics?.minInvestment || 15000;
-    const formatHandle = (str: string) => {
-      const trimmed = str.replace(/^@+/, "").trim();
-      if (!trimmed) return "@member";
-      return `@${trimmed}`;
-    };
-
-    const splitMultiNames = (str: string): string[] => {
-      if (!str) return [];
-      return str
-        .split(/,|\band\b|&|\+/i)
-        .map((s) => s.replace(/^@+/, "").trim())
-        .filter(Boolean);
-    };
-
+    const minInv = safeNum(selectedIpo?.metrics?.minInvestment, 15000) || 15000;
     const membersMap = new Map<string, { id: string; name: string; lots: number; contribution: number; pan: string }>();
 
-    const addMemberEntry = (memberId: string | undefined, nameStr: string, lots: number, contribution: number, panStr: string) => {
+    const addMemberEntry = (memberId: string | undefined, nameStr: any, lots: number, contribution: number, panStr: any) => {
       const cleanName = formatHandle(nameStr);
       const key = (memberId || cleanName.replace(/^@/, "")).toLowerCase().trim();
-      const cleanPan = panStr && !panStr.includes("X") && panStr.length === 10 ? panStr.toUpperCase() : (panStr || "ABCDE1234F").toUpperCase();
+      const cleanPan = cleanPanNumber(panStr);
+      const safeLots = safeNum(lots, 0);
+      const safeContrib = safeNum(contribution, 0);
 
       if (membersMap.has(key)) {
         const existing = membersMap.get(key)!;
-        existing.lots += lots;
-        existing.contribution += contribution;
+        existing.lots += safeLots;
+        existing.contribution += safeContrib;
         if ((!existing.pan || existing.pan === "ABCDE1234F" || existing.pan.includes("X")) && cleanPan && cleanPan !== "ABCDE1234F") {
           existing.pan = cleanPan;
         }
@@ -195,20 +333,21 @@ export function DistributeProfitView() {
         membersMap.set(key, {
           id: memberId || `mem_${key}`,
           name: cleanName,
-          lots: lots,
-          contribution: contribution,
+          lots: safeLots,
+          contribution: safeContrib,
           pan: cleanPan,
         });
       }
     };
 
     rawApps.forEach((app: any) => {
+      if (!app) return;
       const pansList = Array.isArray(app.panNumbers) && app.panNumbers.length > 0
         ? app.panNumbers
         : [app.pan || app.panMasked || app.panFull || "ABCDE1234F"];
-      
-      const appLots = Number(app.lotsApplied || app.lotCount || pansList.length || 1) || 1;
-      const appContrib = Number(app.totalContribution) || (appLots * minInv);
+
+      const appLots = safeNum(app.lotsApplied || app.lotCount || pansList.length, 1);
+      const appContrib = safeNum(app.totalContribution, appLots * minInv);
 
       // Check participants / contributors first
       const pool = (Array.isArray(app.participants) && app.participants.length > 0)
@@ -218,12 +357,14 @@ export function DistributeProfitView() {
         : null;
 
       if (pool && pool.length > 0) {
+        const poolLen = Math.max(1, pool.length);
         pool.forEach((p: any, idx: number) => {
+          if (!p) return;
           const rawPName = p.memberName || p.name || p.username || "";
           const subNames = splitMultiNames(rawPName);
           const pPan = p.panMasked || p.panFull || p.pan || pansList[idx] || pansList[0] || "ABCDE1234F";
-          const pContrib = Number(p.contribution || p.amount) || (appContrib / pool.length);
-          const pLots = Number(p.lots) || (pContrib / minInv) || (appLots / pool.length);
+          const pContrib = safeNum(p.contribution || p.amount, appContrib / poolLen);
+          const pLots = safeNum(p.lots, minInv > 0 ? pContrib / minInv : appLots / poolLen);
 
           if (subNames.length > 1) {
             const splitSubContrib = pContrib / subNames.length;
@@ -262,21 +403,24 @@ export function DistributeProfitView() {
 
   // Filtered members based on PAN or Name search
   const filteredMemberApplications = useMemo(() => {
-    if (!searchQuery.trim()) return memberApplications;
+    if (!searchQuery || typeof searchQuery !== "string" || !searchQuery.trim()) {
+      return memberApplications;
+    }
     const q = searchQuery.toLowerCase().trim();
     return memberApplications.filter((m) => {
-      const nameMatch = m.name.toLowerCase().includes(q);
-      const panMatch = m.pan.toLowerCase().includes(q);
+      if (!m) return false;
+      const nameMatch = typeof m.name === "string" && m.name.toLowerCase().includes(q);
+      const panMatch = typeof m.pan === "string" && m.pan.toLowerCase().includes(q);
       return nameMatch || panMatch;
     });
   }, [memberApplications, searchQuery]);
 
   // ── Auto-calculated values ──
   const totalApplicants = memberApplications.length;
-  const totalAppliedLots = memberApplications.reduce((acc, m) => acc + m.lots, 0);
-  const totalAppliedAmount = memberApplications.reduce((acc, m) => acc + m.contribution, 0);
-  const perLotProfit = totalAppliedLots > 0 ? Math.round(numProfit / totalAppliedLots) : 0;
-
+  const totalAppliedLots = memberApplications.reduce((acc, m) => acc + safeNum(m?.lots, 0), 0);
+  const totalAppliedAmount = memberApplications.reduce((acc, m) => acc + safeNum(m?.contribution, 0), 0);
+  const perLotProfit = totalAppliedLots > 0 ? Math.max(0, Math.round(numProfit / totalAppliedLots)) : 0;
+  const hasApplicants = memberApplications.length > 0;
 
   const handlePublish = async () => {
     if (!selectedIpo || numProfit <= 0 || !hasApplicants) return;
@@ -287,7 +431,7 @@ export function DistributeProfitView() {
       pan: m.pan,
       contribution: m.contribution,
       lots: m.lots,
-      profit: Math.round(m.lots * perLotProfit),
+      profit: Math.max(0, Math.round(safeNum(m.lots, 0) * perLotProfit)),
     }));
 
     if (publishProfitDistribution) {
@@ -311,7 +455,22 @@ export function DistributeProfitView() {
     setTimeout(() => setIsSuccessToast(false), 5000);
   };
 
-  const hasApplicants = memberApplications.length > 0;
+  // ── EMPTY STATE IF 0 IPOS ──
+  if (activeIpos.length === 0) {
+    return (
+      <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-3xl p-10 text-center space-y-3 shadow-2xs font-sans">
+        <div className="w-14 h-14 rounded-2xl bg-amber-50 dark:bg-[#2A200B] text-amber-600 dark:text-[#E5B544] flex items-center justify-center mx-auto border border-amber-200 dark:border-[#E5B544]/30">
+          <Coins size={28} weight="bold" />
+        </div>
+        <h3 className="text-base font-extrabold text-slate-900 dark:text-[#F5F7FA]">
+          No IPOs Available for Profit Distribution
+        </h3>
+        <p className="text-xs text-slate-500 dark:text-[#858D99] max-w-md mx-auto">
+          There are currently no active or historical IPOs in your workspace. Add an IPO in the IPO Management section to calculate and distribute syndicate profits.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6 font-sans">
@@ -322,6 +481,22 @@ export function DistributeProfitView() {
           <span>
             ✓ Profit distribution published for <strong className="underline">{selectedIpo?.name}</strong>! It is now visible on the user-side IPO workspace.
           </span>
+        </div>
+      )}
+
+      {/* Fetch Warning if any */}
+      {fetchError && (
+        <div className="p-3.5 bg-amber-50 dark:bg-[#2A200B]/60 border border-amber-200 dark:border-[#E5B544]/30 rounded-2xl text-amber-800 dark:text-[#E5B544] text-xs font-bold flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <WarningCircle size={17} weight="fill" className="text-amber-600 dark:text-[#E5B544] shrink-0" />
+            <span>{fetchError}</span>
+          </div>
+          <button
+            onClick={() => setSelectedIpoId((prev) => prev)}
+            className="text-[11px] underline font-extrabold cursor-pointer"
+          >
+            Retry
+          </button>
         </div>
       )}
 
@@ -453,7 +628,7 @@ export function DistributeProfitView() {
               <span className="text-[10px] font-extrabold uppercase tracking-wider">Total Money Applied</span>
             </div>
             <div className="text-xl font-mono font-black text-slate-900 dark:text-[#F5F7FA]">
-              ₹{totalAppliedAmount.toLocaleString("en-IN")}
+              ₹{safeFormatINR(totalAppliedAmount)}
             </div>
           </div>
 
@@ -476,7 +651,7 @@ export function DistributeProfitView() {
               <span className="text-[10px] font-extrabold uppercase tracking-wider">Per Lot Profit</span>
             </div>
             <div className="text-xl font-mono font-black text-emerald-700 dark:text-[#32C98B]">
-              ₹{perLotProfit.toLocaleString("en-IN")}
+              ₹{safeFormatINR(perLotProfit)}
             </div>
           </div>
         </div>
@@ -495,10 +670,10 @@ export function DistributeProfitView() {
           </div>
           <div className="flex items-center gap-4">
             <span className="text-xs font-bold text-slate-500 dark:text-[#858D99]">
-              Total Profit: <strong className="font-mono text-emerald-600 dark:text-[#32C98B] font-extrabold">₹{numProfit.toLocaleString("en-IN")}</strong>
+              Total Profit: <strong className="font-mono text-emerald-600 dark:text-[#32C98B] font-extrabold">₹{safeFormatINR(numProfit)}</strong>
             </span>
             <span className="text-xs font-bold text-slate-500 dark:text-[#858D99]">
-              Per Lot Profit: <strong className="font-mono text-blue-600 dark:text-[#6B93FF] font-extrabold">₹{perLotProfit.toLocaleString("en-IN")}</strong>
+              Per Lot Profit: <strong className="font-mono text-blue-600 dark:text-[#6B93FF] font-extrabold">₹{safeFormatINR(perLotProfit)}</strong>
             </span>
           </div>
         </div>
@@ -535,7 +710,14 @@ export function DistributeProfitView() {
           </div>
         )}
 
-        {!hasApplicants ? (
+        {isFetchingApps && !hasApplicants ? (
+          <div className="p-10 text-center space-y-3">
+            <div className="w-8 h-8 border-3 border-emerald-600/30 border-t-emerald-600 rounded-full animate-spin mx-auto" />
+            <p className="text-xs font-bold text-slate-500 dark:text-[#858D99]">
+              Loading application and allotment records…
+            </p>
+          </div>
+        ) : !hasApplicants ? (
           <div className="p-10 text-center space-y-2">
             <Users size={36} className="text-slate-300 dark:text-[#626A75] mx-auto" />
             <h4 className="text-sm font-bold text-slate-700 dark:text-[#F5F7FA]">No Applicants Found</h4>
@@ -565,9 +747,9 @@ export function DistributeProfitView() {
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-[#1B1E23] font-medium text-slate-800 dark:text-[#F5F7FA]">
                 {filteredMemberApplications.map((m, idx) => {
-                  const individualProfit = Math.round(m.lots * perLotProfit);
+                  const individualProfit = Math.max(0, Math.round(safeNum(m.lots, 0) * perLotProfit));
                   return (
-                    <tr key={idx} className="hover:bg-slate-50/70 dark:hover:bg-[#14161A] transition-colors">
+                    <tr key={m.id || idx} className="hover:bg-slate-50/70 dark:hover:bg-[#14161A] transition-colors">
                       <td className="p-3.5 font-bold text-slate-900 dark:text-[#F5F7FA] flex items-center gap-2.5">
                         <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-[#1D2026] text-slate-700 dark:text-[#AEB5C0] flex items-center justify-center text-xs shrink-0 font-bold uppercase">
                           <User size={16} />
@@ -582,7 +764,7 @@ export function DistributeProfitView() {
                         />
                       </td>
                       <td className="p-3.5 text-right font-mono font-bold text-slate-900 dark:text-[#F5F7FA]">
-                        ₹{m.contribution.toLocaleString("en-IN")}
+                        ₹{safeFormatINR(m.contribution)}
                       </td>
                       <td className="p-3.5 text-center">
                         <span className="px-2.5 py-1 rounded-full bg-blue-50 dark:bg-[#17233D] text-blue-700 dark:text-[#6B93FF] font-extrabold font-mono text-xs border border-blue-200 dark:border-[#6B93FF]/30">
@@ -590,7 +772,7 @@ export function DistributeProfitView() {
                         </span>
                       </td>
                       <td className="p-3.5 text-right font-mono font-black text-emerald-600 dark:text-[#32C98B] text-sm sm:text-base">
-                        ₹{individualProfit.toLocaleString("en-IN")}
+                        ₹{safeFormatINR(individualProfit)}
                       </td>
                     </tr>
                   );
@@ -603,14 +785,13 @@ export function DistributeProfitView() {
                     TOTAL ({totalApplicants} Members)
                   </td>
                   <td className="p-3.5 text-right font-mono text-slate-900 dark:text-[#F5F7FA] font-black">
-                    ₹{totalAppliedAmount.toLocaleString("en-IN")}
+                    ₹{safeFormatINR(totalAppliedAmount)}
                   </td>
                   <td className="p-3.5 text-center font-mono">
                     {totalAppliedLots % 1 === 0 ? totalAppliedLots : totalAppliedLots.toFixed(1)} Lots
                   </td>
                   <td className="p-3.5 text-right font-mono text-emerald-700 dark:text-[#32C98B] text-sm sm:text-base">
-
-                    ₹{numProfit.toLocaleString("en-IN")}
+                    ₹{safeFormatINR(numProfit)}
                   </td>
                 </tr>
               </tfoot>
@@ -619,5 +800,13 @@ export function DistributeProfitView() {
         )}
       </div>
     </div>
+  );
+}
+
+export function DistributeProfitView() {
+  return (
+    <DistributeProfitErrorBoundary>
+      <DistributeProfitInner />
+    </DistributeProfitErrorBoundary>
   );
 }
