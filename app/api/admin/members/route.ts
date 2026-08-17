@@ -386,20 +386,7 @@ export async function POST(req: Request) {
       }
     }
 
-    // ── 3. Check PAN Uniqueness ──
-    if (panNormalized) {
-      const existingByPan = await db.collection<MemberDocument>("members").findOne({ panNormalized });
-      if (existingByPan) {
-        return NextResponse.json({
-          success: false,
-          code: "DUPLICATE_PAN",
-          error: `PAN number '${panNormalized}' is already registered to member '${existingByPan.name}'.`,
-          message: `This PAN number is already registered to another member.`,
-        }, { status: 409 });
-      }
-    }
-
-    // ── 4. Check Phone Uniqueness ──
+    // ── 3. Check Phone Uniqueness ──
     if (phoneNormalized) {
       const existingByPhone = await db.collection<MemberDocument>("members").findOne({ phoneNormalized });
       if (existingByPhone) {

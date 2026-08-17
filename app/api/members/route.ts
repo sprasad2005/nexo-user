@@ -172,18 +172,6 @@ export async function POST(req: Request) {
       }, { status: 409 });
     }
 
-    if (panNormalized) {
-      const existingPan = await col.findOne({ panNormalized });
-      if (existingPan) {
-        return NextResponse.json({
-          success: false,
-          code: "DUPLICATE_PAN",
-          error: `PAN number '${panNormalized}' is already registered to member '${existingPan.name}'.`,
-          message: "This PAN number is already registered to another member.",
-        }, { status: 409 });
-      }
-    }
-
     if (phoneNormalized) {
       const existingPhone = await col.findOne({ phoneNormalized });
       if (existingPhone) {
@@ -344,34 +332,13 @@ export async function PUT(req: Request) {
     const db = client.db(DB);
     const col = db.collection<MemberDocument>(COL);
 
-    // ── PAN VALIDATION & UNIQUENESS ──
+    // ── PAN NORMALIZATION ──
     const rawPan = body.panFull || body.panMasked || body.pan;
     let panNormalized: string | undefined = undefined;
     if (rawPan !== undefined && rawPan !== null) {
       const panStr = String(rawPan).trim();
       if (panStr) {
-        if (!isValidPan(panStr)) {
-          return NextResponse.json({
-            success: false,
-            code: "INVALID_PAN",
-            error: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
-            message: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
-          }, { status: 400 });
-        }
         panNormalized = normalizePan(panStr);
-
-        const dupPan = await col.findOne({
-          id: { $ne: body.id },
-          panNormalized: panNormalized,
-        });
-        if (dupPan) {
-          return NextResponse.json({
-            success: false,
-            code: "DUPLICATE_PAN",
-            error: `PAN number '${panNormalized}' is already registered to member '${dupPan.name}'.`,
-            message: "This PAN number is already registered to another member.",
-          }, { status: 409 });
-        }
       }
     }
 

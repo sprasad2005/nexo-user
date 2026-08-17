@@ -86,15 +86,6 @@ export function handleDuplicateKeyError(err: any): DuplicateErrorResponse | null
   const keyValue = err.keyValue || {};
   const errMsg = err.message || "";
 
-  if (keyPattern.panNormalized || errMsg.includes("panNormalized") || errMsg.includes("panFull")) {
-    const val = keyValue.panNormalized || "";
-    return {
-      status: 409,
-      code: "DUPLICATE_PAN",
-      message: val ? `PAN number '${val}' is already registered to another member.` : "This PAN number is already registered to another member.",
-    };
-  }
-
   if (keyPattern.phoneNormalized || errMsg.includes("phoneNormalized") || errMsg.includes("phone")) {
     const val = keyValue.phoneNormalized || "";
     return {

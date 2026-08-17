@@ -270,35 +270,13 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
     }
 
-    // ── PAN VALIDATION & UNIQUENESS (EXCLUDING CURRENT MEMBER) ──
+    // ── PAN NORMALIZATION ──
     const rawPan = pan || panCard || panFull;
     let panNormalized: string | undefined = undefined;
     if (rawPan !== undefined && rawPan !== null) {
       const panStr = String(rawPan).trim();
       if (panStr) {
-        if (!isValidPan(panStr)) {
-          return NextResponse.json({
-            success: false,
-            code: "INVALID_PAN",
-            error: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
-            message: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
-          }, { status: 400 });
-        }
         panNormalized = normalizePan(panStr);
-
-        const duplicatePan = await db.collection<MemberDocument>("members").findOne({
-          id: { $ne: memberId },
-          panNormalized: panNormalized,
-        });
-
-        if (duplicatePan) {
-          return NextResponse.json({
-            success: false,
-            code: "DUPLICATE_PAN",
-            error: `PAN number '${panNormalized}' is already registered to member '${duplicatePan.name}'.`,
-            message: "This PAN number is already registered to another member.",
-          }, { status: 409 });
-        }
       }
     }
 

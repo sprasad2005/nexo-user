@@ -67,7 +67,6 @@ export function SuperAdminMemberManagement() {
   // Form states for Create User
   const [newMemberUsername, setNewMemberUsername] = useState("");
   const [newMemberPassword, setNewMemberPassword] = useState("");
-  const [newMemberPan, setNewMemberPan] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [createError, setCreateError] = useState<string | null>(null);
   const [createdUserCredentials, setCreatedUserCredentials] = useState<{
@@ -88,26 +87,6 @@ export function SuperAdminMemberManagement() {
     }
     return null;
   }, [newMemberUsername, members]);
-
-  // Live PAN Validation
-  const panError = useMemo(() => {
-    const raw = newMemberPan.trim();
-    if (!raw) return null;
-    const normPan = normalizePan(raw);
-    if (!isValidPan(normPan)) {
-      return "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).";
-    }
-    const duplicate = members.find(
-      (m) =>
-        (m.panNormalized && m.panNormalized === normPan) ||
-        (m.panFull && normalizePan(m.panFull) === normPan) ||
-        (m.panMasked && normalizePan(m.panMasked) === normPan)
-    );
-    if (duplicate) {
-      return "This PAN number is already registered to another member.";
-    }
-    return null;
-  }, [newMemberPan, members]);
 
   const copyToClipboard = (text: string, field: "username" | "password" | "all") => {
     if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
@@ -207,8 +186,6 @@ export function SuperAdminMemberManagement() {
     setCreateError(null);
     const cleanUser = newMemberUsername.trim().toLowerCase().replace(/^@+/, "");
     const cleanPass = newMemberPassword.trim();
-    const rawPan = newMemberPan.trim();
-    const normPan = normalizePan(rawPan);
 
     if (!cleanUser) {
       setCreateError("Username is required.");
@@ -224,17 +201,6 @@ export function SuperAdminMemberManagement() {
       return;
     }
 
-    if (rawPan) {
-      if (!isValidPan(normPan)) {
-        setCreateError("Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).");
-        return;
-      }
-      if (panError) {
-        setCreateError(panError);
-        return;
-      }
-    }
-
     const formattedName = cleanUser.charAt(0).toUpperCase() + cleanUser.slice(1);
 
     const payload: Record<string, any> = {
@@ -246,12 +212,6 @@ export function SuperAdminMemberManagement() {
       status: "ACTIVE",
       defaultContribution: 50000,
     };
-    if (normPan) {
-      payload.pan = normPan;
-      payload.panFull = normPan;
-      payload.panMasked = normPan;
-      payload.panNormalized = normPan;
-    }
 
     setIsSubmitting(true);
     try {
@@ -281,7 +241,6 @@ export function SuperAdminMemberManagement() {
   const resetCreateForm = () => {
     setNewMemberUsername("");
     setNewMemberPassword("");
-    setNewMemberPan("");
     setIsSubmitting(false);
     setCreateError(null);
     setCreatedUserCredentials(null);
@@ -938,32 +897,6 @@ export function SuperAdminMemberManagement() {
                       className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs font-mono font-bold text-slate-900 dark:text-[#F5F7FA] focus:border-blue-500 outline-none"
                     />
                   </div>
-
-                  <div>
-                    <label className="block text-slate-700 dark:text-[#AEB5C0] mb-1 font-extrabold flex items-center justify-between">
-                      <span>PAN Card Number (Optional)</span>
-                      {panError && (
-                        <span className="text-[11px] text-rose-500 font-bold">{panError}</span>
-                      )}
-                    </label>
-                    <input
-                      type="text"
-                      maxLength={10}
-                      placeholder="e.g. ABCDE1234F"
-                      value={newMemberPan}
-                      onChange={(e) => setNewMemberPan(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ""))}
-                      className={`w-full p-3 rounded-xl bg-slate-50 dark:bg-[#101114] border text-xs font-mono font-bold text-slate-900 dark:text-[#F5F7FA] outline-none transition-colors ${
-                        panError
-                          ? "border-rose-500 focus:border-rose-500"
-                          : "border-slate-200 dark:border-[#252931] focus:border-blue-500"
-                      }`}
-                    />
-                    {newMemberPan && !panError && (
-                      <p className="text-[11px] text-emerald-600 dark:text-emerald-400 font-bold mt-1">
-                        ✓ Valid &amp; Unique PAN
-                      </p>
-                    )}
-                  </div>
                 </div>
 
                 <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100 dark:border-[#1B1E23]">
@@ -983,15 +916,13 @@ export function SuperAdminMemberManagement() {
                       isSubmitting ||
                       !newMemberUsername.trim() ||
                       !newMemberPassword.trim() ||
-                      Boolean(usernameError) ||
-                      Boolean(panError)
+                      Boolean(usernameError)
                     }
                     className={`px-5 py-2.5 rounded-xl font-extrabold text-xs shadow-md transition-all ${
                       isSubmitting ||
                       !newMemberUsername.trim() ||
                       !newMemberPassword.trim() ||
-                      Boolean(usernameError) ||
-                      Boolean(panError)
+                      Boolean(usernameError)
                         ? "bg-slate-300 dark:bg-[#252931] text-slate-500 dark:text-slate-500 opacity-60 cursor-not-allowed"
                         : "bg-blue-600 dark:bg-[#6B93FF] hover:bg-blue-700 text-white dark:text-[#101114] cursor-pointer"
                     }`}
