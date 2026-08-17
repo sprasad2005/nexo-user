@@ -140,7 +140,7 @@ export interface NexoContextType {
   deleteApplication: (ipoId: string, applicationId: string) => void;
   listedIpos: import("@/types/nexo").ListedIPO[];
   addListedIpo: (ipo: Omit<import("@/types/nexo").ListedIPO, "id">) => void;
-  deleteListedIpo: (id: string) => void;
+  deleteListedIpo: (id: string, name?: string) => void;
   createIPO: (data: {
     name: string;
     minInvestment: number;
@@ -1518,13 +1518,24 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const deleteListedIpo = (id: string) => {
+  const deleteListedIpo = (id: string, name?: string) => {
     const cleanId = id.replace(/^pub_/, "");
+    const nameLower = name?.toLowerCase().trim();
     setListedIpos((prev) => {
-      const updated = prev.filter((item) => item.id !== id && item.id !== cleanId && `pub_${item.id}` !== id);
+      const updated = prev.filter((item) => {
+        const itemCleanId = item.id.replace(/^pub_/, "");
+        const matchId =
+          item.id === id ||
+          item.id === cleanId ||
+          itemCleanId === cleanId ||
+          `pub_${itemCleanId}` === id;
+        const matchName = nameLower && item.name?.toLowerCase().trim() === nameLower;
+        return !matchId && !matchName;
+      });
       try {
         const customOnly = updated.filter((item) => item.id.startsWith("l_"));
         localStorage.setItem("nexo_custom_listed_ipos", JSON.stringify(customOnly));
+        localStorage.setItem("nexo_listed_ipos_db", JSON.stringify(updated));
       } catch {}
       return updated;
     });
@@ -1781,16 +1792,36 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
         (item) =>
           item.id !== ipoId &&
           item.id !== cleanId &&
+          `pub_${item.id}` !== ipoId &&
           item.name?.toLowerCase() !== ipoName.toLowerCase()
       )
     );
 
-    // 3. Invalidate data caches
+    // 3. Remove associated transactions and activities
+    setTransactions((prev) =>
+      prev.filter(
+        (t) =>
+          t.ipoId !== ipoId &&
+          t.ipoId !== cleanId &&
+          t.ipoName?.toLowerCase() !== ipoName.toLowerCase()
+      )
+    );
+
+    setActivities((prev) =>
+      prev.filter(
+        (a) =>
+          a.ipoId !== ipoId &&
+          a.ipoId !== cleanId &&
+          !a.title?.toLowerCase().includes(ipoName.toLowerCase())
+      )
+    );
+
+    // 4. Invalidate data caches
     nexoDataCache.invalidate("ipos_apps");
     AdminDataCache.invalidate("admin_ipos");
     AdminDataCache.invalidate("admin_dashboard_summary");
 
-    // 4. Clean local storage for instant sync across tabs and reloads
+    // 5. Clean local storage for instant sync across tabs and reloads
     try {
       const filterOutDeleted = (items: any[]) =>
         items.filter(
@@ -1798,27 +1829,33 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
             item.id !== ipoId &&
             item.id !== cleanId &&
             `pub_${item.id}` !== ipoId &&
-            item.name?.toLowerCase() !== ipoName.toLowerCase()
+            item.name?.toLowerCase() !== ipoName.toLowerCase() &&
+            item.ipoName?.toLowerCase() !== ipoName.toLowerCase()
         );
 
-      ["nexo_cached_ipos", "nexo_local_admin_ipos", "nexo_listed_ipos_db", "nexo_custom_listed_ipos"].forEach(
-        (key) => {
-          try {
-            const raw = localStorage.getItem(key);
-            if (raw) {
-              const parsed = JSON.parse(raw);
-              if (Array.isArray(parsed)) {
-                localStorage.setItem(key, JSON.stringify(filterOutDeleted(parsed)));
-              }
+      [
+        "nexo_cached_ipos",
+        "nexo_local_admin_ipos",
+        "nexo_listed_ipos_db",
+        "nexo_custom_listed_ipos",
+        "nexo_transactions",
+        "nexo_distribute_drafts",
+      ].forEach((key) => {
+        try {
+          const raw = localStorage.getItem(key);
+          if (raw) {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+              localStorage.setItem(key, JSON.stringify(filterOutDeleted(parsed)));
             }
-          } catch {}
-        }
-      );
+          }
+        } catch {}
+      });
 
       window.dispatchEvent(new Event("storage"));
     } catch (e) {}
 
-    // 5. Call API endpoint to cascade delete permanently from MongoDB
+    // 6. Call API endpoint to cascade delete permanently from MongoDB
     try {
       fetch(`/api/ipos?id=${encodeURIComponent(ipoId)}`, {
         method: "DELETE",

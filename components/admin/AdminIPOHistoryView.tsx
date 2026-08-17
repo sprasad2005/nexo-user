@@ -316,11 +316,14 @@ export function AdminIPOHistoryView() {
     setIsProcessing(true);
 
     try {
-      const res = removeIPO(selectedIpoToDelete.id);
+      const res = await Promise.resolve(removeIPO(selectedIpoToDelete.id));
       if (deleteListedIpo) {
-        deleteListedIpo(selectedIpoToDelete.id);
+        deleteListedIpo(selectedIpoToDelete.id, selectedIpoToDelete.name);
       }
-      showToast(res.message || `✓ "${selectedIpoToDelete.name}" deleted from database and user website.`);
+      if (refreshIpos) {
+        await refreshIpos();
+      }
+      showToast(res?.message || `✓ "${selectedIpoToDelete.name}" deleted from database and user website.`);
     } catch (err: any) {
       showToast(`❌ Error deleting IPO: ${err.message}`);
     } finally {

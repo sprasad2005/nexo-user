@@ -386,6 +386,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
           "nexo_local_admin_ipos",
           "nexo_listed_ipos_db",
           "nexo_custom_listed_ipos",
+          "nexo_transactions",
+          "nexo_distribute_drafts",
         ].forEach((key) => {
           try {
             const raw = localStorage.getItem(key);
