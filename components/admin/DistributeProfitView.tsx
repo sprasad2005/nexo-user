@@ -309,6 +309,7 @@ export function DistributeProfitView() {
   const totalAppliedLots = memberApplications.reduce((acc, m) => acc + m.lots, 0);
   const totalAppliedAmount = memberApplications.reduce((acc, m) => acc + m.contribution, 0);
   const perLotProfit = totalAppliedLots > 0 ? Math.round(numProfit / totalAppliedLots) : 0;
+  const hasApplicants = memberApplications.length > 0;
 
   const handlePublish = async () => {
     if (!selectedIpo || numProfit <= 0 || !hasApplicants) return;
@@ -343,7 +344,22 @@ export function DistributeProfitView() {
     setTimeout(() => setIsSuccessToast(false), 5000);
   };
 
-  const hasApplicants = memberApplications.length > 0;
+  const selectOptions = useMemo(() => {
+    const seen = new Set<string>();
+    const list = [];
+    for (const ipo of activeIpos) {
+      if (!ipo?.id || !ipo?.name || seen.has(ipo.id)) continue;
+      seen.add(ipo.id);
+      const isHistory = ipo.status === "COMPLETED" || ipo.isHidden || (ipo as any).isCompleted;
+      list.push({
+        value: ipo.id,
+        label: ipo.name,
+        sublabel: ipo.metrics?.issueSize ? `(${ipo.metrics.issueSize})` : undefined,
+        badge: isHistory ? "Closed" : "Active",
+      });
+    }
+    return list;
+  }, [activeIpos]);
 
   return (
     <div className="space-y-6 font-sans">
@@ -403,12 +419,9 @@ export function DistributeProfitView() {
             <CustomSelect
               value={selectedIpoId}
               onChange={handleSelectIpo}
-              options={activeIpos.map((ipo) => ({
-                value: ipo.id,
-                label: ipo.name,
-                sublabel: ipo.metrics?.issueSize ? `(${ipo.metrics.issueSize})` : undefined,
-                badge: ipo.isHidden ? "History" : undefined,
-              }))}
+              options={selectOptions}
+              placeholder="Choose an IPO..."
+              searchable={selectOptions.length > 5}
               className="w-full"
             />
           </div>
