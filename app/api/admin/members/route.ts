@@ -459,7 +459,7 @@ export async function POST(req: Request) {
       name: name.trim(),
       displayName: name.trim(),
       email: emailNorm,
-      phone: phoneNormalized || phone || "+91 98200 12345",
+      phone: phoneNormalized || phone || undefined,
       avatar: chosenAvatar,
       bio: `NEXO ${role} Profile`,
       createdAt: new Date(),
