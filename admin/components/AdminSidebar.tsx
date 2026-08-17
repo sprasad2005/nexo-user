@@ -15,7 +15,7 @@ import {
   ChatCircleDots,
 } from "@phosphor-icons/react";
 import { useAdmin } from "../context/AdminContext";
-import { AdminDataCache } from "@/lib/adminDataCache";
+import { AdminDataCache } from "../../lib/nexoDataCache";
 
 interface AdminSidebarProps {
   onAddIpoClick: () => void;

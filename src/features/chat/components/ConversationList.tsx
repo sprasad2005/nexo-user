@@ -1,11 +1,10 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useDeferredValue } from "react";
 import { Conversation } from "@/types/nexo";
 import { useNexo } from "@/context/NexoContext";
 import { ConversationListItem } from "./ConversationListItem";
-import { MagnifyingGlass, Plus, X, ChatCircleDots, UserPlus, ChatCircle, Users, TrendUp } from "@phosphor-icons/react";
-
+import { MagnifyingGlass, Plus, X, ChatCircleDots, ChatCircle, Users } from "@phosphor-icons/react";
 import { CreateGroupModal } from "./CreateGroupModal";
 
 interface ConversationListProps {
@@ -16,7 +15,7 @@ interface ConversationListProps {
   onOpenNewMessageModal: () => void;
 }
 
-export function ConversationList({
+export const ConversationList = React.memo(function ConversationList({
   conversations,
   activeConversationId,
   currentMemberId,
@@ -25,6 +24,7 @@ export function ConversationList({
 }: ConversationListProps) {
   const { members, currentMember, currentUser, openDirectChatWithUser } = useNexo();
   const [searchQuery, setSearchQuery] = useState("");
+  const deferredSearch = useDeferredValue(searchQuery);
   const [activeTab, setActiveTab] = useState<"ALL" | "DIRECT" | "IPO">("ALL");
   const [isCreateGroupOpen, setIsCreateGroupOpen] = useState(false);
 
@@ -33,10 +33,10 @@ export function ConversationList({
 
   const filteredConversations = useMemo(() => {
     const validConvs = conversations.filter((c) => c && c.type !== "IPO" && !c.id?.startsWith("conv_ipo_"));
-    const list = !searchQuery.trim()
+    const q = deferredSearch.toLowerCase().trim();
+    const list = !q
       ? validConvs
       : validConvs.filter((c) => {
-          const q = searchQuery.toLowerCase().trim();
           const titleMatch = c.title?.toLowerCase().includes(q);
           const otherMatch = c.otherMember?.name?.toLowerCase().includes(q) || c.otherMember?.username?.toLowerCase().includes(q);
           const msgMatch = c.lastMessage?.toLowerCase().includes(q);
@@ -56,7 +56,7 @@ export function ConversationList({
   }, [conversations, searchQuery, activeTab]);
 
   const matchingMembers = useMemo(() => {
-    const q = searchQuery.trim().toLowerCase().replace(/^@/, "");
+    const q = deferredSearch.trim().toLowerCase().replace(/^@/, "");
     if (!q) return [];
     return members.filter((m) => {
       if (m.id === currentMemberId) return false;
@@ -64,7 +64,7 @@ export function ConversationList({
       const fName = (m.name || "").toLowerCase();
       return uName.includes(q) || fName.includes(q) || `@${uName}`.includes(q);
     });
-  }, [members, searchQuery, currentMemberId]);
+  }, [members, deferredSearch, currentMemberId]);
 
   return (
     <div className="flex flex-col h-full bg-surface border-r border-line select-none">
@@ -162,6 +162,19 @@ export function ConversationList({
             type="text"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                if (e.nativeEvent.isComposing) return;
+                if (matchingMembers.length > 0) {
+                  e.preventDefault();
+                  openDirectChatWithUser(matchingMembers[0].id);
+                  setSearchQuery("");
+                } else if (filteredConversations.length > 0) {
+                  e.preventDefault();
+                  onSelectConversation(filteredConversations[0].id);
+                }
+              }
+            }}
             placeholder="Search messages or @username..."
             className="w-full pl-8.5 pr-8 py-1.5 bg-surface border border-line rounded-xl text-xs text-ink placeholder:text-ink-tertiary focus:outline-none focus:border-accent transition-colors"
           />
@@ -202,6 +215,8 @@ export function ConversationList({
                   <img
                     src={m.avatar || "/oggy.png"}
                     alt={m.name}
+                    loading="lazy"
+                    decoding="async"
                     className="w-7 h-7 rounded-full object-cover shrink-0 ring-1 ring-line"
                   />
                   <div className="min-w-0">
@@ -243,4 +258,4 @@ export function ConversationList({
       </div>
     </div>
   );
-}
+});

@@ -37,7 +37,7 @@ function AdminLoginForm() {
       .then((d) => {
         if (
           d.authenticated &&
-          (d.user?.role === "ADMIN" || d.user?.role === "SUPER_ADMIN" || d.member?.role === "ADMIN")
+          (d.user?.role === "ADMIN" || d.user?.role === "SUPER_ADMIN" || d.member?.role === "ADMIN" || d.member?.role === "SUPER_ADMIN")
         ) {
           router.replace(nextPath);
         }

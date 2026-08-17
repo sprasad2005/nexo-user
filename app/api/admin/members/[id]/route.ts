@@ -4,6 +4,13 @@ import { requireSuperAdmin, requireAdmin } from "@/src/lib/auth/authorization";
 import { UserDocument } from "@/src/models/User";
 import { MemberDocument } from "@/src/models/Member";
 import { cleanOldAvatar } from "@/lib/avatarCleanup";
+import {
+  normalizePan,
+  isValidPan,
+  normalizePhone,
+  isValidPhone,
+  handleDuplicateKeyError,
+} from "@/src/lib/validation/uniqueness";
 
 const DB_NAME = "nexo";
 
@@ -200,7 +207,7 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const memberId = resolvedParams.id;
 
     const body = await req.json();
-    const { name, displayName, email, phone, avatar } = body;
+    const { name, displayName, email, phone, avatar, pan, panCard, panFull } = body;
     let username = body.username;
 
     if (!name || typeof name !== "string" || !name.trim()) {
@@ -231,9 +238,17 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
 
     // Check username uniqueness if changed
     if (cleanUsername !== member.username) {
-      const duplicateUsername = await db.collection<MemberDocument>("members").findOne({ username: cleanUsername });
+      const duplicateUsername = await db.collection<MemberDocument>("members").findOne({
+        id: { $ne: memberId },
+        username: cleanUsername,
+      });
       if (duplicateUsername) {
-        return NextResponse.json({ success: false, error: "Username is already in use by another member." }, { status: 409 });
+        return NextResponse.json({
+          success: false,
+          code: "DUPLICATE_USERNAME",
+          error: "Username is already in use by another member.",
+          message: "Username is already in use by another member.",
+        }, { status: 409 });
       }
     }
 
@@ -241,9 +256,80 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
     const userEmail = email ? email.trim() : member.email;
     const emailNorm = userEmail.toLowerCase();
     if (userEmail !== member.email) {
-      const duplicateEmail = await db.collection<UserDocument>("users").findOne({ emailNormalized: emailNorm });
+      const duplicateEmail = await db.collection<UserDocument>("users").findOne({
+        memberId: { $ne: memberId },
+        emailNormalized: emailNorm,
+      });
       if (duplicateEmail) {
-        return NextResponse.json({ success: false, error: "Email is already registered by another account." }, { status: 409 });
+        return NextResponse.json({
+          success: false,
+          code: "DUPLICATE_EMAIL",
+          error: "Email is already registered by another account.",
+          message: "Email is already registered by another account.",
+        }, { status: 409 });
+      }
+    }
+
+    // ── PAN VALIDATION & UNIQUENESS (EXCLUDING CURRENT MEMBER) ──
+    const rawPan = pan || panCard || panFull;
+    let panNormalized: string | undefined = undefined;
+    if (rawPan !== undefined && rawPan !== null) {
+      const panStr = String(rawPan).trim();
+      if (panStr) {
+        if (!isValidPan(panStr)) {
+          return NextResponse.json({
+            success: false,
+            code: "INVALID_PAN",
+            error: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
+            message: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
+          }, { status: 400 });
+        }
+        panNormalized = normalizePan(panStr);
+
+        const duplicatePan = await db.collection<MemberDocument>("members").findOne({
+          id: { $ne: memberId },
+          panNormalized: panNormalized,
+        });
+
+        if (duplicatePan) {
+          return NextResponse.json({
+            success: false,
+            code: "DUPLICATE_PAN",
+            error: `PAN number '${panNormalized}' is already registered to member '${duplicatePan.name}'.`,
+            message: "This PAN number is already registered to another member.",
+          }, { status: 409 });
+        }
+      }
+    }
+
+    // ── PHONE VALIDATION & UNIQUENESS (EXCLUDING CURRENT MEMBER) ──
+    let phoneNormalized: string | undefined = undefined;
+    if (phone !== undefined && phone !== null) {
+      const phoneStr = String(phone).trim();
+      if (phoneStr) {
+        if (!isValidPhone(phoneStr)) {
+          return NextResponse.json({
+            success: false,
+            code: "INVALID_PHONE",
+            error: "Please enter a valid phone number.",
+            message: "Please enter a valid phone number.",
+          }, { status: 400 });
+        }
+        phoneNormalized = normalizePhone(phoneStr);
+
+        const duplicatePhone = await db.collection<MemberDocument>("members").findOne({
+          id: { $ne: memberId },
+          phoneNormalized: phoneNormalized,
+        });
+
+        if (duplicatePhone) {
+          return NextResponse.json({
+            success: false,
+            code: "DUPLICATE_PHONE",
+            error: `Phone number '${phoneNormalized}' is already registered to member '${duplicatePhone.name}'.`,
+            message: "This phone number is already registered to another member.",
+          }, { status: 409 });
+        }
       }
     }
 
@@ -258,24 +344,67 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       displayName: (displayName || name).trim(),
       username: cleanUsername,
       email: emailNorm,
-      phone: phone || undefined,
       avatar: avatar || member.avatar,
       updatedAt: new Date(),
     };
 
-    await db.collection("members").updateOne({ id: memberId }, { $set: memberUpdate });
+    if (phoneNormalized !== undefined) {
+      memberUpdate.phone = phoneNormalized;
+      memberUpdate.phoneNormalized = phoneNormalized;
+    } else if (phone !== undefined) {
+      memberUpdate.phone = phone;
+    }
 
-    // Sync credentials / email in users collection
-    await db.collection("users").updateOne(
-      { memberId: memberId },
-      {
-        $set: {
-          email: userEmail,
-          emailNormalized: emailNorm,
-          updatedAt: new Date(),
-        },
+    if (panNormalized !== undefined) {
+      memberUpdate.panNormalized = panNormalized;
+      memberUpdate.panFull = panNormalized;
+      memberUpdate.panMasked = panNormalized;
+    }
+
+    try {
+      await db.collection("members").updateOne({ id: memberId }, { $set: memberUpdate });
+
+      // Sync credentials / email in users collection
+      const userUpdate: Record<string, any> = {
+        email: userEmail,
+        emailNormalized: emailNorm,
+        updatedAt: new Date(),
+      };
+      if (panNormalized !== undefined) userUpdate.panNormalized = panNormalized;
+      if (phoneNormalized !== undefined) userUpdate.phoneNormalized = phoneNormalized;
+
+      await db.collection("users").updateOne(
+        { memberId: memberId },
+        { $set: userUpdate }
+      );
+
+      // Also update profile record for consistency
+      const profileUpdate: Record<string, any> = {
+        name: name.trim(),
+        displayName: (displayName || name).trim(),
+        email: emailNorm,
+        avatar: avatar || member.avatar,
+        updatedAt: new Date(),
+      };
+      if (phoneNormalized !== undefined) profileUpdate.phone = phoneNormalized;
+      else if (phone !== undefined) profileUpdate.phone = phone;
+
+      await db.collection("profiles").updateOne(
+        { userId: memberId },
+        { $set: profileUpdate }
+      );
+    } catch (updateErr: any) {
+      const dupError = handleDuplicateKeyError(updateErr);
+      if (dupError) {
+        return NextResponse.json({
+          success: false,
+          code: dupError.code,
+          error: dupError.message,
+          message: dupError.message,
+        }, { status: 409 });
       }
-    );
+      throw updateErr;
+    }
 
     // Log Activity
     const { logActivity } = await import("@/src/features/activity/activityService");
@@ -294,24 +423,18 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       metadata: { username: cleanUsername },
     });
 
-    // Also update profile record for consistency
-    await db.collection("profiles").updateOne(
-      { userId: memberId },
-      {
-        $set: {
-          name: name.trim(),
-          displayName: (displayName || name).trim(),
-          email: emailNorm,
-          phone: phone || "+91 98200 12345",
-          avatar: avatar || member.avatar,
-          updatedAt: new Date(),
-        },
-      }
-    );
-
     return NextResponse.json({ success: true, message: "Profile details updated successfully." });
   } catch (err: any) {
     console.error("PUT /api/admin/members/[id] error:", err);
+    const dupError = handleDuplicateKeyError(err);
+    if (dupError) {
+      return NextResponse.json({
+        success: false,
+        code: dupError.code,
+        error: dupError.message,
+        message: dupError.message,
+      }, { status: 409 });
+    }
     if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {
       return NextResponse.json({ success: false, error: "Access Denied." }, { status: err.message === "UNAUTHORIZED" ? 401 : 403 });
     }

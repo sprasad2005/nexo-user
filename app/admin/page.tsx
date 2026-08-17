@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { FullAdminDashboard } from "@/components/admin/FullAdminDashboard";
 import { ShieldCheck } from "@phosphor-icons/react";
 
-import { AdminDataCache } from "@/lib/adminDataCache";
+import { AdminDataCache } from "@/lib/nexoDataCache";
 
 export default function AdminPage() {
   const router = useRouter();
@@ -20,7 +20,7 @@ export default function AdminPage() {
     let isMounted = true;
 
     AdminDataCache.fetchSWR(
-      "admin_auth_status",
+      "auth_me",
       async () => {
         const res = await fetch("/api/auth/me");
         return res.json();

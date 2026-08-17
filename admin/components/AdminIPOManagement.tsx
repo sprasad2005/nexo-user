@@ -7,7 +7,7 @@ import { Plus, Trash, CheckCircle, Buildings, PencilSimple, Clock, CalendarBlank
 import { AddIPODrawer } from "./AddIPODrawer";
 import { EditIPODrawer } from "./EditIPODrawer";
 import { GMPBadge } from "../../components/ui/Badge";
-import { formatIpoAddedDateTime } from "@/lib/mockData";
+import { formatIpoAddedDateTime } from "../../lib/mockData";
 
 export function AdminIPOManagement() {
   const { ipos, removeIPO } = useAdmin();

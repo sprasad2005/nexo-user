@@ -10,30 +10,45 @@ import { RoleChanges } from "@/components/admin/security/RoleChanges";
 import { ActivityTimeline } from "@/components/admin/activity/ActivityTimeline";
 import { ActivityDetailDrawer } from "@/components/admin/activity/ActivityDetailDrawer";
 import { AuditActivity } from "@/src/features/activity/types";
-import { AdminDataCache } from "@/lib/adminDataCache";
+import { AdminDataCache } from "@/lib/nexoDataCache";
 
 export function AdminSecurityView() {
-  // Data states - initialized from instant SWR cache
-  const [summary, setSummary] = useState<any | null>(() => AdminDataCache.get("admin_security_summary"));
-  const [sessions, setSessions] = useState<any[]>(() => AdminDataCache.get<any[]>("admin_security_sessions") || []);
-  const [loginEvents, setLoginEvents] = useState<any[]>(() => AdminDataCache.get<any[]>("admin_security_logins") || []);
-  const [securityEvents, setSecurityEvents] = useState<any[]>(() => AdminDataCache.get<any[]>("admin_security_events") || []);
-  const [accountStatus, setAccountStatus] = useState<any | null>(() => AdminDataCache.get("admin_security_accounts"));
-  const [roleEvents, setRoleEvents] = useState<any[]>(() => {
-    const cachedEvts = AdminDataCache.get<any[]>("admin_security_events") || [];
-    return cachedEvts
-      .filter((e: any) => e.eventType === "ROLE_CHANGED")
-      .map((e: any) => ({
-        id: e.id,
-        actorName: e.actorName,
-        actorUsername: e.actorUsername,
-        actorRole: e.actorRole,
-        targetName: e.targetName,
-        createdAt: e.createdAt,
-        previousRole: e.metadata?.previousRole || "MEMBER",
-        newRole: e.metadata?.newRole || "ADMIN",
-      }));
-  });
+  // Data states
+  const [summary, setSummary] = useState<any | null>(null);
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loginEvents, setLoginEvents] = useState<any[]>([]);
+  const [securityEvents, setSecurityEvents] = useState<any[]>([]);
+  const [accountStatus, setAccountStatus] = useState<any | null>(null);
+  const [roleEvents, setRoleEvents] = useState<any[]>([]);
+
+  // Apply cache on client mount
+  useEffect(() => {
+    const s = AdminDataCache.get("admin_security_summary");
+    if (s) setSummary(s);
+    const sess = AdminDataCache.get<any[]>("admin_security_sessions");
+    if (sess) setSessions(sess);
+    const logs = AdminDataCache.get<any[]>("admin_security_logins");
+    if (logs) setLoginEvents(logs);
+    const evts = AdminDataCache.get<any[]>("admin_security_events");
+    if (evts) {
+      setSecurityEvents(evts);
+      const roleEvts = evts
+        .filter((e: any) => e.eventType === "ROLE_CHANGED")
+        .map((e: any) => ({
+          id: e.id,
+          actorName: e.actorName,
+          actorUsername: e.actorUsername,
+          actorRole: e.actorRole,
+          targetName: e.targetName,
+          createdAt: e.createdAt,
+          previousRole: e.metadata?.previousRole || "MEMBER",
+          newRole: e.metadata?.newRole || "ADMIN",
+        }));
+      setRoleEvents(roleEvts);
+    }
+    const acc = AdminDataCache.get("admin_security_accounts");
+    if (acc) setAccountStatus(acc);
+  }, []);
 
   const [selectedActivity, setSelectedActivity] = useState<AuditActivity | null>(null);
   const [activeSubTab, setActiveSubTab] = useState("sessions");

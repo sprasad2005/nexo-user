@@ -15,7 +15,7 @@ import {
   Plus,
   FloppyDisk,
 } from "@phosphor-icons/react";
-import { formatINR } from "@/lib/mockData";
+import { formatINR } from "../../lib/mockData";
 
 export function AdminIPOHistoryView() {
   const { ipos, removeIPO, updateIPO, refreshIpos } = useAdmin();
@@ -102,14 +102,14 @@ export function AdminIPOHistoryView() {
         const lotsApplied =
           dist?.totalLots !== undefined
             ? dist.totalLots
-            : ipo.applications?.reduce((s, a) => s + (a.lotsCount || (a as any).lotCount || 1), 0) || 1;
+            : ipo.applications?.reduce((s, a) => s + ((a as any).lotCount || (a as any).lotsCount || (a as any).lotsApplied || 1), 0) || 1;
 
         const lotsAllotted =
           dist?.allottedLots !== undefined
             ? dist.allottedLots
             : ipo.applications?.reduce(
                 (s, a) =>
-                  s + (a.allotmentStatus === "ALLOTTED" ? a.allottedLotsCount || a.lotsCount || 1 : 0),
+                  s + (a.allotmentStatus === "ALLOTTED" ? (a as any).allottedLotsCount || (a as any).lotCount || (a as any).lotsCount || 1 : 0),
                 0
               ) || 1;
 
@@ -150,8 +150,8 @@ export function AdminIPOHistoryView() {
                 id: app.id,
                 memberId: app.memberId,
                 memberName: app.applicantName || "Member",
-                lotsApplied: app.lotsCount || 1,
-                lotsAllotted: app.allotmentStatus === "ALLOTTED" ? app.allottedLotsCount || app.lotsCount || 1 : 0,
+                lotsApplied: (app as any).lotCount || (app as any).lotsCount || (app as any).lotsApplied || 1,
+                lotsAllotted: app.allotmentStatus === "ALLOTTED" ? (app as any).allottedLotsCount || (app as any).lotCount || (app as any).lotsCount || 1 : 0,
                 status: app.allotmentStatus,
                 profit:
                   app.allotmentStatus === "ALLOTTED"

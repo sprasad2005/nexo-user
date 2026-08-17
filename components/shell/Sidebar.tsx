@@ -3,6 +3,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
+import Link from "next/link";
 import { useNexo } from "@/context/NexoContext";
 import {
   SquaresFour,
@@ -264,21 +265,17 @@ export function Sidebar() {
                         SUPER ADMIN
                       </span>
                     </div>
-                    <button
-                      onClick={() => setActiveTab("admin" as any)}
-                      className={`w-full h-8.5 flex items-center justify-between px-2.5 rounded-lg text-sm transition-colors group cursor-pointer ${
-                        activeTab === "admin"
-                          ? "bg-accent-soft text-accent font-semibold"
-                          : "text-ink-secondary hover:text-ink hover:bg-surface-hover font-medium"
-                      }`}
+                    <Link
+                      href="/admin"
+                      className="w-full h-8.5 flex items-center justify-between px-2.5 rounded-lg text-sm transition-colors group cursor-pointer text-ink-secondary hover:text-ink hover:bg-surface-hover font-medium"
                     >
                       <div className="flex items-center gap-2.5 min-w-0 overflow-hidden">
-                        <ShieldCheck size={16} className={`shrink-0 ${activeTab === "admin" ? "text-accent" : "text-purple-600 group-hover:text-purple-700"}`} />
+                        <ShieldCheck size={16} className="shrink-0 text-purple-600 group-hover:text-purple-700" />
                         <span className="truncate whitespace-nowrap">
                           Super Admin Console
                         </span>
                       </div>
-                    </button>
+                    </Link>
                   </div>
                 )}
               </nav>

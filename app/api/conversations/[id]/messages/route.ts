@@ -71,18 +71,45 @@ export async function GET(
     }
 
     const rawMessages = await msgCol
-      .find(query)
+      .find(query, {
+        projection: {
+          id: 1,
+          seq: 1,
+          conversationId: 1,
+          senderId: 1,
+          text: 1,
+          type: 1,
+          attachment: 1,
+          replyToMessageId: 1,
+          createdAt: 1,
+          isEdited: 1,
+          isDeleted: 1,
+          isDeletedByAdmin: 1,
+          reactions: 1,
+        },
+      })
       .sort({ seq: -1, createdAt: -1 })
       .limit(limit)
       .toArray();
 
     rawMessages.reverse();
 
-    const allUsers = await userCol.find({}).toArray();
-    const userMap = new Map(allUsers.map((u) => [u.id, u]));
+    const senderIds = Array.from(new Set(rawMessages.map((m) => m.senderId).filter(Boolean)));
+    const relevantUsers = senderIds.length > 0
+      ? await userCol
+          .find(
+            { id: { $in: senderIds } },
+            { projection: { id: 1, name: 1, username: 1, avatar: 1, role: 1 } }
+          )
+          .toArray()
+      : [];
+    const userMap = new Map(relevantUsers.map((u) => [u.id, u]));
 
     const otherMemberships = await memberCol
-      .find({ conversationId, memberId: { $ne: currentMemberId } })
+      .find(
+        { conversationId, memberId: { $ne: currentMemberId } },
+        { projection: { memberId: 1, lastReadAt: 1 } }
+      )
       .toArray();
 
     const messages = rawMessages.map((msg) => {

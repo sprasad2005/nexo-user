@@ -1,8 +1,8 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { Message } from "@/types/nexo";
-import { useNexo } from "@/context/NexoContext";
+import { MemoizedMarkdown } from "./MemoizedMarkdown";
 import {
   Check,
   Checks,
@@ -14,7 +14,6 @@ import {
   ShieldWarning,
   Smiley,
   Copy,
-  Plus,
   X,
 } from "@phosphor-icons/react";
 
@@ -22,27 +21,25 @@ interface MessageBubbleProps {
   message: Message;
   isSelf: boolean;
   showSenderHeader: boolean;
+  currentMemberId: string;
+  isAdmin?: boolean;
   onEditMessage?: (messageId: string, text: string) => void;
   onDeleteMessage?: (messageId: string) => void;
 }
 
 const REACTION_EMOJIS = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
 
-export function MessageBubble({
+export const MessageBubble = React.memo(function MessageBubble({
   message,
   isSelf,
   showSenderHeader,
+  currentMemberId,
+  isAdmin = false,
   onEditMessage,
   onDeleteMessage,
 }: MessageBubbleProps) {
-  const { currentMember, currentUser } = useNexo();
-  const activeUser = currentMember || currentUser;
-  const currentMemberId = activeUser?.id || "mem_1";
-  const activeRole = currentMember?.role || currentUser?.role;
-  const isAdmin = activeRole === "ADMIN" || activeRole === "SUPER_ADMIN";
-
   const [isEditing, setIsEditing] = useState(false);
-  const [editText, setEditText] = useState(message.text);
+  const [editText, setEditText] = useState(message.text || "");
   const [showReactionPicker, setShowReactionPicker] = useState(false);
   const [showReactionDetails, setShowReactionDetails] = useState(false);
   const [selectedEmojiFilter, setSelectedEmojiFilter] = useState<string | null>(null);
@@ -51,22 +48,25 @@ export function MessageBubble({
   const bubbleRef = useRef<HTMLDivElement>(null);
   const contextMenuRef = useRef<HTMLDivElement>(null);
 
-  const formattedTime = new Date(message.createdAt).toLocaleTimeString([], {
-    hour: "2-digit",
-    minute: "2-digit",
-  });
+  const formattedTime = useMemo(() => {
+    try {
+      return new Date(message.createdAt).toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+    } catch {
+      return "";
+    }
+  }, [message.createdAt]);
 
-  // Deletion logic:
-  // 1) If user deleted a message for self: hide completely on self screen (unless admin).
-  // 2) If regular member deleted message: show "Message deleted" to other members, but show full content to Admin in Audit View.
-  // 3) If Admin deleted message: show "Message deleted" to members, but show full content with "Deleted by Admin" to Admin in Audit View.
   const isDeleted = Boolean(message.isDeleted || message.isDeletedByAdmin);
   const isDeletedBySelf = isDeleted && (message.deletedByUserId === currentMemberId || isSelf);
-
   const canDelete = !isEditing && !isDeleted;
 
   // Auto-close Reaction Picker, Reaction Details, and Context Menu on Outside Click
   useEffect(() => {
+    if (!showReactionPicker && !showReactionDetails && !contextMenuPos) return;
+
     const handleClickOutside = (e: MouseEvent) => {
       if (bubbleRef.current && !bubbleRef.current.contains(e.target as Node)) {
         setShowReactionPicker(false);
@@ -80,66 +80,80 @@ export function MessageBubble({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, []);
+  }, [showReactionPicker, showReactionDetails, contextMenuPos]);
 
-  const handleSaveEdit = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editText.trim() && onEditMessage) {
-      onEditMessage(message.id, editText.trim());
-      setIsEditing(false);
-    }
-  };
+  const handleSaveEdit = useCallback(
+    (e: React.FormEvent) => {
+      e.preventDefault();
+      if (editText.trim() && onEditMessage) {
+        onEditMessage(message.id, editText.trim());
+        setIsEditing(false);
+      }
+    },
+    [editText, message.id, onEditMessage]
+  );
 
-  const handleToggleReaction = async (emoji: string) => {
-    setShowReactionPicker(false);
-    setShowReactionDetails(false);
-    try {
-      await fetch(`/api/conversations/${message.conversationId}/messages/reactions`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          messageId: message.id,
-          emoji,
-          memberId: currentMemberId,
-        }),
-      });
-    } catch (err) {
-      console.error("Failed to toggle reaction:", err);
-    }
-  };
+  const handleToggleReaction = useCallback(
+    async (emoji: string) => {
+      setShowReactionPicker(false);
+      setShowReactionDetails(false);
+      try {
+        await fetch(`/api/conversations/${message.conversationId}/messages/reactions`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            messageId: message.id,
+            emoji,
+            memberId: currentMemberId,
+          }),
+        });
+      } catch (err) {
+        console.error("Failed to toggle reaction:", err);
+      }
+    },
+    [message.conversationId, message.id, currentMemberId]
+  );
 
-  const handleContextMenu = (e: React.MouseEvent) => {
-    if (isDeleted && !isAdmin) return;
-    e.preventDefault();
-    setContextMenuPos({ x: e.clientX, y: e.clientY });
-  };
+  const handleContextMenu = useCallback(
+    (e: React.MouseEvent) => {
+      if (isDeleted && !isAdmin) return;
+      e.preventDefault();
+      setContextMenuPos({ x: e.clientX, y: e.clientY });
+    },
+    [isDeleted, isAdmin]
+  );
 
-  const handleCopyText = () => {
-    if (message.text) {
+  const handleCopyText = useCallback(() => {
+    if (message.text && typeof navigator !== "undefined") {
       navigator.clipboard.writeText(message.text);
     }
     setContextMenuPos(null);
-  };
+  }, [message.text]);
 
-  // Group reactions by emoji
-  const reactionGroups = (message.reactions || []).reduce<
-    Record<string, { count: number; users: string[]; hasReacted: boolean }>
-  >((acc, r) => {
-    if (!acc[r.emoji]) {
-      acc[r.emoji] = { count: 0, users: [], hasReacted: false };
-    }
-    acc[r.emoji].count += 1;
-    acc[r.emoji].users.push(r.memberName || "Member");
-    if (r.memberId === currentMemberId) {
-      acc[r.emoji].hasReacted = true;
-    }
-    return acc;
-  }, {});
+  // Group reactions by emoji - memoized to avoid expensive reduce on every render
+  const reactionGroups = useMemo(() => {
+    const rawReactions = message.reactions || [];
+    return rawReactions.reduce<
+      Record<string, { count: number; users: string[]; hasReacted: boolean }>
+    >((acc, r) => {
+      if (!acc[r.emoji]) {
+        acc[r.emoji] = { count: 0, users: [], hasReacted: false };
+      }
+      acc[r.emoji].count += 1;
+      acc[r.emoji].users.push(r.memberName || "Member");
+      if (r.memberId === currentMemberId) {
+        acc[r.emoji].hasReacted = true;
+      }
+      return acc;
+    }, {});
+  }, [message.reactions, currentMemberId]);
 
   const allReactions = message.reactions || [];
-  const filteredReactions = selectedEmojiFilter
-    ? allReactions.filter((r) => r.emoji === selectedEmojiFilter)
-    : allReactions;
+  const filteredReactions = useMemo(() => {
+    return selectedEmojiFilter
+      ? allReactions.filter((r) => r.emoji === selectedEmojiFilter)
+      : allReactions;
+  }, [allReactions, selectedEmojiFilter]);
 
   // Self deletion hides the bubble completely for self (non-admin)
   if (isDeletedBySelf && !isAdmin) {
@@ -161,6 +175,8 @@ export function MessageBubble({
             <img
               src={message.senderAvatar || "/oggy.png"}
               alt={message.senderName || "Member"}
+              loading="lazy"
+              decoding="async"
               className="w-full h-full object-cover"
             />
           ) : (
@@ -211,7 +227,9 @@ export function MessageBubble({
                 <div className="rounded-xl overflow-hidden border border-line/80 max-w-sm">
                   <img
                     src={message.attachment.url}
-                    alt={message.attachment.name}
+                    alt={message.attachment.name || "Image attachment"}
+                    loading="lazy"
+                    decoding="async"
                     className="w-full max-h-64 object-cover cursor-pointer hover:opacity-95 transition-opacity"
                     onClick={() => window.open(message.attachment?.url, "_blank")}
                   />
@@ -254,6 +272,7 @@ export function MessageBubble({
                   <audio
                     src={message.attachment.url}
                     controls
+                    preload="metadata"
                     className="w-full h-8 rounded-lg outline-none"
                   />
                 </div>
@@ -291,7 +310,7 @@ export function MessageBubble({
             </form>
           ) : (
             <>
-              {message.text && <span className="font-sans text-[13px]">{message.text}</span>}
+              {message.text && <MemoizedMarkdown content={message.text} />}
               {message.isEdited && (
                 <span className="text-[10px] text-ink-tertiary ml-1.5 italic font-sans">
                   (edited)
@@ -346,7 +365,7 @@ export function MessageBubble({
           </div>
         )}
 
-        {/* Local Anchored Popover Window for Reaction Details (WhatsApp Web Style - Anchored Beside Bubble) */}
+        {/* Local Anchored Popover Window for Reaction Details */}
         {showReactionDetails && (
           <div
             className={`absolute bottom-6 z-40 w-64 sm:w-72 bg-[#181B22] border border-line/80 rounded-2xl shadow-2xl overflow-hidden space-y-0 text-white animate-in fade-in zoom-in-95 duration-150 select-none ${
@@ -422,6 +441,8 @@ export function MessageBubble({
                       <img
                         src={r.memberAvatar || "/oggy.png"}
                         alt={r.memberName}
+                        loading="lazy"
+                        decoding="async"
                         className="w-8 h-8 rounded-full object-cover border border-white/10 shrink-0"
                       />
                       <div className="min-w-0">
@@ -435,7 +456,7 @@ export function MessageBubble({
                               : "text-slate-400"
                           }`}
                         >
-                          {isSelfReaction ? "Click to remove" : `@${r.memberName.toLowerCase()}`}
+                          {isSelfReaction ? "Click to remove" : `@${(r.memberName || "").toLowerCase()}`}
                         </span>
                       </div>
                     </div>
@@ -449,7 +470,7 @@ export function MessageBubble({
         )}
       </div>
 
-      {/* Smiley Trigger Icon Button (Revealed on Hover like WhatsApp, remains 100% visible when picker open) */}
+      {/* Smiley Trigger Icon Button */}
       {(!isDeleted || isAdmin) && (
         <div className={`transition-opacity self-center relative shrink-0 ${
           showReactionPicker ? "opacity-100 z-40" : "opacity-0 group-hover:opacity-100"
@@ -463,7 +484,7 @@ export function MessageBubble({
             <Smiley size={16} />
           </button>
 
-          {/* Reaction Popover Window (Opens ONLY when clicking Smiley icon) */}
+          {/* Reaction Popover Window */}
           {showReactionPicker && (
             <div className="absolute bottom-9 left-1/2 -translate-x-1/2 z-40 px-3 py-1.5 rounded-full bg-[#181B22] border border-line/80 shadow-2xl flex items-center gap-2 animate-in fade-in zoom-in-95 duration-150">
               {REACTION_EMOJIS.map((emoji) => (
@@ -481,7 +502,7 @@ export function MessageBubble({
         </div>
       )}
 
-      {/* Right-Click Context Menu (WhatsApp Style with instant onMouseDown handlers) */}
+      {/* Right-Click Context Menu */}
       {contextMenuPos && (
         <div
           ref={contextMenuRef}
@@ -532,4 +553,19 @@ export function MessageBubble({
       )}
     </div>
   );
-}
+}, (prev, next) => {
+  return (
+    prev.message.id === next.message.id &&
+    prev.message.text === next.message.text &&
+    prev.message.status === next.message.status &&
+    prev.message.isEdited === next.message.isEdited &&
+    prev.message.isDeleted === next.message.isDeleted &&
+    prev.message.isDeletedByAdmin === next.message.isDeletedByAdmin &&
+    prev.isSelf === next.isSelf &&
+    prev.showSenderHeader === next.showSenderHeader &&
+    prev.currentMemberId === next.currentMemberId &&
+    prev.isAdmin === next.isAdmin &&
+    (prev.message.reactions?.length || 0) === (next.message.reactions?.length || 0) &&
+    prev.message.attachment?.url === next.message.attachment?.url
+  );
+});

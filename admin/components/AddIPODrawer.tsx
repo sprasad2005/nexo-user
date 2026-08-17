@@ -121,7 +121,7 @@ export function AddIPODrawer({ isOpen, onClose, onSuccess }: AddIPODrawerProps) 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-slate-950/60 dark:bg-black/80 backdrop-blur-xs animate-fade-in font-sans">
+    <div className="fixed inset-0 z-50 flex items-start justify-center pt-5 sm:pt-6 pb-4 px-3 sm:px-4 md:px-6 bg-slate-950/60 dark:bg-black/80 backdrop-blur-xs animate-fade-in font-sans">
       {/* Centered Modal Card with Large Font & Spacious Padding */}
       <div className="w-full max-w-2xl bg-white dark:bg-[#14161A] border border-slate-200 dark:border-[#343943] rounded-3xl overflow-hidden shadow-2xl flex flex-col justify-between max-h-[92vh] text-slate-900 dark:text-[#F5F7FA]">
         {/* Header */}

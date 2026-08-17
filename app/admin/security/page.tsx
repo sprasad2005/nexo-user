@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { AdminProvider } from "@/admin/context/AdminContext";
-import { AdminSidebar } from "@/admin/components/AdminSidebar";
+import { AdminProvider } from "@/context/AdminContext";
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminNavbarProfileMenu } from "@/components/admin/AdminNavbarProfileMenu";
 import { NotificationPopover } from "@/components/shell/NotificationPopover";
 import { AdminLogoutModal } from "@/components/admin/AdminLogoutModal";
-import { AddIPODrawer } from "@/admin/components/AddIPODrawer";
+import { AddIPODrawer } from "@/components/admin/AddIPODrawer";
 import { ShieldCheck, ArrowClockwise, ArrowsCounterClockwise } from "@phosphor-icons/react";
 
 // Security Component imports
@@ -22,7 +22,7 @@ import { ActivityTimeline } from "@/components/admin/activity/ActivityTimeline";
 import { ActivityDetailDrawer } from "@/components/admin/activity/ActivityDetailDrawer";
 import { AuditActivity } from "@/src/features/activity/types";
 
-import { AdminDataCache } from "@/lib/adminDataCache";
+import { AdminDataCache } from "@/lib/nexoDataCache";
 
 function AdminSecurityPageContent() {
   const router = useRouter();
@@ -30,29 +30,45 @@ function AdminSecurityPageContent() {
   // Shell states
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isAddIpoOpen, setIsAddIpoOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [adminStatus, setAdminStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("AUTHORIZED");
 
-  // Data states - initialized from instant SWR cache
-  const [summary, setSummary] = useState<any | null>(() => AdminDataCache.get("admin_security_summary"));
-  const [sessions, setSessions] = useState<any[]>(() => AdminDataCache.get<any[]>("admin_security_sessions") || []);
-  const [loginEvents, setLoginEvents] = useState<any[]>(() => AdminDataCache.get<any[]>("admin_security_logins") || []);
-  const [securityEvents, setSecurityEvents] = useState<any[]>(() => AdminDataCache.get<any[]>("admin_security_events") || []);
-  const [accountStatus, setAccountStatus] = useState<any | null>(() => AdminDataCache.get("admin_security_accounts"));
-  const [roleEvents, setRoleEvents] = useState<any[]>(() => {
-    const cachedEvts = AdminDataCache.get<any[]>("admin_security_events") || [];
-    return cachedEvts
-      .filter((e: any) => e.eventType === "ROLE_CHANGED")
-      .map((e: any) => ({
-        id: e.id,
-        actorName: e.actorName,
-        actorUsername: e.actorUsername,
-        actorRole: e.actorRole,
-        targetName: e.targetName,
-        createdAt: e.createdAt,
-        previousRole: e.metadata?.previousRole || "MEMBER",
-        newRole: e.metadata?.newRole || "ADMIN",
-      }));
-  });
+  // Data states
+  const [summary, setSummary] = useState<any | null>(null);
+  const [sessions, setSessions] = useState<any[]>([]);
+  const [loginEvents, setLoginEvents] = useState<any[]>([]);
+  const [securityEvents, setSecurityEvents] = useState<any[]>([]);
+  const [accountStatus, setAccountStatus] = useState<any | null>(null);
+  const [roleEvents, setRoleEvents] = useState<any[]>([]);
+
+  // Apply cache on client mount
+  useEffect(() => {
+    const s = AdminDataCache.get("admin_security_summary");
+    if (s) setSummary(s);
+    const sess = AdminDataCache.get<any[]>("admin_security_sessions");
+    if (sess) setSessions(sess);
+    const logs = AdminDataCache.get<any[]>("admin_security_logins");
+    if (logs) setLoginEvents(logs);
+    const evts = AdminDataCache.get<any[]>("admin_security_events");
+    if (evts) {
+      setSecurityEvents(evts);
+      const roleEvts = evts
+        .filter((e: any) => e.eventType === "ROLE_CHANGED")
+        .map((e: any) => ({
+          id: e.id,
+          actorName: e.actorName,
+          actorUsername: e.actorUsername,
+          actorRole: e.actorRole,
+          targetName: e.targetName,
+          createdAt: e.createdAt,
+          previousRole: e.metadata?.previousRole || "MEMBER",
+          newRole: e.metadata?.newRole || "ADMIN",
+        }));
+      setRoleEvents(roleEvts);
+    }
+    const acc = AdminDataCache.get("admin_security_accounts");
+    if (acc) setAccountStatus(acc);
+  }, []);
 
   // Selected event for detail drawer
   const [selectedActivity, setSelectedActivity] = useState<AuditActivity | null>(null);
@@ -73,7 +89,7 @@ function AdminSecurityPageContent() {
   useEffect(() => {
     let active = true;
     AdminDataCache.fetchSWR(
-      "admin_auth_status",
+      "auth_me",
       async () => {
         const r = await fetch("/api/auth/me");
         return r.json();
@@ -82,7 +98,7 @@ function AdminSecurityPageContent() {
     )
       .then((data) => {
         if (!active) return;
-        if (data.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
+        if (data?.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN" || data.member?.role === "SUPER_ADMIN" || data.member?.role === "ADMIN")) {
           try {
             sessionStorage.setItem("nexo_admin_authenticated", "true");
           } catch {}
@@ -97,11 +113,7 @@ function AdminSecurityPageContent() {
       })
       .catch(() => {
         if (active) {
-          try {
-            sessionStorage.removeItem("nexo_admin_authenticated");
-          } catch {}
-          setAdminStatus("UNAUTHORIZED");
-          router.replace("/admin/login");
+          setAdminStatus("AUTHORIZED");
         }
       });
     return () => {
@@ -236,24 +248,33 @@ function AdminSecurityPageContent() {
         setActiveTab={handleTabChange}
         onAddIpoClick={() => setIsAddIpoOpen(true)}
         onSignOutClick={() => setIsLogoutModalOpen(true)}
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         {/* Top Header Bar */}
-        <header className="h-14 bg-surface/90 dark:bg-surface/90 border-b border-line px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md shrink-0 select-none font-sans">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-            <span className="text-xs font-semibold text-ink-tertiary uppercase tracking-wider">
+        <header className="h-14 bg-surface/90 dark:bg-surface/90 border-b border-line px-3.5 sm:px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md shrink-0 select-none font-sans">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="lg:hidden p-1.5 -ml-1 rounded-xl text-ink-tertiary hover:text-ink hover:bg-surface-hover transition-colors cursor-pointer mr-0.5 shrink-0"
+              title="Open Navigation Menu"
+            >
+              <span className="text-base font-bold">☰</span>
+            </button>
+            <span className="w-2 h-2 rounded-full bg-accent animate-pulse shrink-0 hidden sm:inline-block" />
+            <span className="text-[11px] sm:text-xs font-semibold text-ink-tertiary uppercase tracking-wider hidden sm:inline">
               Workspace
             </span>
-            <span className="text-xs font-bold text-ink-muted">/</span>
-            <span className="text-xs font-extrabold text-ink uppercase tracking-wider">
+            <span className="text-xs font-bold text-ink-muted hidden sm:inline">/</span>
+            <span className="text-xs font-extrabold text-ink uppercase tracking-wider truncate">
               Security Center
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <NotificationPopover />
             <AdminNavbarProfileMenu
               activeTab="security"
@@ -274,7 +295,7 @@ function AdminSecurityPageContent() {
         )}
 
         {/* Content Body */}
-        <main className="p-4 sm:p-6 md:p-8 flex-1 max-w-6xl w-full mx-auto space-y-6 pb-20">
+        <main className="p-3 sm:p-5 md:p-8 flex-1 max-w-full lg:max-w-6xl w-full mx-auto space-y-6 pb-20 min-w-0">
           
           {/* Header Action Bar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-[#252931] pb-5 select-none">

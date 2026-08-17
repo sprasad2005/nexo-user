@@ -42,31 +42,90 @@ export async function GET(req: Request) {
       return NextResponse.json({ success: true, conversations: [] });
     }
 
-    // 1. Fetch conversations, all conversation memberships, users, latest messages, and unread counts in parallel batch queries
-    const [conversations, allMemberships, allUsers, latestMsgsAgg, unreadMsgsAgg] = await Promise.all([
-      convCol.find({ id: { $in: convIds } }).sort({ lastMessageAt: -1 }).toArray(),
-      memberCol.find({ conversationId: { $in: convIds } }).toArray(),
-      userCol.find({}).toArray(),
-      msgCol.aggregate([
-        { $match: { conversationId: { $in: convIds }, isDeletedByAdmin: { $ne: true } } },
-        { $sort: { seq: -1, createdAt: -1 } },
-        { $group: { _id: "$conversationId", latestMsg: { $first: "$$ROOT" } } },
-      ]).toArray(),
-      msgCol.aggregate([
-        {
-          $match: {
-            conversationId: { $in: convIds },
-            senderId: { $ne: currentMemberId },
-            isDeletedByAdmin: { $ne: true },
+    // 1. First fetch conversations and memberships
+    const [conversations, allMemberships] = await Promise.all([
+      convCol
+        .find(
+          { id: { $in: convIds } },
+          {
+            projection: {
+              id: 1,
+              type: 1,
+              title: 1,
+              avatar: 1,
+              createdBy: 1,
+              directKey: 1,
+              lastMessage: 1,
+              lastMessageAt: 1,
+              lastMessageSenderId: 1,
+              ipoId: 1,
+              createdAt: 1,
+              updatedAt: 1,
+            },
+          }
+        )
+        .sort({ lastMessageAt: -1 })
+        .toArray(),
+      memberCol
+        .find(
+          { conversationId: { $in: convIds } },
+          { projection: { conversationId: 1, memberId: 1, role: 1 } }
+        )
+        .toArray(),
+    ]);
+
+    const relevantMemberIds = Array.from(
+      new Set(allMemberships.map((m) => m.memberId).concat([currentMemberId]))
+    );
+
+    // 2. Fetch users, latest message summaries, and unread timestamps in parallel
+    const [allUsers, latestMsgsAgg, unreadMsgsAgg] = await Promise.all([
+      userCol
+        .find(
+          { id: { $in: relevantMemberIds } },
+          { projection: { id: 1, name: 1, username: 1, avatar: 1, role: 1 } }
+        )
+        .toArray(),
+      msgCol
+        .aggregate([
+          { $match: { conversationId: { $in: convIds }, isDeletedByAdmin: { $ne: true } } },
+          { $sort: { seq: -1, createdAt: -1 } },
+          {
+            $group: {
+              _id: "$conversationId",
+              latestMsg: {
+                $first: {
+                  id: "$id",
+                  senderId: "$senderId",
+                  text: "$text",
+                  type: "$type",
+                  attachment: "$attachment",
+                  createdAt: "$createdAt",
+                  isDeleted: "$isDeleted",
+                  isDeletedByAdmin: "$isDeletedByAdmin",
+                },
+              },
+            },
           },
-        },
-        {
-          $group: {
-            _id: "$conversationId",
-            messages: { $push: { createdAt: "$createdAt" } },
+        ])
+        .toArray(),
+      msgCol
+        .aggregate([
+          {
+            $match: {
+              conversationId: { $in: convIds },
+              senderId: { $ne: currentMemberId },
+              isDeletedByAdmin: { $ne: true },
+            },
           },
-        },
-      ]).toArray(),
+          {
+            $group: {
+              _id: "$conversationId",
+              messages: { $push: { createdAt: "$createdAt" } },
+            },
+          },
+        ])
+        .toArray(),
     ]);
 
     const userMap = new Map(allUsers.map((u) => [u.id, u]));
@@ -169,8 +228,16 @@ export async function GET(req: Request) {
       }
     }
     const uniqueConversations = Array.from(uniqueMap.values());
+    const totalUnreadCount = uniqueConversations.reduce(
+      (sum, c) => sum + (typeof c.unreadCount === "number" ? c.unreadCount : 0),
+      0
+    );
 
-    return NextResponse.json({ success: true, conversations: uniqueConversations });
+    return NextResponse.json({
+      success: true,
+      conversations: uniqueConversations,
+      totalUnreadCount,
+    });
   } catch (err: any) {
     console.error("GET /api/conversations error:", err);
     return NextResponse.json(

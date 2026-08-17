@@ -12,7 +12,7 @@ import {
   Sun,
   Moon,
 } from "@phosphor-icons/react";
-import { useAdmin } from "@/admin/context/AdminContext";
+import { useAdmin } from "@/context/AdminContext";
 import { useTheme } from "@/components/providers/ThemeProvider";
 
 interface AdminNavbarProfileMenuProps {

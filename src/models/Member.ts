@@ -22,9 +22,11 @@ export interface MemberDocument {
   isVerified?: boolean;           // Member profile verification status
   panMasked: string;              // PAN Card Number (e.g. "ABCDE1234F")
   panFull: string;                // Full PAN Card Number
+  panNormalized?: string;         // Canonical normalized PAN for unique index
   defaultContribution: number;    // Default Lot Allocation Limit in ₹
   joinedAt: string;               // Join Date string
   phone?: string;
+  phoneNormalized?: string;       // Canonical E.164 normalized phone for unique index
   upiId?: string;
   permissions?: MemberPermissions;
   sessionsRevokedAt?: string;

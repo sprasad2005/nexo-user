@@ -68,11 +68,14 @@ export async function GET(req: Request) {
               applicantName: 1,
               applicationNumber: 1,
               panMasked: 1,
+              panNumbers: 1,
+              numberOfPanCards: 1,
               lotCount: 1,
               lotsApplied: 1,
               allotmentStatus: 1,
               fundingStructure: 1,
               totalContribution: 1,
+              contributors: 1,
               participants: 1,
               createdAt: 1,
               updatedAt: 1,
@@ -166,21 +169,43 @@ export async function POST(req: Request) {
       const col = client.db(DB).collection<IPOApplicationDocument>(COL);
 
       // Check for PAN card uniqueness for this ipoId
-      const inputPans = (newDoc.panNumbers || []).map((p) => p.trim().toUpperCase());
+      const { normalizePan, isValidPan } = await import("@/src/lib/validation/uniqueness");
+      const inputPans = (newDoc.panNumbers || []).map((p) => normalizePan(p)).filter(Boolean);
+      
+      // Validate format of each submitted PAN
+      for (const p of inputPans) {
+        if (!isValidPan(p)) {
+          return NextResponse.json({
+            success: false,
+            code: "INVALID_PAN",
+            error: `Invalid PAN number '${p}'. Must be a 10-character alphanumeric PAN.`,
+            message: `Invalid PAN number '${p}'. Must be a 10-character alphanumeric PAN.`,
+          }, { status: 400 });
+        }
+      }
+
+      newDoc.panNumbers = inputPans;
+
       if (inputPans.length > 0) {
         const existingDoc = await col.findOne({
           id: { $ne: newDoc.id },
           ipoId: newDoc.ipoId,
           $or: [
             { panNumbers: { $in: inputPans } },
-            { panMasked: { $in: inputPans } }
+            { panMasked: { $in: inputPans } },
+            { panNormalized: { $in: inputPans } }
           ]
         });
 
         if (existingDoc) {
           return NextResponse.json(
-            { success: false, error: "One or more PAN cards have already been used in an application for this IPO." },
-            { status: 400 }
+            {
+              success: false,
+              code: "DUPLICATE_PAN",
+              error: "One or more PAN cards have already been used in an application for this IPO.",
+              message: "One or more PAN cards have already been used in an application for this IPO.",
+            },
+            { status: 409 }
           );
         }
       }

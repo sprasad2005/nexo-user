@@ -5,6 +5,13 @@ import { MOCK_MEMBERS } from "@/lib/mockData";
 import { MemberPermissions } from "@/types/nexo";
 import { logActivity } from "@/src/features/activity/activityService";
 import { cleanOldAvatar } from "@/lib/avatarCleanup";
+import {
+  normalizePan,
+  isValidPan,
+  normalizePhone,
+  isValidPhone,
+  handleDuplicateKeyError,
+} from "@/src/lib/validation/uniqueness";
 
 const DB = "nexo";
 const COL = "members";
@@ -29,7 +36,12 @@ export async function GET() {
     const client = await clientPromise;
     const col = client.db(DB).collection<MemberDocument>(COL);
 
-    let members = await col.find({}).toArray();
+    let members = await col.find({}, {
+      projection: {
+        password: 0,
+        passwordHash: 0,
+      }
+    }).toArray();
 
     /* Seed default mock members if empty */
     if (members.length === 0) {
@@ -114,21 +126,92 @@ export async function POST(req: Request) {
     }
 
     const role = body.role || "MEMBER";
+    const cleanUsername = (body.username || body.name.toLowerCase().replace(/\s+/g, "")).toLowerCase().trim();
+
+    // ── PAN VALIDATION & NORMALIZATION ──
+    const rawPan = body.panFull || body.panMasked || body.pan || "";
+    let panNormalized: string | undefined = undefined;
+    if (rawPan && typeof rawPan === "string" && rawPan.trim()) {
+      if (!isValidPan(rawPan)) {
+        return NextResponse.json({
+          success: false,
+          code: "INVALID_PAN",
+          error: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
+          message: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
+        }, { status: 400 });
+      }
+      panNormalized = normalizePan(rawPan);
+    }
+
+    // ── PHONE VALIDATION & NORMALIZATION ──
+    const rawPhone = body.phone || "";
+    let phoneNormalized: string | undefined = undefined;
+    if (rawPhone && typeof rawPhone === "string" && rawPhone.trim()) {
+      if (!isValidPhone(rawPhone)) {
+        return NextResponse.json({
+          success: false,
+          code: "INVALID_PHONE",
+          error: "Please enter a valid phone number.",
+          message: "Please enter a valid phone number.",
+        }, { status: 400 });
+      }
+      phoneNormalized = normalizePhone(rawPhone);
+    }
+
+    const client = await clientPromise;
+    const col = client.db(DB).collection<MemberDocument>(COL);
+
+    // ── Pre-flight Uniqueness Checks ──
+    const existingUser = await col.findOne({ username: cleanUsername });
+    if (existingUser) {
+      return NextResponse.json({
+        success: false,
+        code: "DUPLICATE_USERNAME",
+        error: `Username '${cleanUsername}' is already taken.`,
+        message: `Username '${cleanUsername}' is already taken.`,
+      }, { status: 409 });
+    }
+
+    if (panNormalized) {
+      const existingPan = await col.findOne({ panNormalized });
+      if (existingPan) {
+        return NextResponse.json({
+          success: false,
+          code: "DUPLICATE_PAN",
+          error: `PAN number '${panNormalized}' is already registered to member '${existingPan.name}'.`,
+          message: "This PAN number is already registered to another member.",
+        }, { status: 409 });
+      }
+    }
+
+    if (phoneNormalized) {
+      const existingPhone = await col.findOne({ phoneNormalized });
+      if (existingPhone) {
+        return NextResponse.json({
+          success: false,
+          code: "DUPLICATE_PHONE",
+          error: `Phone number '${phoneNormalized}' is already registered to member '${existingPhone.name}'.`,
+          message: "This phone number is already registered to another member.",
+        }, { status: 409 });
+      }
+    }
 
     const newMember: MemberDocument = {
       id: body.id || `mem_${Date.now()}`,
-      name: body.name,
-      username: (body.username || body.name.toLowerCase().replace(/\s+/g, "")).toLowerCase(),
+      name: body.name.trim(),
+      username: cleanUsername,
       password: body.password || "user123",
-      email: body.email || `${body.username || "user"}@nexo.private`,
+      email: body.email || `${cleanUsername}@nexo.private`,
       avatar: body.avatar || "/oggy.png",
       role: role,
       status: body.status || "ACTIVE",
-      panMasked: body.panMasked || body.panFull || "ABCDE1234F",
-      panFull: body.panFull || body.panMasked || "ABCDE1234F",
+      panMasked: panNormalized || "ABCDE1234F",
+      panFull: panNormalized || "ABCDE1234F",
+      panNormalized: panNormalized,
       defaultContribution: Number(body.defaultContribution) || 50000,
       joinedAt: body.joinedAt || "Just now",
-      phone: body.phone || "+91 98765 43210",
+      phone: phoneNormalized || body.phone || undefined,
+      phoneNormalized: phoneNormalized,
       upiId: body.upiId,
       permissions: body.permissions || getDefaultPermissions(role),
       createdAt: new Date(),
@@ -136,8 +219,6 @@ export async function POST(req: Request) {
     };
 
     try {
-      const client = await clientPromise;
-      const col = client.db(DB).collection<MemberDocument>(COL);
       await col.insertOne(newMember as any);
 
       // Also provision User Account in nexo.users for authentication
@@ -159,6 +240,8 @@ export async function POST(req: Request) {
             role: newMember.role,
             status: newMember.status || "ACTIVE",
             emailVerified: true,
+            panNormalized: panNormalized,
+            phoneNormalized: phoneNormalized,
             updatedAt: new Date(),
           },
           $setOnInsert: { createdAt: new Date() },
@@ -202,8 +285,17 @@ export async function POST(req: Request) {
         },
         { upsert: true }
       );
-    } catch (dbErr) {
-      console.warn("POST /api/members MongoDB unavailable, continuing with local store.");
+    } catch (dbErr: any) {
+      console.warn("POST /api/members insert warning:", dbErr);
+      const dupError = handleDuplicateKeyError(dbErr);
+      if (dupError) {
+        return NextResponse.json({
+          success: false,
+          code: dupError.code,
+          error: dupError.message,
+          message: dupError.message,
+        }, { status: 409 });
+      }
     }
 
     // Audit log — MEMBER_CREATED
@@ -224,6 +316,15 @@ export async function POST(req: Request) {
     });
   } catch (err: any) {
     console.error("POST /api/members error:", err);
+    const dupError = handleDuplicateKeyError(err);
+    if (dupError) {
+      return NextResponse.json({
+        success: false,
+        code: dupError.code,
+        error: dupError.message,
+        message: dupError.message,
+      }, { status: 409 });
+    }
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }
@@ -239,6 +340,71 @@ export async function PUT(req: Request) {
       return NextResponse.json({ success: false, error: "Missing member ID" }, { status: 400 });
     }
 
+    const client = await clientPromise;
+    const db = client.db(DB);
+    const col = db.collection<MemberDocument>(COL);
+
+    // ── PAN VALIDATION & UNIQUENESS ──
+    const rawPan = body.panFull || body.panMasked || body.pan;
+    let panNormalized: string | undefined = undefined;
+    if (rawPan !== undefined && rawPan !== null) {
+      const panStr = String(rawPan).trim();
+      if (panStr) {
+        if (!isValidPan(panStr)) {
+          return NextResponse.json({
+            success: false,
+            code: "INVALID_PAN",
+            error: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
+            message: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
+          }, { status: 400 });
+        }
+        panNormalized = normalizePan(panStr);
+
+        const dupPan = await col.findOne({
+          id: { $ne: body.id },
+          panNormalized: panNormalized,
+        });
+        if (dupPan) {
+          return NextResponse.json({
+            success: false,
+            code: "DUPLICATE_PAN",
+            error: `PAN number '${panNormalized}' is already registered to member '${dupPan.name}'.`,
+            message: "This PAN number is already registered to another member.",
+          }, { status: 409 });
+        }
+      }
+    }
+
+    // ── PHONE VALIDATION & UNIQUENESS ──
+    let phoneNormalized: string | undefined = undefined;
+    if (body.phone !== undefined && body.phone !== null) {
+      const phoneStr = String(body.phone).trim();
+      if (phoneStr) {
+        if (!isValidPhone(phoneStr)) {
+          return NextResponse.json({
+            success: false,
+            code: "INVALID_PHONE",
+            error: "Please enter a valid phone number.",
+            message: "Please enter a valid phone number.",
+          }, { status: 400 });
+        }
+        phoneNormalized = normalizePhone(phoneStr);
+
+        const dupPhone = await col.findOne({
+          id: { $ne: body.id },
+          phoneNormalized: phoneNormalized,
+        });
+        if (dupPhone) {
+          return NextResponse.json({
+            success: false,
+            code: "DUPLICATE_PHONE",
+            error: `Phone number '${phoneNormalized}' is already registered to member '${dupPhone.name}'.`,
+            message: "This phone number is already registered to another member.",
+          }, { status: 409 });
+        }
+      }
+    }
+
     const updateDoc: Record<string, any> = { updatedAt: new Date() };
     const allowed = [
       "name",
@@ -248,10 +414,7 @@ export async function PUT(req: Request) {
       "avatar",
       "role",
       "status",
-      "panMasked",
-      "panFull",
       "defaultContribution",
-      "phone",
       "upiId",
       "permissions",
       "sessionsRevokedAt",
@@ -262,11 +425,19 @@ export async function PUT(req: Request) {
       if (key in body) updateDoc[key] = body[key];
     }
 
-    try {
-      const client = await clientPromise;
-      const db = client.db(DB);
-      const col = db.collection<MemberDocument>(COL);
+    if (panNormalized !== undefined) {
+      updateDoc.panNormalized = panNormalized;
+      updateDoc.panFull = panNormalized;
+      updateDoc.panMasked = panNormalized;
+    }
+    if (phoneNormalized !== undefined) {
+      updateDoc.phoneNormalized = phoneNormalized;
+      updateDoc.phone = phoneNormalized;
+    } else if (body.phone !== undefined) {
+      updateDoc.phone = body.phone;
+    }
 
+    try {
       // Clean old avatar if changing to a new one
       if (body.avatar) {
         const existingMember = await col.findOne({ id: body.id });
@@ -278,7 +449,7 @@ export async function PUT(req: Request) {
       await col.updateOne({ id: body.id }, { $set: updateDoc });
 
       // Sync user auth credentials if username/password/role/status modified
-      if (body.password || body.role || body.status || body.email) {
+      if (body.password || body.role || body.status || body.email || panNormalized || phoneNormalized) {
         const usersCol = client.db(DB).collection("users");
         const { hashPassword, normalizeEmail } = await import("@/src/lib/auth/password");
         const member = await col.findOne({ id: body.id });
@@ -290,6 +461,8 @@ export async function PUT(req: Request) {
           if (body.role) userUpdate.role = body.role;
           if (body.status) userUpdate.status = body.status;
           if (body.password) userUpdate.passwordHash = hashPassword(body.password);
+          if (panNormalized) userUpdate.panNormalized = panNormalized;
+          if (phoneNormalized) userUpdate.phoneNormalized = phoneNormalized;
 
           await usersCol.updateOne(
             { $or: [{ memberId: body.id }, { emailNormalized: emailNorm }] },
@@ -297,8 +470,17 @@ export async function PUT(req: Request) {
           );
         }
       }
-    } catch (dbErr) {
-      console.warn("PUT /api/members MongoDB unavailable, continuing with local store.");
+    } catch (dbErr: any) {
+      console.warn("PUT /api/members MongoDB update warning:", dbErr);
+      const dupError = handleDuplicateKeyError(dbErr);
+      if (dupError) {
+        return NextResponse.json({
+          success: false,
+          code: dupError.code,
+          error: dupError.message,
+          message: dupError.message,
+        }, { status: 409 });
+      }
     }
 
     // Audit log — MEMBER_UPDATED or ROLE_CHANGED
@@ -330,6 +512,15 @@ export async function PUT(req: Request) {
     });
   } catch (err: any) {
     console.error("PUT /api/members error:", err);
+    const dupError = handleDuplicateKeyError(err);
+    if (dupError) {
+      return NextResponse.json({
+        success: false,
+        code: dupError.code,
+        error: dupError.message,
+        message: dupError.message,
+      }, { status: 409 });
+    }
     return NextResponse.json({ success: false, error: err.message }, { status: 500 });
   }
 }

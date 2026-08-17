@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { AdminProvider } from "../../admin/context/AdminContext";
-import { AdminSidebar } from "../../admin/components/AdminSidebar";
-import { AdminIPOManagement } from "../../admin/components/AdminIPOManagement";
-import { AdminIPOHistoryView } from "../../admin/components/AdminIPOHistoryView";
-import { DistributeProfitView } from "../../admin/components/DistributeProfitView";
-import { AddIPODrawer } from "../../admin/components/AddIPODrawer";
+import { AdminProvider } from "@/context/AdminContext";
+import { AdminSidebar } from "./AdminSidebar";
+import { AdminIPOManagement } from "./AdminIPOManagement";
+import { AdminIPOHistoryView } from "./AdminIPOHistoryView";
+import { DistributeProfitView } from "./DistributeProfitView";
+import { AddIPODrawer } from "./AddIPODrawer";
 import { AdminNavbarProfileMenu } from "./AdminNavbarProfileMenu";
 import { NotificationPopover } from "../shell/NotificationPopover";
 import { AdminProfileView } from "./AdminProfileView";
@@ -15,12 +15,12 @@ import { AdminSettingsView } from "./AdminSettingsView";
 import { AdminLogoutModal } from "./AdminLogoutModal";
 import { SuperAdminMemberManagement } from "./SuperAdminMemberManagement";
 import { ActivityPage } from "./activity/ActivityPage";
-import { AllotmentManagementView } from "../../admin/components/AllotmentManagementView";
+import { AllotmentManagementView } from "./AllotmentManagementView";
 import { AdminApplicationsView } from "./AdminApplicationsView";
 import { AdminSecurityView } from "./AdminSecurityView";
 import { MessagesTab } from "@/src/features/admin/components/MessagesTab";
-import { UserCircle, Gear, SignOut } from "@phosphor-icons/react";
-import { AdminDataCache } from "@/lib/adminDataCache";
+import { UserCircle, Gear, SignOut, List } from "@phosphor-icons/react";
+import { AdminDataCache } from "@/lib/nexoDataCache";
 
 function AdminOverview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   const router = useRouter();
@@ -180,6 +180,7 @@ function AdminDashboardContent() {
   // consistently by the existing useEffect below.
   const [activeTab, setActiveTab] = useState("ipos");
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
@@ -245,24 +246,33 @@ function AdminDashboardContent() {
         setActiveTab={handleSelectTab}
         onAddIpoClick={() => setIsDrawerOpen(true)}
         onSignOutClick={() => setIsLogoutModalOpen(true)}
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* MAIN ADMIN WORKSPACE CONTENT AREA */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         {/* Top Header Bar */}
-        <header className="h-14 bg-surface/90 dark:bg-surface/90 border-b border-line px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md shrink-0 select-none font-sans">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-            <span className="text-xs font-semibold text-ink-tertiary uppercase tracking-wider">
+        <header className="h-14 bg-surface/90 dark:bg-surface/90 border-b border-line px-3.5 sm:px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md shrink-0 select-none font-sans">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="lg:hidden p-1.5 -ml-1 rounded-xl text-ink-tertiary hover:text-ink hover:bg-surface-hover transition-colors cursor-pointer mr-0.5 shrink-0"
+              title="Open Navigation Menu"
+            >
+              <List size={20} weight="bold" />
+            </button>
+            <span className="w-2 h-2 rounded-full bg-accent animate-pulse shrink-0 hidden sm:inline-block" />
+            <span className="text-[11px] sm:text-xs font-semibold text-ink-tertiary uppercase tracking-wider hidden sm:inline">
               Workspace
             </span>
-            <span className="text-xs font-bold text-ink-muted">/</span>
-            <span className="text-xs font-extrabold text-ink uppercase tracking-wider">
+            <span className="text-xs font-bold text-ink-muted hidden sm:inline">/</span>
+            <span className="text-xs font-extrabold text-ink uppercase tracking-wider truncate">
               {getTabTitle(activeTab)}
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <NotificationPopover />
             <AdminNavbarProfileMenu
               activeTab={activeTab}
@@ -274,7 +284,7 @@ function AdminDashboardContent() {
 
         {/* Feedback Alert */}
         {feedbackMsg && (
-          <div className="m-4 p-3 bg-emerald-50 dark:bg-[#102C22] border border-emerald-200 dark:border-[#32C98B]/20 rounded-xl text-emerald-700 dark:text-[#32C98B] text-xs font-bold flex items-center justify-between">
+          <div className="m-3 sm:m-4 p-3 bg-emerald-50 dark:bg-[#102C22] border border-emerald-200 dark:border-[#32C98B]/20 rounded-xl text-emerald-700 dark:text-[#32C98B] text-xs font-bold flex items-center justify-between">
             <span>{feedbackMsg}</span>
             <button onClick={() => setFeedbackMsg(null)} className="text-emerald-500 dark:text-[#32C98B] hover:opacity-75">✕</button>
           </div>
@@ -282,14 +292,19 @@ function AdminDashboardContent() {
 
         {/* Page Content */}
         <main
-          className={`flex-1 w-full mx-auto ${
+          className={`flex-1 w-full mx-auto min-w-0 ${
             activeTab === "messages"
-              ? "h-[calc(100vh-56px)] overflow-hidden p-2 sm:p-4 max-w-full flex flex-col"
-              : "p-4 sm:p-6 md:p-8 max-w-6xl"
+              ? "h-[calc(100vh-56px)] overflow-hidden p-1.5 sm:p-4 max-w-full flex flex-col"
+              : "p-3 sm:p-5 md:p-8 max-w-full lg:max-w-6xl"
           }`}
         >
           {activeTab === "overview" && <AdminOverview setActiveTab={handleSelectTab} />}
-          {activeTab === "ipos" && <AdminIPOManagement />}
+          {activeTab === "ipos" && (
+            <AdminIPOManagement
+              isDrawerOpen={isDrawerOpen}
+              setIsDrawerOpen={setIsDrawerOpen}
+            />
+          )}
           {activeTab === "history" && <AdminIPOHistoryView />}
           {activeTab === "applications" && <AdminApplicationsView />}
           {(activeTab === "allotment" || activeTab === "allotments") && <AllotmentManagementView />}
@@ -325,13 +340,6 @@ function AdminDashboardContent() {
             )}
         </main>
       </div>
-
-      {/* GLOBAL ADD IPO DRAWER */}
-      <AddIPODrawer
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        onSuccess={handleAddSuccess}
-      />
 
       {/* CONFIRMATION LOGOUT MODAL */}
       <AdminLogoutModal

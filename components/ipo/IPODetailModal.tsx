@@ -218,7 +218,7 @@ export function IPODetailModal({ ipo, isOpen, onClose, onApply }: IPODetailModal
               <p className="text-h2 font-semibold text-ink num-tabular leading-tight">
                 {formatINR(ipo.metrics.minInvestment)}
                 <span className="text-small font-normal text-ink-secondary ml-1.5">
-                  /{ipo.metrics.lotSize} shares
+                  / IPO LOT
                 </span>
               </p>
               <p className="text-caption text-ink-tertiary font-medium mt-0.5">Minimum investment</p>

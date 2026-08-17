@@ -47,19 +47,24 @@ function buildDateRange(preset: string): { from?: string; to?: string } {
   return {};
 }
 
-import { AdminDataCache } from "@/lib/adminDataCache";
+import { AdminDataCache } from "@/lib/nexoDataCache";
 
 export function ActivityPage() {
-  const [activities, setActivities] = useState<AuditActivity[]>(() => {
-    return AdminDataCache.get<AuditActivity[]>("admin_activities_default") || [];
-  });
-  const [isLoading, setIsLoading] = useState<boolean>(() => {
-    return !AdminDataCache.has("admin_activities_default");
-  });
+  const [activities, setActivities] = useState<AuditActivity[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isError, setIsError] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [nextCursor, setNextCursor] = useState<string | undefined>();
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+  // Apply cache on mount
+  useEffect(() => {
+    const cached = AdminDataCache.get<AuditActivity[]>("admin_activities_default");
+    if (cached && cached.length > 0) {
+      setActivities(cached);
+      setIsLoading(false);
+    }
+  }, []);
 
   const [viewMode, setViewMode] = useState<ViewMode>("timeline");
   const [selectedActivity, setSelectedActivity] = useState<AuditActivity | null>(null);
@@ -226,6 +231,14 @@ export function ActivityPage() {
             placeholder="Search activity… (actor, event, IPO, member)"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                if (e.nativeEvent.isComposing) return;
+                e.preventDefault();
+                if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+                fetchActivities();
+              }
+            }}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs font-semibold text-slate-900 dark:text-[#F5F7FA] placeholder:text-slate-400 dark:placeholder:text-[#626A75] focus:outline-none focus:border-blue-600 dark:focus:border-[#6B93FF] transition-colors"
           />
           {search && (

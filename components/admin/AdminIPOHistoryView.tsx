@@ -568,7 +568,13 @@ export function AdminIPOHistoryView() {
       {/* ── EDIT IPO & PROFIT DATA MODAL ── */}
       {selectedIpoToEdit && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-xs p-4 animate-fade-in">
-          <div className="bg-surface rounded-3xl p-6 max-w-xl w-full border border-line shadow-2xl space-y-4 max-h-[90vh] flex flex-col">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!isProcessing) handleSaveEdit();
+            }}
+            className="bg-surface rounded-3xl p-6 max-w-xl w-full border border-line shadow-2xl space-y-4 max-h-[90vh] flex flex-col"
+          >
             <div className="flex items-center justify-between border-b border-line pb-4 shrink-0">
               <div>
                 <h3 className="text-base font-extrabold text-ink flex items-center gap-2">
@@ -580,6 +586,7 @@ export function AdminIPOHistoryView() {
                 </p>
               </div>
               <button
+                type="button"
                 onClick={() => setSelectedIpoToEdit(null)}
                 className="p-2 rounded-xl text-ink-secondary hover:text-ink bg-surface-alt cursor-pointer"
               >
@@ -699,6 +706,7 @@ export function AdminIPOHistoryView() {
                             {formatINR(m.profit, true)}
                           </span>
                           <button
+                            type="button"
                             onClick={() => handleRemoveMemberFromIpo(m.memberId)}
                             title="Remove this member's application"
                             className="text-rose-500 hover:text-rose-700 p-1 cursor-pointer"
@@ -715,6 +723,7 @@ export function AdminIPOHistoryView() {
 
             <div className="flex items-center justify-end gap-3 pt-3 border-t border-line shrink-0">
               <button
+                type="button"
                 disabled={isProcessing}
                 onClick={() => setSelectedIpoToEdit(null)}
                 className="px-4 py-2 rounded-xl border border-line text-xs font-bold text-ink-secondary hover:bg-surface-alt cursor-pointer"
@@ -722,15 +731,15 @@ export function AdminIPOHistoryView() {
                 Cancel
               </button>
               <button
+                type="submit"
                 disabled={isProcessing}
-                onClick={handleSaveEdit}
                 className="px-5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-bold transition-all shadow-md flex items-center gap-1.5 cursor-pointer disabled:opacity-50"
               >
                 <FloppyDisk size={15} weight="bold" />
                 <span>{isProcessing ? "Saving..." : "Save Changes"}</span>
               </button>
             </div>
-          </div>
+          </form>
         </div>
       )}
 

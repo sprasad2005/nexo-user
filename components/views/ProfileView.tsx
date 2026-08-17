@@ -10,7 +10,6 @@ import {
   PencilSimple,
   EnvelopeSimple,
   Phone,
-  IdentificationCard,
   Shield,
   User,
   CheckCircle,
@@ -19,11 +18,10 @@ import {
 import { ChangePasswordModal } from "../profile/ChangePasswordModal";
 
 const FIELD_ROWS = [
-  { key: "name",      label: "Full Name",     Icon: User,               mono: false },
-  { key: "username",  label: "Username",      Icon: User,               mono: true  },
-  { key: "phone",     label: "Phone",         Icon: Phone,              mono: false },
-  { key: "panMasked", label: "PAN",           Icon: IdentificationCard, mono: true  },
-  { key: "roleLabel", label: "Role",          Icon: Shield,             mono: false },
+  { key: "name",      label: "Full Name",     Icon: User,   mono: false },
+  { key: "username",  label: "Username",      Icon: User,   mono: true  },
+  { key: "phone",     label: "Phone",         Icon: Phone,  mono: false },
+  { key: "roleLabel", label: "Role",          Icon: Shield, mono: false },
 ] as const;
 
 export function ProfileView() {
@@ -54,10 +52,9 @@ export function ProfileView() {
   const avatar      = activeUser?.avatar    || profileData?.avatar    || "";
   const rawRole     = String(activeUser?.role || profileData?.role || "MEMBER").toUpperCase();
   const role        = rawRole === "SUPER_ADMIN" ? "MEMBER" : rawRole;
-  const panMasked   = activeUser?.panMasked || profileData?.panMasked || "ABCDE1234F";
   const roleLabel   = role === "ADMIN" ? "Administrator" : "Member";
 
-  const fieldValues: Record<string, string> = { name, username, phone, panMasked, roleLabel };
+  const fieldValues: Record<string, string> = { name, username, phone, roleLabel };
 
   const initials = name
     .split(" ")
@@ -195,7 +192,7 @@ export function ProfileView() {
                   {fieldValues[key] || "—"}
                 </p>
               </div>
-              {key !== "roleLabel" && key !== "panMasked" && (
+              {key !== "roleLabel" && (
                 <PencilSimple
                   size={14}
                   className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 cursor-pointer text-blue-500"

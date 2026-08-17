@@ -266,6 +266,7 @@ export async function GET(req: Request) {
             applicantName: cleanApplicant,
             username: cleanUsername,
             memberId: app.memberId || member?.id || undefined,
+            memberAvatar: member?.avatar || undefined,
             pan: pan,
             panNumbers: panNumbersList,
             allottedIndices: app.allottedIndices || (normalizedStatus === "ALLOTTED" ? Array.from({ length: Number(lots) || 1 }, (_, i) => i) : []),

@@ -30,7 +30,7 @@ import { MOCK_MEMBERS } from "@/lib/mockData";
 import { useNexo } from "@/context/NexoContext";
 import { useRouter } from "next/navigation";
 import { SendNotificationModal } from "./SendNotificationModal";
-import { AdminDataCache } from "@/lib/adminDataCache";
+import { AdminDataCache } from "@/lib/nexoDataCache";
 
 export function SuperAdminMemberManagement() {
   const router = useRouter();
@@ -66,11 +66,12 @@ export function SuperAdminMemberManagement() {
   const [newMemberUsername, setNewMemberUsername] = useState("");
   const [newMemberPassword, setNewMemberPassword] = useState("");
   const [newMemberEmail, setNewMemberEmail] = useState("");
-  const [newMemberPhone, setNewMemberPhone] = useState("+91 98200 12345");
-  const [newMemberPan, setNewMemberPan] = useState("ABCDE1234F");
+  const [newMemberPhone, setNewMemberPhone] = useState("");
+  const [newMemberPan, setNewMemberPan] = useState("");
   const [newMemberRole, setNewMemberRole] = useState<MemberRole>("MEMBER");
   const [newMemberStatus, setNewMemberStatus] = useState<MemberStatus>("ACTIVE");
   const [newMemberContribution, setNewMemberContribution] = useState(50000);
+  const [createError, setCreateError] = useState<string | null>(null);
 
   // Form state for Reset Password
   const [customResetPass, setCustomResetPass] = useState("");
@@ -91,30 +92,13 @@ export function SuperAdminMemberManagement() {
 
   const fetchMembers = useCallback(async () => {
     try {
-      const freshMembers = await AdminDataCache.fetchSWR(
-        "admin_members_list",
-        async () => {
-          const res = await fetch("/api/admin/members");
-          const data = await res.json();
-          if (data?.success && Array.isArray(data.members) && data.members.length > 0) {
-            return data.members;
-          }
-          const fallbackRes = await fetch("/api/members");
-          const fallbackData = await fallbackRes.json();
-          if (fallbackData?.success && Array.isArray(fallbackData.members)) {
-            return fallbackData.members;
-          }
-          return MOCK_MEMBERS as any;
-        },
-        {
-          ttlMs: 30000,
-          onUpdate: (data) => {
-            if (Array.isArray(data) && data.length > 0) setMembers(data);
-          },
+      const res = await fetch("/api/members");
+      if (res.ok) {
+        const data = await res.json();
+        if (data.members) {
+          setMembers(data.members);
+          AdminDataCache.set("admin_members_list", data.members);
         }
-      );
-      if (Array.isArray(freshMembers) && freshMembers.length > 0) {
-        setMembers(freshMembers);
       }
     } catch {
       // Keep existing cached state on error
@@ -169,16 +153,46 @@ export function SuperAdminMemberManagement() {
   // 1. Create User
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
+    setCreateError(null);
     if (!newMemberName.trim() || !newMemberUsername.trim()) return;
+
+    // Frontend Pre-flight Duplicate Checks
+    const cleanUser = newMemberUsername.trim().toLowerCase();
+    if (members.some((m) => m.username?.toLowerCase() === cleanUser)) {
+      setCreateError(`Username '${cleanUser}' is already taken.`);
+      return;
+    }
+
+    const cleanPan = newMemberPan.trim().toUpperCase().replace(/\s+/g, "");
+    if (cleanPan && cleanPan.length !== 10) {
+      setCreateError("PAN card number must be exactly 10 alphanumeric characters (e.g. ABCDE1234F).");
+      return;
+    }
+    if (cleanPan && members.some((m) => (m.panFull || m.panMasked || "").trim().toUpperCase().replace(/\s+/g, "") === cleanPan)) {
+      setCreateError("PAN number already exists.");
+      return;
+    }
+
+    const cleanPhone = newMemberPhone.trim().replace(/[\s\-\(\)\.]/g, "");
+    if (cleanPhone) {
+      let normPhone = cleanPhone;
+      if (/^\d{10}$/.test(cleanPhone)) normPhone = `+91${cleanPhone}`;
+      else if (/^91\d{10}$/.test(cleanPhone)) normPhone = `+${cleanPhone}`;
+
+      if (members.some((m) => (m.phone || "").replace(/[\s\-\(\)\.]/g, "") === cleanPhone || (m.phone || "").replace(/[\s\-\(\)\.]/g, "") === normPhone.replace("+", ""))) {
+        setCreateError("Phone number already exists.");
+        return;
+      }
+    }
 
     const payload = {
       name: newMemberName.trim(),
-      username: newMemberUsername.trim().toLowerCase(),
+      username: cleanUser,
       password: newMemberPassword.trim() || "user123",
-      email: newMemberEmail.trim() || `${newMemberUsername.trim().toLowerCase()}@nexo.private`,
-      phone: newMemberPhone,
-      panFull: newMemberPan,
-      panMasked: newMemberPan,
+      email: newMemberEmail.trim() || `${cleanUser}@nexo.private`,
+      phone: newMemberPhone.trim() || undefined,
+      panFull: cleanPan || undefined,
+      panMasked: cleanPan || undefined,
       role: newMemberRole,
       status: newMemberStatus,
       defaultContribution: newMemberContribution,
@@ -194,16 +208,13 @@ export function SuperAdminMemberManagement() {
       if (res.ok && data.success) {
         showToast(`✓ User ${newMemberName} (${newMemberRole}) created successfully.`);
         fetchMembers();
+        setIsCreateModalOpen(false);
+        resetCreateForm();
       } else {
-        showToast(`✓ User ${newMemberName} created locally.`);
-        setMembers((prev) => [...prev, { id: `mem_${Date.now()}`, ...payload, avatar: "/oggy.png", joinedAt: "Just now" }]);
+        setCreateError(data.message || data.error || "Failed to create user.");
       }
-    } catch {
-      setMembers((prev) => [...prev, { id: `mem_${Date.now()}`, ...payload, avatar: "/oggy.png", joinedAt: "Just now" }]);
-      showToast(`✓ User ${newMemberName} created.`);
-    } finally {
-      setIsCreateModalOpen(false);
-      resetCreateForm();
+    } catch (err: any) {
+      setCreateError(err.message || "Failed to connect to server.");
     }
   };
 
@@ -212,11 +223,12 @@ export function SuperAdminMemberManagement() {
     setNewMemberUsername("");
     setNewMemberPassword("");
     setNewMemberEmail("");
-    setNewMemberPhone("+91 98200 12345");
-    setNewMemberPan("ABCDE1234F");
+    setNewMemberPhone("");
+    setNewMemberPan("");
     setNewMemberRole("MEMBER");
     setNewMemberStatus("ACTIVE");
     setNewMemberContribution(50000);
+    setCreateError(null);
   };
 
   // 2. Toggle Status (Activate / Suspend)
@@ -442,6 +454,12 @@ export function SuperAdminMemberManagement() {
             placeholder="Search name, username, email..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                if (e.nativeEvent.isComposing) return;
+                e.currentTarget.blur();
+              }
+            }}
             className="w-full pl-9 pr-4 py-2.5 rounded-xl bg-slate-50 dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] text-xs font-semibold text-slate-900 dark:text-[#F5F7FA] placeholder:text-slate-400 dark:placeholder:text-[#626A75] focus:outline-none focus:border-blue-600 dark:focus:border-[#6B93FF]"
           />
         </div>
@@ -666,6 +684,14 @@ export function SuperAdminMemberManagement() {
               </button>
             </div>
 
+            {/* Error Banner */}
+            {createError && (
+              <div className="mx-6 mb-3 p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 text-xs font-bold flex items-center gap-2">
+                <Warning size={16} className="shrink-0" />
+                <span>{createError}</span>
+              </div>
+            )}
+
             {/* Form */}
             <form onSubmit={handleCreateUser} className="p-6 pt-0 space-y-4 text-xs font-semibold">
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -705,7 +731,16 @@ export function SuperAdminMemberManagement() {
                   />
                 </div>
 
-
+                <div>
+                  <label className="block text-slate-700 dark:text-[#AEB5C0] mb-1 font-extrabold">Phone Number</label>
+                  <input
+                    type="tel"
+                    placeholder="e.g. +91 98200 12345"
+                    value={newMemberPhone}
+                    onChange={(e) => setNewMemberPhone(e.target.value)}
+                    className="w-full p-3 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs font-semibold text-slate-900 dark:text-[#F5F7FA] focus:outline-none"
+                  />
+                </div>
 
                 <div>
                   <label className="block text-slate-700 dark:text-[#AEB5C0] mb-1 font-extrabold">Email Address</label>
@@ -960,11 +995,6 @@ export function SuperAdminMemberManagement() {
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931]">
                   <p className="text-[10px] font-extrabold uppercase text-slate-400 dark:text-[#626A75]">STATUS</p>
                   <p className="text-sm font-extrabold text-emerald-600 dark:text-[#32C98B] mt-0.5">{activityMember.status || "ACTIVE"}</p>
-                </div>
-
-                <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931]">
-                  <p className="text-[10px] font-extrabold uppercase text-slate-400 dark:text-[#626A75]">PAN CARD</p>
-                  <p className="text-xs font-mono font-extrabold text-slate-800 dark:text-[#F5F7FA] mt-0.5">{activityMember.panMasked}</p>
                 </div>
 
                 <div className="p-3.5 rounded-2xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931]">

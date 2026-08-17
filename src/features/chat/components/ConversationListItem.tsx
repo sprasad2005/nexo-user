@@ -1,8 +1,8 @@
 "use client";
 
 import React from "react";
-import { Conversation, Member } from "@/types/nexo";
-import { TrendUp, Users } from "@phosphor-icons/react";
+import { Conversation } from "@/types/nexo";
+import { TrendUp } from "@phosphor-icons/react";
 
 interface ConversationListItemProps {
   conversation: Conversation;
@@ -11,10 +11,9 @@ interface ConversationListItemProps {
   onClick: () => void;
 }
 
-export function ConversationListItem({
+export const ConversationListItem = React.memo(function ConversationListItem({
   conversation,
   isActive,
-  currentMemberId,
   onClick,
 }: ConversationListItemProps) {
   const isUnread = (conversation.unreadCount || 0) > 0;
@@ -69,6 +68,8 @@ export function ConversationListItem({
           <img
             src={avatar}
             alt={title}
+            loading="lazy"
+            decoding="async"
             className="w-11 h-11 rounded-full object-cover ring-1 ring-line/80 bg-surface-alt"
           />
         )}
@@ -119,4 +120,15 @@ export function ConversationListItem({
       </div>
     </button>
   );
-}
+}, (prev, next) => {
+  return (
+    prev.isActive === next.isActive &&
+    prev.currentMemberId === next.currentMemberId &&
+    prev.conversation.id === next.conversation.id &&
+    prev.conversation.lastMessage === next.conversation.lastMessage &&
+    prev.conversation.lastMessageAt === next.conversation.lastMessageAt &&
+    prev.conversation.unreadCount === next.conversation.unreadCount &&
+    prev.conversation.title === next.conversation.title &&
+    prev.conversation.avatar === next.conversation.avatar
+  );
+});

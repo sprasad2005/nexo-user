@@ -75,7 +75,7 @@ export function AdminDashboard({
   const applicationsCount = allApplications.length || 12;
   const pendingAllotmentsCount = visibleIpos.filter((i: any) => i.status === "ALLOTMENT_PENDING").length || 2;
   const holdingsCount = visibleIpos.filter((i: any) => i.status === "HOLDING").length || 7;
-  const unreadMessagesCount = (conversations as any[])?.reduce((sum: number, c: any) => sum + (c.unreadCount || 0), 0) || 3;
+  const unreadMessagesCount = (conversations as any[])?.reduce((sum: number, c: any) => sum + (c.unreadCount || 0), 0) || 0;
 
   // Admin Priorities Data
   const adminPriorities: AdminPriorityItem[] = [

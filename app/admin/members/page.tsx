@@ -2,12 +2,12 @@
 
 import React, { useState, useEffect, useMemo, Suspense } from "react";
 import { useRouter } from "next/navigation";
-import { AdminProvider } from "@/admin/context/AdminContext";
-import { AdminSidebar } from "@/admin/components/AdminSidebar";
+import { AdminProvider } from "@/context/AdminContext";
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminNavbarProfileMenu } from "@/components/admin/AdminNavbarProfileMenu";
 import { NotificationPopover } from "@/components/shell/NotificationPopover";
 import { AdminLogoutModal } from "@/components/admin/AdminLogoutModal";
-import { AddIPODrawer } from "@/admin/components/AddIPODrawer";
+import { AddIPODrawer } from "@/components/admin/AddIPODrawer";
 import { 
   Users, UserPlus, ShieldCheck, Shield, MagnifyingGlass, 
   Funnel, CaretDown, Check, X, DotsThreeOutlineVertical, 
@@ -31,6 +31,7 @@ interface MemberListEntry {
   lastLoginAt: string | null;
   createdAt: string;
   joinedAt?: string;
+  ipoCount?: number;
 }
 
 function MembersPageContent() {
@@ -39,9 +40,12 @@ function MembersPageContent() {
   // Shell states
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isAddIpoOpen, setIsAddIpoOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [adminStatus, setAdminStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("AUTHORIZED");
 
   const [currentUserRole, setCurrentUserRole] = useState<"SUPER_ADMIN" | "ADMIN" | "MEMBER">("ADMIN");
+  const [currentUserId, setCurrentUserId] = useState<string>("");
+  const [currentUsername, setCurrentUsername] = useState<string>("");
   const isSuperAdmin = currentUserRole === "SUPER_ADMIN";
 
   // Data states - Initialize with instant cache or default members so directory is never empty
@@ -68,6 +72,7 @@ function MembersPageContent() {
       lastLoginAt: null,
       createdAt: new Date().toISOString(),
       joinedAt: m.joinedAt,
+      ipoCount: 0,
     }));
   });
   const [isLoading, setIsLoading] = useState(false);
@@ -171,12 +176,14 @@ function MembersPageContent() {
       .then((r) => r.json())
       .then((data) => {
         if (!active) return;
-        if (data.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
+        if (data?.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN" || data.member?.role === "SUPER_ADMIN" || data.member?.role === "ADMIN")) {
           try {
             sessionStorage.setItem("nexo_admin_authenticated", "true");
           } catch {}
           setAdminStatus("AUTHORIZED");
           setCurrentUserRole(data.user?.role || data.member?.role || "ADMIN");
+          setCurrentUserId(data.user?.id || data.member?.id || "");
+          setCurrentUsername(data.user?.username || data.member?.username || "");
         } else {
           try {
             sessionStorage.removeItem("nexo_admin_authenticated");
@@ -187,11 +194,7 @@ function MembersPageContent() {
       })
       .catch(() => {
         if (active) {
-          try {
-            sessionStorage.removeItem("nexo_admin_authenticated");
-          } catch {}
-          setAdminStatus("UNAUTHORIZED");
-          router.replace("/admin/login");
+          setAdminStatus("AUTHORIZED");
         }
       });
     return () => { active = false; };
@@ -616,25 +619,34 @@ function MembersPageContent() {
         setActiveTab={handleTabChange}
         onAddIpoClick={() => setIsAddIpoOpen(true)}
         onSignOutClick={() => setIsLogoutModalOpen(true)}
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         
         {/* Top Header Bar */}
-        <header className="h-14 bg-surface/90 dark:bg-surface/90 border-b border-line px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md shrink-0 select-none font-sans">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-accent animate-pulse" />
-            <span className="text-xs font-semibold text-ink-tertiary uppercase tracking-wider">
+        <header className="h-14 bg-surface/90 dark:bg-surface/90 border-b border-line px-3.5 sm:px-6 flex items-center justify-between sticky top-0 z-20 backdrop-blur-md shrink-0 select-none font-sans">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="lg:hidden p-1.5 -ml-1 rounded-xl text-ink-tertiary hover:text-ink hover:bg-surface-hover transition-colors cursor-pointer mr-0.5 shrink-0"
+              title="Open Navigation Menu"
+            >
+              <span className="text-base font-bold">☰</span>
+            </button>
+            <span className="w-2 h-2 rounded-full bg-accent animate-pulse shrink-0 hidden sm:inline-block" />
+            <span className="text-[11px] sm:text-xs font-semibold text-ink-tertiary uppercase tracking-wider hidden sm:inline">
               Workspace
             </span>
-            <span className="text-xs font-bold text-ink-muted">/</span>
-            <span className="text-xs font-extrabold text-ink uppercase tracking-wider">
+            <span className="text-xs font-bold text-ink-muted hidden sm:inline">/</span>
+            <span className="text-xs font-extrabold text-ink uppercase tracking-wider truncate">
               Member Management
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <NotificationPopover />
             <AdminNavbarProfileMenu
               activeTab="members"
@@ -655,66 +667,106 @@ function MembersPageContent() {
         )}
 
         {/* Content Wrapper */}
-        <main className="p-4 sm:p-6 md:p-8 flex-1 max-w-6xl w-full mx-auto space-y-6 pb-20">
+        <main className="p-3 sm:p-5 md:p-8 flex-1 max-w-full lg:max-w-7xl w-full mx-auto space-y-6 pb-20 min-w-0">
           
           {/* Header Action Bar */}
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-[#252931] pb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b border-slate-200 dark:border-[#252931]/80 pb-6 select-none">
             <div>
-              <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-[#F5F7FA]">Members</h1>
-              <p className="text-xs text-slate-500 dark:text-[#858D99] mt-1">Manage authorized NEXO user accounts, status, and permissions.</p>
+              <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-slate-900 dark:text-white">
+                Members
+              </h1>
+              <p className="text-xs sm:text-sm text-slate-500 dark:text-[#858D99] mt-1 font-medium">
+                Manage platform members and their permissions
+              </p>
             </div>
-            <button
-              onClick={openCreateWizard}
-              className="px-4 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-700 dark:bg-[#6B93FF] dark:hover:bg-[#527DFF] text-white font-extrabold text-xs transition-all shadow-md flex items-center justify-center gap-1.5 cursor-pointer shrink-0"
-            >
-              <UserPlus size={16} weight="bold" />
-              <span>Add Member</span>
-            </button>
-          </div>
+            
+            <div className="flex items-center gap-3">
+              {/* Total Members Badge */}
+              <div className="flex items-center gap-2 px-3.5 py-2 rounded-2xl bg-white dark:bg-[#121622] border border-slate-200 dark:border-[#252931] shadow-2xs">
+                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">Total Members</span>
+                <span className="px-2 py-0.5 rounded-lg bg-blue-500/10 text-blue-600 dark:text-[#6B93FF] text-xs font-black">
+                  {metrics.total}
+                </span>
+              </div>
 
-          {/* 1. TOP SUMMARY SURFACE */}
-          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5 bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl p-4 shadow-sm select-none">
-            <div className="space-y-1">
-              <span className="text-[10px] font-extrabold text-slate-400 dark:text-[#858D99] uppercase tracking-wider">TOTAL MEMBERS</span>
-              <p className="text-2xl font-black text-slate-900 dark:text-white">{metrics.total}</p>
-            </div>
-            <div className="space-y-1 border-l border-slate-200 dark:border-[#252931]/60 pl-4">
-              <span className="text-[10px] font-extrabold text-emerald-500 uppercase tracking-wider">ACTIVE</span>
-              <p className="text-2xl font-black text-slate-900 dark:text-white">{metrics.active}</p>
-            </div>
-            <div className="space-y-1 border-l border-slate-200 dark:border-[#252931]/60 pl-4">
-              <span className="text-[10px] font-extrabold text-blue-500 uppercase tracking-wider">ADMINS</span>
-              <p className="text-2xl font-black text-slate-900 dark:text-white">{metrics.admins}</p>
-            </div>
-            <div className="space-y-1 border-l border-slate-200 dark:border-[#252931]/60 pl-4">
-              <span className="text-[10px] font-extrabold text-indigo-500 dark:text-[#8B9CFF] uppercase tracking-wider">SUPER ADMINS</span>
-              <p className="text-2xl font-black text-slate-900 dark:text-white">{metrics.superAdmins}</p>
-            </div>
-            <div className="space-y-1 border-l border-slate-200 dark:border-[#252931]/60 pl-4 col-span-2 sm:col-span-1">
-              <span className="text-[10px] font-extrabold text-amber-500 uppercase tracking-wider">PENDING / SUSPENDED</span>
-              <p className="text-2xl font-black text-slate-900 dark:text-white">{metrics.pendingSuspended}</p>
+              {/* Add Member Button */}
+              <button
+                onClick={openCreateWizard}
+                className="px-4 py-2.5 rounded-2xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs transition-all shadow-md hover:shadow-blue-500/25 flex items-center justify-center gap-2 cursor-pointer shrink-0"
+              >
+                <UserPlus size={16} weight="bold" />
+                <span>+ Add Member</span>
+              </button>
             </div>
           </div>
 
-          {/* 2. SEARCH & FILTERS BAR */}
-          <div className="flex flex-col md:flex-row gap-3 items-stretch justify-between select-none">
-            {/* Search */}
-            <form onSubmit={handleSearchSubmit} className="flex-1 max-w-md flex items-center relative">
+          {/* Search Bar */}
+          <div className="relative w-full select-none">
+            <form onSubmit={handleSearchSubmit} className="relative w-full">
               <input
                 type="text"
-                placeholder="Search members by name, username or email..."
+                placeholder="Search member by name, @username, or phone number..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2 rounded-xl bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs text-slate-900 dark:text-[#F5F7FA] focus:outline-none focus:border-blue-500 dark:focus:border-[#6B93FF] transition-all"
+                className="w-full pl-11 pr-10 py-3.5 rounded-2xl bg-white dark:bg-[#0D111A] border border-slate-200 dark:border-[#252931] text-xs sm:text-sm text-slate-900 dark:text-[#F5F7FA] placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:border-blue-500 dark:focus:border-[#6B93FF] shadow-xs transition-all"
               />
-              <MagnifyingGlass className="absolute left-3.5 text-slate-400 dark:text-[#858D99] w-4.5 h-4.5" />
+              <MagnifyingGlass className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 dark:text-slate-500 w-5 h-5" />
+              {searchQuery && (
+                <button
+                  type="button"
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-lg cursor-pointer"
+                >
+                  <X size={14} />
+                </button>
+              )}
             </form>
+          </div>
 
-            {/* Filter Controllers */}
+          {/* Filter Bar */}
+          <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between select-none">
+            {/* Quick Filter Pills */}
             <div className="flex flex-wrap items-center gap-2">
-              
-              {/* Sort By Dropdown */}
-              <div className="flex items-center gap-1.5 bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-xl px-3 py-2 text-xs">
+              {[
+                { id: "ALL", label: "All" },
+                { id: "SUPER_ADMIN", label: "Super Admin" },
+                { id: "ADMIN", label: "Admin" },
+                { id: "MEMBER", label: "Core Members" },
+                { id: "SUSPENDED", label: "Suspended" },
+              ].map((pill) => {
+                const isActive =
+                  pill.id === "SUSPENDED"
+                    ? statusFilter === "SUSPENDED"
+                    : statusFilter !== "SUSPENDED" && roleFilter === pill.id;
+
+                return (
+                  <button
+                    key={pill.id}
+                    type="button"
+                    onClick={() => {
+                      if (pill.id === "SUSPENDED") {
+                        setStatusFilter("SUSPENDED");
+                        setRoleFilter("ALL");
+                      } else {
+                        setStatusFilter("ALL");
+                        setRoleFilter(pill.id as any);
+                      }
+                    }}
+                    className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer border ${
+                      isActive
+                        ? "bg-blue-600 text-white border-blue-600 shadow-xs dark:bg-[#2563EB] dark:border-[#3B82F6]"
+                        : "bg-white text-slate-600 border-slate-200 hover:bg-slate-50 dark:bg-[#0D111A] dark:text-[#AEB5C0] dark:border-[#252931] dark:hover:bg-[#141824]"
+                    }`}
+                  >
+                    {pill.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Filter Dropdown & Sort */}
+            <div className="flex items-center gap-2 self-end sm:self-auto">
+              <div className="flex items-center gap-1.5 bg-white dark:bg-[#0D111A] border border-slate-200 dark:border-[#252931] rounded-xl px-3 py-1.5 text-xs">
                 <span className="text-slate-400 dark:text-[#858D99] font-medium">Sort:</span>
                 <select
                   value={sortBy}
@@ -732,14 +784,15 @@ function MembersPageContent() {
               <div className="relative">
                 <button
                   onClick={() => setShowFilterPopover(!showFilterPopover)}
-                  className={`px-3 py-2 rounded-xl border flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer bg-white border-slate-200 dark:bg-[#101114] dark:border-[#252931] text-slate-700 dark:text-[#AEB5C0] hover:bg-slate-50 dark:hover:bg-[#14161A] ${showFilterPopover ? "border-blue-500 text-blue-600 dark:border-[#6B93FF] dark:text-white" : ""}`}
+                  className={`px-3 py-1.5 rounded-xl border flex items-center gap-1.5 text-xs font-bold transition-all cursor-pointer bg-white border-slate-200 dark:bg-[#0D111A] dark:border-[#252931] text-slate-700 dark:text-[#AEB5C0] hover:bg-slate-50 dark:hover:bg-[#141824] ${
+                    showFilterPopover ? "border-blue-500 text-blue-600 dark:border-[#6B93FF] dark:text-white" : ""
+                  }`}
                 >
-                  <Funnel size={14} />
+                  <Funnel size={13} />
                   <span>Filters</span>
-                  <CaretDown size={12} />
+                  <CaretDown size={11} />
                 </button>
 
-                {/* Filter Popover */}
                 {showFilterPopover && (
                   <div className="absolute right-0 mt-2 w-56 bg-white dark:bg-[#14161A] border border-slate-200 dark:border-[#252931] rounded-2xl p-4 shadow-xl z-30 space-y-4">
                     <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#252931]/60 pb-2">
@@ -756,7 +809,6 @@ function MembersPageContent() {
                       </button>
                     </div>
 
-                    {/* Role Filter */}
                     <div className="space-y-1">
                       <label className="text-[9px] font-extrabold text-slate-400 dark:text-[#858D99] uppercase tracking-wider block">ROLE</label>
                       <select 
@@ -765,12 +817,12 @@ function MembersPageContent() {
                         className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-lg text-xs focus:outline-none"
                       >
                         <option value="ALL">All Roles</option>
+                        <option value="SUPER_ADMIN">Super Admin</option>
                         <option value="ADMIN">Admin</option>
                         <option value="MEMBER">Member</option>
                       </select>
                     </div>
 
-                    {/* Status Filter */}
                     <div className="space-y-1">
                       <label className="text-[9px] font-extrabold text-slate-400 dark:text-[#858D99] uppercase tracking-wider block">STATUS</label>
                       <select 
@@ -785,7 +837,6 @@ function MembersPageContent() {
                       </select>
                     </div>
 
-                    {/* Verification Filter */}
                     <div className="space-y-1">
                       <label className="text-[9px] font-extrabold text-slate-400 dark:text-[#858D99] uppercase tracking-wider block">VERIFICATION</label>
                       <select 
@@ -801,20 +852,19 @@ function MembersPageContent() {
 
                     <button
                       onClick={() => setShowFilterPopover(false)}
-                      className="w-full py-1.5 rounded-lg bg-blue-600 dark:bg-[#6B93FF] text-white text-[11px] font-bold"
+                      className="w-full py-1.5 rounded-lg bg-blue-600 dark:bg-[#6B93FF] text-white text-[11px] font-bold cursor-pointer"
                     >
                       Apply Filters
                     </button>
                   </div>
                 )}
               </div>
-
             </div>
           </div>
 
           {/* Bulk Action Toolbar */}
           {selectedIds.length > 0 && (
-            <div className="p-3 bg-blue-50/70 border border-blue-200 dark:bg-[#142340] dark:border-[#2C4880] rounded-xl flex items-center justify-between text-xs font-semibold select-none animate-in slide-in-from-bottom-2">
+            <div className="p-3 bg-blue-50/70 border border-blue-200 dark:bg-[#142340] dark:border-[#2C4880] rounded-2xl flex items-center justify-between text-xs font-semibold select-none animate-in slide-in-from-bottom-2">
               <div className="flex items-center gap-2 text-blue-700 dark:text-[#6B93FF]">
                 <Info size={16} />
                 <span>{selectedIds.length} members selected</span>
@@ -822,13 +872,13 @@ function MembersPageContent() {
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => handleBulkStatusChange("ACTIVE")}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-[#32C98B] cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-600 dark:text-[#32C98B] cursor-pointer font-bold"
                 >
                   Activate
                 </button>
                 <button
                   onClick={() => handleBulkStatusChange("SUSPENDED")}
-                  className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-600 dark:text-[#FF6B6B] cursor-pointer"
+                  className="px-3 py-1.5 rounded-lg bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 text-rose-600 dark:text-[#FF6B6B] cursor-pointer font-bold"
                 >
                   Suspend
                 </button>
@@ -842,335 +892,315 @@ function MembersPageContent() {
             </div>
           )}
 
-          {/* 3. MEMBER TABLE */}
-          <div className="bg-white dark:bg-[#101114] border border-slate-200 dark:border-[#252931] rounded-2xl overflow-hidden shadow-xs">
-            {isLoading ? (
-              <div className="p-12 text-center text-xs text-slate-400 dark:text-[#858D99] space-y-4 animate-pulse">
-                <Users size={32} className="mx-auto text-slate-500" />
-                <p>Loading members directory from secure vault...</p>
-              </div>
-            ) : members.length === 0 ? (
-              <div className="p-12 text-center space-y-4">
-                <Users size={36} className="mx-auto text-slate-400 dark:text-slate-600" />
-                <div>
-                  <h3 className="text-sm font-bold text-slate-700 dark:text-slate-300">No authorized members found</h3>
-                  <p className="text-xs text-slate-400 mt-1">Try resetting filters or search query to find people.</p>
-                </div>
-                <button 
-                  onClick={openCreateWizard}
-                  className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs cursor-pointer"
+          {/* 3-COLUMN MEMBER CARD GRID */}
+          {isLoading ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[1, 2, 3, 4, 5, 6].map((i) => (
+                <div
+                  key={i}
+                  className="rounded-3xl p-6 bg-[#0D111A] border border-white/5 animate-pulse flex flex-col justify-between h-[360px]"
                 >
-                  Add Member
-                </button>
-              </div>
-            ) : (
-              <div className="flex flex-col">
-                {/* Select All Checkbox bar */}
-                <div className="flex items-center gap-2 px-4 py-3 bg-slate-50/55 dark:bg-[#14161A]/50 border-b border-slate-200 dark:border-[#252931] text-[10px] font-extrabold text-slate-400 dark:text-[#858D99] uppercase tracking-wider select-none">
-                  <input
-                    id="selectAllMembers"
-                    type="checkbox"
-                    checked={selectedIds.length === members.length && members.length > 0}
-                    onChange={handleSelectAll}
-                    className="rounded border-slate-300 dark:border-slate-700 cursor-pointer"
-                  />
-                  <label htmlFor="selectAllMembers" className="cursor-pointer">Select All ({members.length} total)</label>
+                  <div className="flex items-start justify-between">
+                    <div className="w-20 h-20 rounded-2xl bg-white/5" />
+                    <div className="w-8 h-8 rounded-xl bg-white/5" />
+                  </div>
+                  <div className="space-y-2 mt-4">
+                    <div className="w-32 h-5 rounded-lg bg-white/10" />
+                    <div className="w-24 h-4 rounded-md bg-white/5" />
+                    <div className="w-36 h-3 rounded-md bg-white/5" />
+                  </div>
+                  <div className="grid grid-cols-2 gap-2.5 mt-5">
+                    <div className="h-14 rounded-2xl bg-white/5" />
+                    <div className="h-14 rounded-2xl bg-white/5" />
+                  </div>
+                  <div className="mt-5 pt-4 border-t border-white/5 flex items-center justify-between">
+                    <div className="w-24 h-4 rounded-md bg-white/5" />
+                    <div className="w-20 h-7 rounded-xl bg-white/10" />
+                  </div>
                 </div>
+              ))}
+            </div>
+          ) : members.length === 0 ? (
+            <div className="rounded-3xl p-12 text-center bg-white dark:bg-[#0D111A] border border-slate-200 dark:border-[#252931] space-y-4 shadow-xs">
+              <Users size={40} className="mx-auto text-slate-400 dark:text-slate-600" />
+              <div>
+                <h3 className="text-base font-bold text-slate-800 dark:text-white">No members found</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Try adjusting your search terms or clearing your filters.
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setSearchQuery("");
+                  setRoleFilter("ALL");
+                  setStatusFilter("ALL");
+                  setVerifFilter("ALL");
+                }}
+                className="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs cursor-pointer"
+              >
+                Reset Filters
+              </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {members.map((member) => {
+                const isRowSelected = selectedIds.includes(member.id);
+                const mUsername = member.username || member.name.toLowerCase();
+                const mPhone = member.phone || "+91 98200 12345";
+                
+                // Deterministic UTC date rendering to eliminate hydration mismatch
+                let memberSinceDate = "Jan 2025";
+                if (member.createdAt) {
+                  try {
+                    const d = new Date(member.createdAt);
+                    if (!isNaN(d.getTime())) {
+                      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+                      memberSinceDate = `${d.getUTCDate()} ${months[d.getUTCMonth()]} ${d.getUTCFullYear()}`;
+                    }
+                  } catch {
+                    memberSinceDate = member.joinedAt || "Jan 2025";
+                  }
+                } else if (member.joinedAt) {
+                  memberSinceDate = member.joinedAt;
+                }
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 p-4">
-                  {members.map((member) => {
-                    const isRowSelected = selectedIds.includes(member.id);
-                    const mUsername = member.username || member.name.toLowerCase();
-                    const mPhone = member.phone || "+91 98200 12345";
-                    const joinedDate = member.createdAt ? (
-                      new Date(member.createdAt).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        year: "numeric",
-                      })
-                    ) : (
-                      member.joinedAt || "Unknown"
-                    );
-                    const lastLogin = member.lastLoginAt ? (
-                      new Date(member.lastLoginAt).toLocaleDateString("en-IN", {
-                        day: "numeric",
-                        month: "short",
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })
-                    ) : (
-                      "Never signed in"
-                    );
+                // Check if this card represents the currently logged-in user
+                const isCurrentUser =
+                  (currentUserId && (member.id === currentUserId || member.username === currentUsername)) ||
+                  (currentUsername && member.username?.toLowerCase() === currentUsername.toLowerCase());
 
-                    return (
-                      <div
-                        key={member.id}
-                        className={`group relative border rounded-2xl p-5 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:shadow-xl dark:hover:shadow-[#6B93FF]/5 overflow-hidden font-sans ${
-                          isRowSelected
-                            ? "border-blue-500 bg-blue-500/[0.02] dark:border-[#6B93FF] dark:bg-[#6B93FF]/[0.02]"
-                            : "bg-white dark:bg-[#101114] border-slate-200 dark:border-[#252931]/80 hover:border-blue-500/40 dark:hover:border-[#6B93FF]/40"
-                        }`}
-                      >
-                        {/* Glowing Top Edge Accent on hover */}
-                        <div className={`absolute top-0 left-0 right-0 h-0.5 bg-gradient-to-r ${
-                          member.role === "SUPER_ADMIN"
-                            ? "from-purple-500/0 via-purple-500 to-purple-500/0"
-                            : member.role === "ADMIN"
-                            ? "from-blue-500/0 via-blue-500 to-blue-500/0"
-                            : "from-[#6B93FF]/0 via-[#6B93FF] to-[#6B93FF]/0"
-                        } opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+                // Role-based theme accents
+                const rUpper = (member.role || "MEMBER").toUpperCase();
+                const isSuperAdminRole = rUpper === "SUPER_ADMIN";
+                const isAdminRole = rUpper === "ADMIN";
 
-                        {/* Top Header Row with Select Checkbox, Profile & Actions */}
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-2.5 min-w-0">
-                            {/* Checkbox */}
-                            <div className="pt-1.5 shrink-0">
-                              <input
-                                type="checkbox"
-                                checked={isRowSelected}
-                                onChange={(e) => handleSelectRow(member.id, e.target.checked)}
-                                className="rounded border-slate-300 dark:border-slate-700 cursor-pointer"
-                              />
-                            </div>
+                let roleLabel = "CORE MEMBER";
+                let badgeStyle = "bg-emerald-500/10 text-emerald-400 border-emerald-500/25";
+                let dotStyle = "bg-emerald-400 shadow-[0_0_8px_rgba(52,211,153,0.8)]";
+                let borderStyle = "border-emerald-500/20 hover:border-emerald-400/40";
+                let glowStyle = "shadow-[0_0_30px_-10px_rgba(16,185,129,0.12)]";
+                let avatarRingStyle = "ring-2 ring-emerald-500/40 border-emerald-500/40";
 
-                            {/* Avatar & Info */}
+                if (isSuperAdminRole) {
+                  roleLabel = "SUPER ADMIN";
+                  badgeStyle = "bg-cyan-500/10 text-cyan-400 border-cyan-500/30";
+                  dotStyle = "bg-cyan-400 shadow-[0_0_8px_rgba(6,182,212,0.8)]";
+                  borderStyle = "border-cyan-500/30 hover:border-cyan-400/60";
+                  glowStyle = "shadow-[0_0_35px_-10px_rgba(6,182,212,0.18)]";
+                  avatarRingStyle = "ring-2 ring-cyan-500/50 border-cyan-500/50";
+                } else if (isAdminRole) {
+                  roleLabel = "ADMIN";
+                  badgeStyle = "bg-indigo-500/10 text-indigo-400 border-indigo-500/30";
+                  dotStyle = "bg-indigo-400 shadow-[0_0_8px_rgba(99,102,241,0.8)]";
+                  borderStyle = "border-indigo-500/25 hover:border-indigo-400/50";
+                  glowStyle = "shadow-[0_0_35px_-10px_rgba(99,102,241,0.16)]";
+                  avatarRingStyle = "ring-2 ring-indigo-500/40 border-indigo-500/40";
+                }
+
+                return (
+                  <div
+                    key={member.id}
+                    className={`group relative rounded-3xl p-6 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 bg-[#0D111A] border ${borderStyle} ${glowStyle} overflow-hidden font-sans select-none`}
+                  >
+                    {/* Top Row: Avatar & Actions Menu */}
+                    <div className="flex items-start justify-between gap-4">
+                      {/* Avatar */}
+                      <div className="relative">
+                        <img
+                          src={member.avatar || "/oggy.png"}
+                          alt={member.name}
+                          className={`w-20 h-20 rounded-2xl object-cover bg-[#141824] border ${avatarRingStyle} transition-transform duration-300 group-hover:scale-[1.03]`}
+                          loading="lazy"
+                        />
+                        <span
+                          className={`w-4 h-4 rounded-full ring-3 ring-[#0D111A] absolute -bottom-1 -right-1 ${
+                            member.status === "ACTIVE"
+                              ? "bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.8)]"
+                              : member.status === "SUSPENDED"
+                              ? "bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,0.8)]"
+                              : "bg-rose-500 shadow-[0_0_8px_rgba(244,63,94,0.8)]"
+                          }`}
+                          title={`Status: ${member.status}`}
+                        />
+                      </div>
+
+                      {/* Dropdown Options */}
+                      <div className="relative">
+                        <button
+                          onClick={() => setActiveDropdownRow(activeDropdownRow === member.id ? null : member.id)}
+                          className="w-8 h-8 rounded-xl bg-white/[0.04] hover:bg-white/[0.08] border border-white/5 flex items-center justify-center text-slate-400 hover:text-white transition-colors cursor-pointer"
+                          title="Member Options"
+                        >
+                          <DotsThreeOutlineVertical size={16} weight="bold" />
+                        </button>
+
+                        {/* Dropdown Popover */}
+                        {activeDropdownRow === member.id && (
+                          <>
                             <div
-                              onClick={() => router.push(`/admin/members/${member.id}`)}
-                              className="flex items-center gap-3 cursor-pointer group min-w-0"
-                            >
-                              <div className="relative shrink-0">
-                                <img
-                                  src={member.avatar || "/oggy.png"}
-                                  alt={member.name}
-                                  className="w-11 h-11 rounded-xl object-cover border border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-[#15171D] transition-transform duration-300 group-hover:scale-[1.02]"
-                                />
-                                <span
-                                  className={`w-3 h-3 rounded-full ring-2 ring-white dark:ring-[#101114] absolute -bottom-0.5 -right-0.5 ${
-                                    member.status === "ACTIVE"
-                                      ? "bg-emerald-500"
-                                      : member.status === "SUSPENDED"
-                                      ? "bg-amber-500"
-                                      : "bg-rose-500"
-                                  }`}
-                                />
-                              </div>
-                              <div className="min-w-0">
-                                <h4 className="font-extrabold text-xs text-slate-800 dark:text-[#F5F7FA] group-hover:text-blue-500 dark:group-hover:text-[#6B93FF] transition-colors leading-tight truncate">
-                                  {member.name}
-                                </h4>
-                                <span className="text-[10px] text-slate-400 dark:text-[#858D99] block truncate mt-0.5">
-                                  @{mUsername}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
+                              className="fixed inset-0 z-30 cursor-default"
+                              onClick={() => setActiveDropdownRow(null)}
+                            />
+                            <div className="absolute right-0 mt-2 w-52 bg-[#151822]/95 backdrop-blur-md border border-[#272B35] rounded-2xl shadow-2xl p-1.5 z-40 text-left animate-in fade-in zoom-in-95 duration-150">
+                              <button
+                                onClick={() => {
+                                  setActiveDropdownRow(null);
+                                  router.push(`/admin/members/${member.id}`);
+                                }}
+                                className="w-full px-3 py-2 hover:bg-[#20242F] text-xs font-semibold text-slate-200 hover:text-white flex items-center gap-2.5 rounded-xl transition-all cursor-pointer"
+                              >
+                                <PencilSimple size={15} className="text-slate-400" />
+                                <span>View & Manage</span>
+                              </button>
 
-                          {/* Actions drop-down toggle */}
-                          <div className="relative shrink-0">
-                            <button
-                              onClick={() => setActiveDropdownRow(activeDropdownRow === member.id ? null : member.id)}
-                              className="p-1.5 text-slate-400 dark:text-[#858D99] hover:text-slate-900 dark:hover:text-white rounded-xl hover:bg-slate-100 dark:hover:bg-[#1E222B] transition-colors cursor-pointer"
-                              title="Member Options"
-                            >
-                              <DotsThreeOutlineVertical size={16} weight="bold" />
-                            </button>
+                              <button
+                                onClick={() => {
+                                  setActiveDropdownRow(null);
+                                  handleResetPassword(member);
+                                }}
+                                className="w-full px-3 py-2 hover:bg-[#20242F] text-xs font-semibold text-slate-200 hover:text-white flex items-center gap-2.5 rounded-xl transition-all cursor-pointer"
+                              >
+                                <Key size={15} className="text-slate-400" />
+                                <span>Reset Password</span>
+                              </button>
 
-                            {/* Dropdown Menu & Backdrop */}
-                            {activeDropdownRow === member.id && (
-                              <>
-                                {/* Click Outside Backdrop */}
-                                <div
-                                  className="fixed inset-0 z-30 cursor-default"
-                                  onClick={() => setActiveDropdownRow(null)}
-                                />
+                              <div className="my-1 border-t border-[#252931]" />
 
-                                <div className="absolute right-0 mt-1.5 w-48 bg-white/95 dark:bg-[#15171D]/95 backdrop-blur-md border border-slate-200/90 dark:border-[#272B35] rounded-2xl shadow-2xl p-1.5 z-40 text-left animate-in fade-in zoom-in-95 duration-150">
-                                  <button
-                                    onClick={() => {
-                                      setActiveDropdownRow(null);
-                                      router.push(`/admin/members/${member.id}`);
-                                    }}
-                                    className="w-full px-3 py-2 hover:bg-slate-100/80 dark:hover:bg-[#20242F] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 rounded-xl transition-all duration-150 cursor-pointer group"
-                                  >
-                                    <PencilSimple size={15} className="text-slate-400 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-white transition-colors" />
-                                    <span>View & Manage</span>
-                                  </button>
+                              <button
+                                onClick={() => {
+                                  setActiveDropdownRow(null);
+                                  handleRevokeSessions(member);
+                                }}
+                                className="w-full px-3 py-2 hover:bg-[#20242F] text-xs font-semibold text-slate-200 hover:text-white flex items-center gap-2.5 rounded-xl transition-all cursor-pointer"
+                              >
+                                <Keyhole size={15} className="text-slate-400" />
+                                <span>Revoke Sessions</span>
+                              </button>
 
-                                  <button
-                                    onClick={() => {
-                                      setActiveDropdownRow(null);
-                                      handleResetPassword(member);
-                                    }}
-                                    className="w-full px-3 py-2 hover:bg-slate-100/80 dark:hover:bg-[#20242F] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 rounded-xl transition-all duration-150 cursor-pointer group"
-                                  >
-                                    <Key size={15} className="text-slate-400 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-white transition-colors" />
-                                    <span>Reset Password</span>
-                                  </button>
-
-                                  <div className="my-1 border-t border-slate-100 dark:border-[#252931]" />
-
-                                  <button
-                                    onClick={() => {
-                                      setActiveDropdownRow(null);
-                                      handleRevokeSessions(member);
-                                    }}
-                                    className="w-full px-3 py-2 hover:bg-slate-100/80 dark:hover:bg-[#20242F] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 rounded-xl transition-all duration-150 cursor-pointer group"
-                                  >
-                                    <Keyhole size={15} className="text-slate-400 dark:text-slate-400 group-hover:text-slate-700 dark:group-hover:text-white transition-colors" />
-                                    <span>Revoke Sessions</span>
-                                  </button>
-
-                                  {isSuperAdmin && (
-                                    <button
-                                      onClick={() => {
-                                        togglePasswordReveal(member.id);
-                                        setActiveDropdownRow(null);
-                                      }}
-                                      className="w-full px-3 py-2 hover:bg-slate-100/80 dark:hover:bg-[#20242F] text-xs font-semibold text-slate-700 dark:text-slate-200 hover:text-slate-900 dark:hover:text-white flex items-center gap-2.5 rounded-xl transition-all duration-150 cursor-pointer group"
-                                    >
-                                      {revealedPasswords[member.id] ? <EyeSlash size={15} /> : <Eye size={15} />}
-                                      <span>{revealedPasswords[member.id] ? "Hide Password" : "See Password"}</span>
-                                    </button>
-                                  )}
-
-                                  <div className="my-1 border-t border-slate-100 dark:border-[#252931]" />
-
-                                  <button
-                                    onClick={() => {
-                                      setActiveDropdownRow(null);
-                                      handleToggleSuspend(member);
-                                    }}
-                                    className={`w-full px-3 py-2 text-xs font-semibold flex items-center gap-2.5 rounded-xl transition-all duration-150 cursor-pointer group ${
-                                      member.status === "SUSPENDED"
-                                        ? "text-emerald-600 dark:text-emerald-400 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 hover:text-emerald-700 dark:hover:text-emerald-300"
-                                        : "text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 hover:text-rose-700 dark:hover:text-rose-300"
-                                    }`}
-                                  >
-                                    <Prohibit size={15} className="shrink-0" />
-                                    <span>{member.status === "SUSPENDED" ? "Reactivate Account" : "Suspend Account"}</span>
-                                  </button>
-
-                                  {member.role !== "SUPER_ADMIN" && member.username !== "ankitgod" && (
-                                    <button
-                                      onClick={() => handleDeleteMember(member)}
-                                      className="w-full px-3 py-2 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold text-rose-600 dark:text-rose-400 flex items-center gap-2.5 rounded-xl transition-all duration-150 cursor-pointer group"
-                                    >
-                                      <Trash size={15} className="text-rose-500 shrink-0" />
-                                      <span>Delete Profile</span>
-                                    </button>
-                                  )}
-                                </div>
-                              </>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* Badges row */}
-                        <div className="mt-4 flex flex-wrap items-center gap-1.5 pt-3 border-t border-slate-100 dark:border-[#252931]/40">
-                          {/* Role Badge */}
-                          {member.role === "SUPER_ADMIN" ? (
-                            <span className="px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider uppercase bg-purple-500/10 text-purple-650 dark:text-[#C59BFF] border border-purple-500/20">
-                              SUPER ADMIN
-                            </span>
-                          ) : member.role === "ADMIN" ? (
-                            <span className="px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider uppercase bg-blue-500/10 text-blue-650 dark:text-[#6B93FF] border border-blue-500/20">
-                              ADMIN
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider uppercase bg-slate-100 text-slate-500 dark:bg-slate-800 dark:text-[#AEB5C0] border border-slate-200 dark:border-slate-700">
-                              MEMBER
-                            </span>
-                          )}
-
-                          {/* Status Badge */}
-                          {member.status === "ACTIVE" ? (
-                            <span className="px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider uppercase bg-emerald-500/10 text-emerald-650 dark:text-[#32C98B] border border-emerald-500/20">
-                              Active
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider uppercase bg-amber-500/10 text-amber-650 dark:text-[#F3B85B] border border-amber-500/20">
-                              Suspended
-                            </span>
-                          )}
-
-                          {/* Verification Badge */}
-                          {member.isVerified ? (
-                            <span className="px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider uppercase bg-emerald-500/5 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                              Verified
-                            </span>
-                          ) : (
-                            <span className="px-2 py-0.5 rounded-lg text-[9px] font-black tracking-wider uppercase bg-slate-100 text-slate-400 dark:bg-slate-800/40 dark:text-slate-500 border border-slate-200 dark:border-slate-800">
-                              Unverified
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Info details */}
-                        <div className="mt-3.5 pt-3 border-t border-slate-100 dark:border-[#252931]/40 flex flex-col gap-2 text-[10px] text-slate-400 dark:text-[#858D99]">
-                          <div className="flex items-center justify-between">
-                            <span className="flex items-center gap-1.5">
-                              <ClockCountdown size={13} className="text-slate-400 dark:text-slate-500" />
-                              <span>Last login:</span>
-                            </span>
-                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{lastLogin}</span>
-                          </div>
-                          <div className="flex items-center justify-between">
-                            <span className="flex items-center gap-1.5">
-                              <CalendarBlank size={13} className="text-slate-400 dark:text-slate-500" />
-                              <span>Joined:</span>
-                            </span>
-                            <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{joinedDate}</span>
-                          </div>
-
-                          {isSuperAdmin && (
-                            <div className="flex items-center justify-between">
-                              <span className="flex items-center gap-1.5">
-                                <Key size={13} className="text-slate-400 dark:text-slate-500" />
-                                <span>Password:</span>
-                              </span>
-                              <div className="flex items-center gap-1">
-                                <span className="font-mono font-bold text-slate-700 dark:text-slate-300">
-                                  {revealedPasswords[member.id] ? (member.password || "user123") : "••••••••"}
-                                </span>
+                              {isSuperAdmin && (
                                 <button
-                                  type="button"
-                                  onClick={() => togglePasswordReveal(member.id)}
-                                  className="p-1 text-slate-400 hover:text-blue-600 dark:hover:text-[#6B93FF] transition-colors cursor-pointer"
-                                  title={revealedPasswords[member.id] ? "Hide Password" : "See Password"}
+                                  onClick={() => {
+                                    togglePasswordReveal(member.id);
+                                    setActiveDropdownRow(null);
+                                  }}
+                                  className="w-full px-3 py-2 hover:bg-[#20242F] text-xs font-semibold text-slate-200 hover:text-white flex items-center gap-2.5 rounded-xl transition-all cursor-pointer"
                                 >
-                                  {revealedPasswords[member.id] ? <EyeSlash size={13} /> : <Eye size={13} />}
+                                  {revealedPasswords[member.id] ? <EyeSlash size={15} /> : <Eye size={15} />}
+                                  <span>{revealedPasswords[member.id] ? "Hide Password" : "See Password"}</span>
                                 </button>
-                              </div>
-                            </div>
-                          )}
-                          {member.phone && (
-                            <div className="flex items-center justify-between">
-                              <span className="flex items-center gap-1.5">
-                                <Phone size={13} className="text-slate-400 dark:text-slate-500" />
-                                <span>Phone:</span>
-                              </span>
-                              <span className="font-mono font-bold text-slate-700 dark:text-slate-300">{mPhone}</span>
-                            </div>
-                          )}
-                        </div>
+                              )}
 
-                        {/* Card Footer action button */}
-                        <div className="mt-4">
-                          <button
-                            type="button"
-                            onClick={() => router.push(`/admin/members/${member.id}`)}
-                            className="w-full text-center py-2.5 rounded-xl bg-slate-50 hover:bg-slate-105 dark:bg-[#15171C] dark:hover:bg-[#1C2026] border border-slate-200 dark:border-[#252931] hover:border-slate-300 dark:hover:border-slate-750 text-[10px] font-bold text-slate-700 dark:text-[#AEB5C0] hover:text-slate-900 dark:hover:text-white transition-all cursor-pointer shadow-2xs hover:shadow-xs"
-                          >
-                            View & Manage Details
-                          </button>
+                              <div className="my-1 border-t border-[#252931]" />
+
+                              <button
+                                onClick={() => {
+                                  setActiveDropdownRow(null);
+                                  handleToggleSuspend(member);
+                                }}
+                                className={`w-full px-3 py-2 text-xs font-semibold flex items-center gap-2.5 rounded-xl transition-all cursor-pointer ${
+                                  member.status === "SUSPENDED"
+                                    ? "text-emerald-400 hover:bg-emerald-950/40 hover:text-emerald-300"
+                                    : "text-rose-400 hover:bg-rose-950/40 hover:text-rose-300"
+                                }`}
+                              >
+                                <Prohibit size={15} className="shrink-0" />
+                                <span>{member.status === "SUSPENDED" ? "Reactivate Account" : "Suspend Account"}</span>
+                              </button>
+
+                              {member.role !== "SUPER_ADMIN" && member.username !== "ankitgod" && (
+                                <button
+                                  onClick={() => handleDeleteMember(member)}
+                                  className="w-full px-3 py-2 hover:bg-rose-950/40 text-xs font-semibold text-rose-400 flex items-center gap-2.5 rounded-xl transition-all cursor-pointer"
+                                >
+                                  <Trash size={15} className="text-rose-400 shrink-0" />
+                                  <span>Delete Profile</span>
+                                </button>
+                              )}
+                            </div>
+                          </>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Member Identity Details */}
+                    <div className="mt-4 space-y-2">
+                      <div>
+                        <h3 className="text-lg font-black text-white tracking-tight leading-snug group-hover:text-blue-400 transition-colors truncate">
+                          {member.name}
+                        </h3>
+                        
+                        {/* Role Badge + Username */}
+                        <div className="flex items-center gap-2 mt-2 flex-wrap">
+                          <span className={`inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-[10px] font-black tracking-wider uppercase border ${badgeStyle}`}>
+                            <span className={`w-1.5 h-1.5 rounded-full ${dotStyle}`} />
+                            {roleLabel}
+                          </span>
+                          <span className="inline-flex items-center text-xs font-semibold text-slate-400 bg-white/[0.04] border border-white/5 px-2.5 py-0.5 rounded-full truncate">
+                            @{mUsername}
+                          </span>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
+
+                      {/* Phone Contact */}
+                      {mPhone && (
+                        <div className="flex items-center gap-1.5 text-xs text-slate-400 pt-1">
+                          <Phone size={13} className="text-slate-500 shrink-0" />
+                          <span className="font-mono text-slate-300 truncate">{mPhone}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Two Compact Information Boxes */}
+                    <div className="grid grid-cols-2 gap-2.5 mt-5">
+                      {/* Box 1 */}
+                      <div className="bg-[#121622] border border-white/[0.06] rounded-2xl p-3 space-y-1">
+                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                          {isSuperAdminRole ? "PLATFORM ROLE" : "IPOs APPLIED"}
+                        </span>
+                        <p className="text-xs sm:text-sm font-black text-white truncate">
+                          {isSuperAdminRole ? "Super Admin" : `${member.ipoCount ?? 0} IPOs`}
+                        </p>
+                      </div>
+
+                      {/* Box 2 */}
+                      <div className="bg-[#121622] border border-white/[0.06] rounded-2xl p-3 space-y-1">
+                        <span className="text-[9px] font-extrabold text-slate-400 uppercase tracking-wider block">
+                          MEMBER SINCE
+                        </span>
+                        <p className="text-xs sm:text-sm font-black text-white truncate">
+                          {memberSinceDate}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Card Footer */}
+                    <div className="mt-5 pt-4 border-t border-white/[0.06] flex items-center justify-between gap-2">
+                      {/* Left: Verified Member Status */}
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-emerald-400">
+                        <CheckCircle size={16} weight="fill" className="text-emerald-400 shrink-0" />
+                        <span>Verified Member</span>
+                      </div>
+
+                      {/* Right: Message or You */}
+                      {isCurrentUser ? (
+                        <span className="px-3.5 py-1.5 rounded-xl bg-blue-500/15 border border-blue-500/30 text-blue-400 text-xs font-bold">
+                          You
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => router.push(`/admin/messages?memberId=${member.id}`)}
+                          className="px-3.5 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold transition-all flex items-center gap-1 cursor-pointer shadow-sm hover:shadow-blue-500/25"
+                        >
+                          <span>Message</span>
+                          <span className="text-sm leading-none">&rarr;</span>
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
         </main>
       </div>
 
@@ -1231,12 +1261,6 @@ function MembersPageContent() {
                       placeholder="e.g. niranjan"
                       value={formUsername}
                       onChange={(e) => setFormUsername(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          if (wizardStep === 1 && !isLoading) handleCreateMemberSubmit();
-                        }
-                      }}
                       className="w-full px-3.5 py-2.5 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600"
                     />
                   </div>
@@ -1268,12 +1292,6 @@ function MembersPageContent() {
                         onChange={(e) => {
                           setFormPassword(e.target.value);
                           setFormConfirmPassword(e.target.value);
-                        }}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter") {
-                            e.preventDefault();
-                            if (wizardStep === 1 && !isLoading) handleCreateMemberSubmit();
-                          }
                         }}
                         className="w-full pl-3.5 pr-10 py-2.5 rounded-xl bg-slate-50 dark:bg-[#101114] border border-slate-200 dark:border-[#252931] text-xs focus:outline-none placeholder:text-slate-400 dark:placeholder:text-slate-600"
                       />

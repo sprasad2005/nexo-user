@@ -30,16 +30,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${inter.variable} h-full antialiased`} suppressHydrationWarning>
-      <head suppressHydrationWarning>
-        {/* Inline script to prevent flash of wrong theme */}
-        <script
-          suppressHydrationWarning
-          dangerouslySetInnerHTML={{
-            __html: `(function(){try{var t=localStorage.getItem('nexo-theme');if(t==='dark')document.documentElement.classList.add('dark')}catch(e){}})()`,
-          }}
-        />
-      </head>
+    <html lang="en" className={`${inter.variable} dark h-full antialiased`} suppressHydrationWarning>
       <body className="min-h-full flex flex-col bg-page text-ink font-sans antialiased" suppressHydrationWarning>
         <ThemeProvider>
           <NexoProvider>{children}</NexoProvider>

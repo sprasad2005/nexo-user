@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNexo } from "@/context/NexoContext";
 import { MemberSearchUser } from "@/types/nexo";
 import { MagnifyingGlass, X, UserPlus, ChatCircleDots } from "@phosphor-icons/react";
@@ -26,30 +26,40 @@ export function NewConversationModal({
 
   // Real-time API member search with immediate local fallback
   useEffect(() => {
-    if (!isOpen) {
-      setQuery("");
+    if (!isOpen || !query.trim()) {
       setResults([]);
+      setIsLoading(false);
       return;
     }
 
+    let isMounted = true;
     const fetchMembers = async () => {
       setIsLoading(true);
       try {
         const res = await fetch(`/api/members/search?q=${encodeURIComponent(query)}`);
         const data = await res.json();
-        if (data?.success && Array.isArray(data.members)) {
+        if (isMounted && data?.success && Array.isArray(data.members)) {
           setResults(data.members);
         }
       } catch (err) {
         console.error("Failed to search members:", err);
       } finally {
-        setIsLoading(false);
+        if (isMounted) setIsLoading(false);
       }
     };
 
     const timer = setTimeout(fetchMembers, 100);
-    return () => clearTimeout(timer);
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
   }, [query, isOpen]);
+
+  const handleClose = useCallback(() => {
+    setQuery("");
+    setResults([]);
+    onClose();
+  }, [onClose]);
 
   // Combine & filter available member list
   const displayMembers = useMemo(() => {
@@ -71,7 +81,7 @@ export function NewConversationModal({
     if (memberId === currentUserId) return;
     openDirectChatWithUser(memberId);
     onSelectMember(memberId);
-    onClose();
+    handleClose();
   };
 
   return (
@@ -84,7 +94,7 @@ export function NewConversationModal({
             <h3 className="text-sm font-extrabold text-ink tracking-tight">New Private Message</h3>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-ink-tertiary hover:text-ink p-1 rounded-lg hover:bg-surface-alt transition-colors cursor-pointer"
           >
             <X size={18} />
@@ -139,6 +149,8 @@ export function NewConversationModal({
                     <img
                       src={m.avatar || "/oggy.png"}
                       alt={m.name}
+                      loading="lazy"
+                      decoding="async"
                       className="w-10 h-10 rounded-full object-cover ring-2 ring-line bg-surface-alt shrink-0"
                     />
                     <div>

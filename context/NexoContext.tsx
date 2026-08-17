@@ -32,8 +32,10 @@ import { mapIPOToOpportunity } from "@/src/features/ipo/mappers";
 import { logActivity } from "@/src/features/activity/activityService";
 import { UserLogoutModal } from "@/components/auth/UserLogoutModal";
 import { LoginSuccessModal } from "@/components/auth/LoginSuccessModal";
+import { nexoDataCache } from "@/lib/nexoDataCache";
+import { chatRealtime } from "@/src/features/chat/utils/chatRealtime";
 
-type ViewTab = "dashboard" | "ipos" | "applications" | "portfolio" | "messages" | "members" | "profile" | "admin";
+type ViewTab = "dashboard" | "ipos" | "applications" | "portfolio" | "messages" | "members" | "profile";
 
 export interface NexoContextType {
   isAuthenticated: boolean;
@@ -166,6 +168,9 @@ export interface NexoContextType {
   updateMember: (id: string, patch: Partial<Member>) => Promise<void>;
   deleteMember: (id: string) => Promise<void>;
   unreadMessageCount: number;
+  setUnreadMessageCount: React.Dispatch<React.SetStateAction<number>>;
+  markConversationAsRead: (conversationId: string, unreadCount?: number) => Promise<void>;
+  refreshUnreadMessageCount: (forceRefresh?: boolean) => Promise<void>;
   activeConversationId: string | null;
   setActiveConversationId: (id: string | null) => void;
   openDirectChatWithUser: (targetMemberId: string) => Promise<void>;
@@ -215,8 +220,14 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
   });
   const [currentUserRole, setCurrentUserRole] = useState<MemberRole>("MEMBER");
 
-  const setActiveTab = (tab: ViewTab) => {
-    setActiveTabState(tab);
+  const setActiveTab = (tab: ViewTab | string) => {
+    if (tab === "admin") {
+      if (typeof window !== "undefined") {
+        window.location.href = "/admin";
+      }
+      return;
+    }
+    setActiveTabState(tab as ViewTab);
     try {
       localStorage.setItem("nexo_active_tab", tab);
       if (typeof window !== "undefined" && window.location.pathname === "/") {
@@ -246,27 +257,124 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     });
   };
 
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [unreadMessageCount, setUnreadMessageCount] = useState<number>(0);
 
   const isRefreshingUnreadRef = React.useRef(false);
-  const refreshUnreadMessageCount = useCallback(async () => {
+  const refreshUnreadMessageCount = useCallback(async (forceRefresh = false) => {
     if (isRefreshingUnreadRef.current) return;
     isRefreshingUnreadRef.current = true;
     try {
       const activeMemberId = currentUser?.id || "mem_1";
-      const res = await fetch(`/api/conversations?memberId=${activeMemberId}`);
-      if (!res.ok) return;
-      const data = await res.json().catch(() => null);
-      if (data?.success && Array.isArray(data.conversations)) {
-        const unreadChatsCount = data.conversations.filter(
-          (c: any) => (c.unreadCount || 0) > 0
-        ).length;
-        setUnreadMessageCount(unreadChatsCount);
+      const unreadCount = await nexoDataCache.fetchSWR<number>(
+        `unread_${activeMemberId}`,
+        async () => {
+          const res = await fetch(`/api/conversations?memberId=${activeMemberId}`);
+          if (!res.ok) return 0;
+          const data = await res.json().catch(() => null);
+          if (data?.success && Array.isArray(data.conversations)) {
+            if (typeof data.totalUnreadCount === "number") {
+              return data.totalUnreadCount;
+            }
+            return data.conversations.reduce(
+              (sum: number, c: any) => sum + (typeof c.unreadCount === "number" ? c.unreadCount : 0),
+              0
+            );
+          }
+          return 0;
+        },
+        {
+          ttlMs: 5000,
+          forceRefresh,
+          onUpdate: (freshCount) => setUnreadMessageCount(freshCount),
+        }
+      );
+      if (typeof unreadCount === "number") {
+        setUnreadMessageCount(unreadCount);
       }
     } catch {} finally {
       isRefreshingUnreadRef.current = false;
     }
   }, [currentUser]);
+
+  const markConversationAsRead = useCallback(
+    async (conversationId: string, currentUnread = 0) => {
+      if (!conversationId) return;
+      const activeMemberId = currentUser?.id || "mem_1";
+
+      // 1. Optimistic global badge update immediately
+      if (currentUnread > 0) {
+        setUnreadMessageCount((prev) => Math.max(0, prev - currentUnread));
+      }
+
+      nexoDataCache.invalidate(`unread_${activeMemberId}`);
+
+      try {
+        const res = await fetch(`/api/conversations/${conversationId}/read`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ memberId: activeMemberId }),
+        });
+        const data = await res.json().catch(() => null);
+        if (data?.success) {
+          if (typeof data.totalUnreadCount === "number") {
+            setUnreadMessageCount(data.totalUnreadCount);
+          }
+          chatRealtime.emit("message:read", {
+            conversationId,
+            memberId: activeMemberId,
+            unreadCount: 0,
+            totalUnreadCount: data.totalUnreadCount,
+          });
+        } else {
+          // Rollback on failure
+          if (currentUnread > 0) {
+            setUnreadMessageCount((prev) => prev + currentUnread);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to mark conversation as read:", err);
+        if (currentUnread > 0) {
+          setUnreadMessageCount((prev) => prev + currentUnread);
+        }
+      }
+    },
+    [currentUser]
+  );
+
+  // Real-time synchronization listeners for global unread counter
+  useEffect(() => {
+    const activeMemberId = currentUser?.id || "mem_1";
+
+    const unsubRead = chatRealtime.on("message:read", (data: any) => {
+      if (data?.memberId === activeMemberId) {
+        if (typeof data.totalUnreadCount === "number") {
+          setUnreadMessageCount(data.totalUnreadCount);
+        } else {
+          refreshUnreadMessageCount(true);
+        }
+      }
+    });
+
+    const unsubNew = chatRealtime.on("message:new", (msg: any) => {
+      if (msg && msg.senderId !== activeMemberId) {
+        const isViewingThisConv =
+          activeTab === "messages" &&
+          activeConversationId === msg.conversationId &&
+          typeof document !== "undefined" &&
+          document.visibilityState === "visible";
+
+        if (!isViewingThisConv) {
+          setUnreadMessageCount((prev) => prev + 1);
+        }
+      }
+    });
+
+    return () => {
+      unsubRead();
+      unsubNew();
+    };
+  }, [currentUser, activeTab, activeConversationId, refreshUnreadMessageCount]);
 
   useEffect(() => {
     refreshUnreadMessageCount();
@@ -275,243 +383,213 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
   }, [refreshUnreadMessageCount]);
 
   const isRefreshingIposRef = React.useRef(false);
-  const refreshIpos = async () => {
+  const refreshIpos = useCallback(async (forceRefresh = false) => {
     if (isRefreshingIposRef.current) return;
     isRefreshingIposRef.current = true;
     try {
-      const [ipoRes, appRes] = await Promise.all([
-        fetch("/api/ipos").then((r) => r.json()).catch(() => null),
-        fetch("/api/applications").then((r) => r.json()).catch(() => null),
-      ]);
+      await nexoDataCache.fetchSWR(
+        "ipos_apps",
+        async () => {
+          const [ipoRes, appRes] = await Promise.all([
+            fetch("/api/ipos").then((r) => r.json()).catch(() => null),
+            fetch("/api/applications").then((r) => r.json()).catch(() => null),
+          ]);
 
-      let apiIpos: IPOOpportunity[] = [];
-      if (Array.isArray(ipoRes?.ipos)) {
-        apiIpos = ipoRes.ipos.map((raw: any) => (raw.metrics ? raw : mapIPOToOpportunity(raw)));
-      } else if (Array.isArray(ipoRes)) {
-        apiIpos = ipoRes.map((raw: any) => (raw.metrics ? raw : mapIPOToOpportunity(raw)));
-      }
-
-      // Cleanup any legacy mock storage keys
-      if (typeof window !== "undefined") {
-        try {
-          localStorage.removeItem("nexo_local_admin_ipos");
-          localStorage.removeItem("nexo_ipos");
-        } catch {}
-      }
-
-      const dbApplications: any[] = (appRes?.success && Array.isArray(appRes.applications)) ? appRes.applications : [];
-
-      // Map strictly from database
-      const mergedMap = new Map<string, IPOOpportunity>();
-      apiIpos.forEach((ipo: IPOOpportunity) => {
-        if (ipo && ipo.id) {
-          mergedMap.set(ipo.id, ipo);
-        }
-      });
-
-      const combined = Array.from(mergedMap.values()).map((ipo) => {
-        // Map database applications for this IPO
-        const dbAppsForIpo: Application[] = dbApplications
-          .filter((doc: any) => doc.ipoId === ipo.id || doc.ipoName?.toLowerCase() === ipo.name?.toLowerCase())
-          .map((doc: any) => ({
-            id: doc.id,
-            ipoId: ipo.id,
-            type: doc.fundingStructure === "MULTI_FRIEND" ? "COMBINED" : "INDIVIDUAL",
-            applicantName: doc.applicantName || "Member",
-            memberId: doc.memberId || "mem_1",
-            panMasked: doc.panNumbers?.[0] || doc.pan || doc.panMasked || "",
-            panNumbers: doc.panNumbers || (doc.panMasked ? [doc.panMasked] : []),
-            totalContribution: doc.totalContribution || 15000,
-            lotCount: doc.numberOfPanCards || doc.lotCount || 1,
-            verified: true,
-            allotmentStatus: doc.allotmentStatus || "AWAITING",
-            status: doc.status || "AWAITING",
-            createdAt: typeof doc.createdAt === "string" ? doc.createdAt : new Date().toISOString(),
-            participants: (doc.contributors || doc.participants || []).map((c: any) => ({
-              memberId: c.memberId || "mem_1",
-              memberName: c.memberName || "Member",
-              avatar: "/oggy.png",
-              contribution: c.amount || c.contribution || 15000,
-              percentage: c.percentage || 100,
-              panMasked: doc.panNumbers?.[0] || "",
-              panFull: doc.panNumbers?.[0] || "",
-              status: "SUBMITTED" as const,
-            })),
-          }));
-
-        const existingAppIds = new Set(dbAppsForIpo.map((a) => a.id));
-        const fileApps = (ipo.applications || []).filter((a) => !existingAppIds.has(a.id));
-        const mergedApps = [...dbAppsForIpo, ...fileApps];
-
-        return {
-          ...ipo,
-          applications: mergedApps,
-          combinedCapital: mergedApps.reduce((sum, a) => sum + (a.totalContribution || 0), 0),
-          participantsCount: new Set(mergedApps.flatMap((a) => (a.participants || []).map((p) => p.memberId))).size,
-          profitDistribution: ipo.profitDistribution,
-        };
-      });
-
-      const publishedCards: ListedIPO[] = [];
-      combined.forEach((ipo) => {
-        if (ipo.profitDistribution) {
-          const dist = ipo.profitDistribution as any;
-          const minInv = ipo.metrics?.minInvestment || 15000;
-
-          // Compute total combined capital and applied lots across all applications for this IPO
-          const totalCapital = (ipo.applications || []).reduce(
-            (sum, a) => sum + (Number(a.totalContribution) || 0),
-            0
-          );
-
-          const totalAppliedLots = (ipo.applications || []).reduce((sum, app) => {
-            if (Array.isArray(app.participants) && app.participants.length > 0) {
-              return (
-                sum +
-                app.participants.reduce(
-                  (pSum: number, p: any) =>
-                    pSum + (p.contribution ? p.contribution / minInv : 1),
-                  0
-                )
-              );
-            }
-            return sum + (app.lotCount || 1);
-          }, 0) || dist.totalLots || 1;
-
-          const totalProfitNum = Number(dist.totalProfit) || 0;
-          const oneLotProfit =
-            totalProfitNum && totalAppliedLots > 0
-              ? Math.round(totalProfitNum / totalAppliedLots)
-              : dist.oneLotProfit || 0;
-
-          let userProfits: ListedIPOUserProfit[] = [];
-
-          if (Array.isArray(dist.memberPayouts) && dist.memberPayouts.length > 0) {
-            userProfits = dist.memberPayouts.map((p: any) => ({
-              memberId: p.memberId || p.id || `mem_${p.name}`,
-              memberName: p.name || p.memberName || "Member",
-              profit: Number(p.profit) || 0,
-              lotsApplied: Number(p.lots) || 1,
-            }));
-          } else {
-            // Compute mathematically exact profit per member based on their contributed money
-            const memberAggMap = new Map<string, { memberId: string; memberName: string; contribution: number; lotsApplied: number }>();
-
-            (ipo.applications || []).forEach((app) => {
-              if (Array.isArray(app.participants) && app.participants.length > 0) {
-                app.participants.forEach((p: any) => {
-                  const pName = p.memberName || p.name || app.applicantName || "Member";
-                  const key = (p.memberId || pName).toLowerCase().trim().replace(/^@+/, "");
-                  const contrib = Number(p.contribution) || minInv;
-                  const lots = p.contribution ? p.contribution / minInv : 1;
-
-                  if (memberAggMap.has(key)) {
-                    const ex = memberAggMap.get(key)!;
-                    ex.contribution += contrib;
-                    ex.lotsApplied += lots;
-                  } else {
-                    memberAggMap.set(key, {
-                      memberId: p.memberId || app.memberId || key,
-                      memberName: pName,
-                      contribution: contrib,
-                      lotsApplied: lots,
-                    });
-                  }
-                });
-              } else {
-                const aName = app.applicantName || "Member";
-                const key = (app.memberId || aName).toLowerCase().trim().replace(/^@+/, "");
-                const contrib = Number(app.totalContribution) || (app.lotCount || 1) * minInv;
-                const lots = Number(app.lotCount) || (contrib / minInv) || 1;
-
-                if (memberAggMap.has(key)) {
-                  const ex = memberAggMap.get(key)!;
-                  ex.contribution += contrib;
-                  ex.lotsApplied += lots;
-                } else {
-                  memberAggMap.set(key, {
-                    memberId: app.memberId || key,
-                    memberName: aName,
-                    contribution: contrib,
-                    lotsApplied: lots,
-                  });
-                }
-              }
-            });
-
-            userProfits = Array.from(memberAggMap.values()).map((m) => {
-              const exactProfit = totalAppliedLots > 0
-                ? Math.round((m.lotsApplied / totalAppliedLots) * totalProfitNum)
-                : Math.round(m.lotsApplied * oneLotProfit);
-
-              return {
-                memberId: m.memberId,
-                memberName: m.memberName,
-                profit: exactProfit,
-                lotsApplied: Math.round(m.lotsApplied * 100) / 100,
-              };
-            });
+          let apiIpos: IPOOpportunity[] = [];
+          if (Array.isArray(ipoRes?.ipos)) {
+            apiIpos = ipoRes.ipos.map((raw: any) => (raw.metrics ? raw : mapIPOToOpportunity(raw)));
+          } else if (Array.isArray(ipoRes)) {
+            apiIpos = ipoRes.map((raw: any) => (raw.metrics ? raw : mapIPOToOpportunity(raw)));
           }
 
-          publishedCards.push({
-            id: `pub_${ipo.id}`,
-            name: ipo.name,
-            category: ipo.category || "Mainboard",
-            logo: ipo.logo || ipo.name.substring(0, 2).toUpperCase(),
-            lotsAllotted: dist.allottedLots || 1,
-            lotsApplied: totalAppliedLots,
-            totalProfit: totalProfitNum,
-            applicantsCount:
-              userProfits.length ||
-              (ipo.applications || []).length ||
-              1,
-            oneLotProfit: oneLotProfit,
-            listingDate: dist.publishedAt
-              ? new Date(dist.publishedAt).toLocaleDateString("en-GB", {
-                  day: "2-digit",
-                  month: "short",
-                  year: "numeric",
-                })
-              : "Sep 2026",
-            userProfits,
+          const dbApplications: any[] =
+            appRes?.success && Array.isArray(appRes.applications) ? appRes.applications : [];
+
+          const mergedMap = new Map<string, IPOOpportunity>();
+          apiIpos.forEach((ipo: IPOOpportunity) => {
+            if (ipo && ipo.id) mergedMap.set(ipo.id, ipo);
           });
+
+          const combined = Array.from(mergedMap.values()).map((ipo) => {
+            const dbAppsForIpo: Application[] = dbApplications
+              .filter(
+                (doc: any) =>
+                  doc.ipoId === ipo.id || doc.ipoName?.toLowerCase() === ipo.name?.toLowerCase()
+              )
+              .map((doc: any) => ({
+                id: doc.id,
+                ipoId: ipo.id,
+                type: doc.fundingStructure === "MULTI_FRIEND" ? "COMBINED" : "INDIVIDUAL",
+                applicantName: doc.applicantName || "Member",
+                memberId: doc.memberId || "mem_1",
+                panMasked: doc.panNumbers?.[0] || doc.pan || doc.panMasked || "",
+                panNumbers: doc.panNumbers || (doc.panMasked ? [doc.panMasked] : []),
+                totalContribution: doc.totalContribution || 15000,
+                lotCount: doc.numberOfPanCards || doc.lotCount || 1,
+                verified: true,
+                allotmentStatus: doc.allotmentStatus || "AWAITING",
+                status: doc.status || "AWAITING",
+                createdAt: typeof doc.createdAt === "string" ? doc.createdAt : new Date().toISOString(),
+                participants: (doc.contributors || doc.participants || []).map((c: any) => ({
+                  memberId: c.memberId || "mem_1",
+                  memberName: c.memberName || "Member",
+                  avatar: "/oggy.png",
+                  contribution: c.amount || c.contribution || 15000,
+                  percentage: c.percentage || 100,
+                  panMasked: doc.panNumbers?.[0] || "",
+                  panFull: doc.panNumbers?.[0] || "",
+                  status: "SUBMITTED" as const,
+                })),
+              }));
+
+            const existingAppIds = new Set(dbAppsForIpo.map((a) => a.id));
+            const fileApps = (ipo.applications || []).filter((a) => !existingAppIds.has(a.id));
+            const mergedApps = [...dbAppsForIpo, ...fileApps];
+
+            return {
+              ...ipo,
+              applications: mergedApps,
+              combinedCapital: mergedApps.reduce((sum, a) => sum + (a.totalContribution || 0), 0),
+              participantsCount: new Set(
+                mergedApps.flatMap((a) => (a.participants || []).map((p) => p.memberId))
+              ).size,
+              profitDistribution: ipo.profitDistribution,
+            };
+          });
+
+          const publishedCards: ListedIPO[] = [];
+          combined.forEach((ipo) => {
+            if (ipo.profitDistribution) {
+              const dist = ipo.profitDistribution as any;
+              const minInv = ipo.metrics?.minInvestment || 15000;
+
+              const totalAppliedLots =
+                (ipo.applications || []).reduce((sum, app) => {
+                  if (Array.isArray(app.participants) && app.participants.length > 0) {
+                    return (
+                      sum +
+                      app.participants.reduce(
+                        (pSum: number, p: any) =>
+                          pSum + (p.contribution ? p.contribution / minInv : 1),
+                        0
+                      )
+                    );
+                  }
+                  return sum + (app.lotCount || 1);
+                }, 0) || dist.totalLots || 1;
+
+              const totalProfitNum = Number(dist.totalProfit) || 0;
+              const oneLotProfit =
+                totalProfitNum && totalAppliedLots > 0
+                  ? Math.round(totalProfitNum / totalAppliedLots)
+                  : dist.oneLotProfit || 0;
+
+              let userProfits: ListedIPOUserProfit[] = [];
+
+              if (Array.isArray(dist.memberPayouts) && dist.memberPayouts.length > 0) {
+                userProfits = dist.memberPayouts.map((p: any) => ({
+                  memberId: p.memberId || p.id || `mem_${p.name}`,
+                  memberName: p.name || p.memberName || "Member",
+                  profit: Number(p.profit) || 0,
+                  lotsApplied: Number(p.lots) || 1,
+                }));
+              }
+
+              publishedCards.push({
+                id: `pub_${ipo.id}`,
+                name: ipo.name,
+                category: ipo.category || "Mainboard",
+                logo: ipo.logo || ipo.name.substring(0, 2).toUpperCase(),
+                lotsAllotted: dist.allottedLots || 1,
+                lotsApplied: totalAppliedLots,
+                totalProfit: totalProfitNum,
+                applicantsCount: userProfits.length || (ipo.applications || []).length || 1,
+                oneLotProfit: oneLotProfit,
+                listingDate: dist.publishedAt
+                  ? new Date(dist.publishedAt).toLocaleDateString("en-GB", {
+                      day: "2-digit",
+                      month: "short",
+                      year: "numeric",
+                    })
+                  : "Sep 2026",
+                userProfits,
+              });
+            }
+          });
+
+          return { combined, publishedCards };
+        },
+        {
+          ttlMs: 20000,
+          forceRefresh,
+          onUpdate: (fresh) => {
+            if (fresh?.combined) {
+              setIpos(fresh.combined);
+              try {
+                localStorage.setItem("nexo_cached_ipos", JSON.stringify(fresh.combined));
+              } catch {}
+            }
+            if (fresh?.publishedCards && fresh.publishedCards.length > 0) {
+              setListedIpos(fresh.publishedCards);
+            }
+          },
+        }
+      ).then((res) => {
+        if (res?.combined) {
+          setIpos(res.combined);
+          try {
+            localStorage.setItem("nexo_cached_ipos", JSON.stringify(res.combined));
+          } catch {}
+        }
+        if (res?.publishedCards && res.publishedCards.length > 0) {
+          setListedIpos(res.publishedCards);
         }
       });
-
-      // Deduplicate published cards by IPO name to keep only the latest uploaded card for each IPO
-      let customListed: ListedIPO[] = [];
-      try {
-        customListed = JSON.parse(localStorage.getItem("nexo_custom_listed_ipos") || "[]");
-      } catch {}
-
-      const cardMap = new Map<string, ListedIPO>();
-      customListed.forEach((card) => {
-        const key = card.name.trim().toLowerCase();
-        cardMap.set(key, card);
-      });
-      publishedCards.forEach((card) => {
-        const key = card.name.trim().toLowerCase();
-        cardMap.set(key, card);
-      });
-      const uniquePublishedCards = Array.from(cardMap.values());
-
-      setIpos(combined);
-      try {
-        localStorage.setItem("nexo_cached_ipos", JSON.stringify(combined));
-      } catch {}
-
-      if (uniquePublishedCards.length > 0) {
-        setListedIpos(uniquePublishedCards);
-      }
     } catch (err) {
       console.warn("Failed to refresh IPOs from API in NexoContext:", err);
     } finally {
       isRefreshingIposRef.current = false;
     }
-  };
+  }, []);
 
+  const refreshMembers = useCallback(async (forceRefresh = false) => {
+    try {
+      const data = await nexoDataCache.fetchSWR<Member[]>(
+        "members",
+        async () => {
+          const res = await fetch("/api/members");
+          if (!res.ok) return [];
+          const json = await res.json().catch(() => null);
+          if (json?.success && Array.isArray(json.members)) {
+            return json.members;
+          }
+          return [];
+        },
+        {
+          ttlMs: 45000,
+          forceRefresh,
+          onUpdate: (freshMembers) => {
+            if (Array.isArray(freshMembers) && freshMembers.length > 0) {
+              setMembers(freshMembers);
+              try {
+                localStorage.setItem("nexo_cached_members", JSON.stringify(freshMembers));
+              } catch {}
+            }
+          },
+        }
+      );
+      if (Array.isArray(data) && data.length > 0) {
+        setMembers(data);
+        try {
+          localStorage.setItem("nexo_cached_members", JSON.stringify(data));
+        } catch {}
+      }
+    } catch (err) {
+      console.warn("Failed to fetch members from API:", err);
+    }
+  }, []);
 
-  // Restore session, active tab, fetch MongoDB profile, & persisted local storage state safely after hydration
+  // Restore session, active tab, & trigger parallel non-blocking SWR data hydration on mount
   useEffect(() => {
     try {
       const storedUser = localStorage.getItem("nexo_session_user");
@@ -531,15 +609,21 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       if (typeof window !== "undefined" && window.location.pathname === "/") {
         const hashTab = window.location.hash.replace("#", "").toLowerCase() as ViewTab;
         const storedTab = localStorage.getItem("nexo_active_tab") as ViewTab;
-        const validTabs: ViewTab[] = ["dashboard", "ipos", "applications", "portfolio", "messages", "members", "profile", "admin"];
-        
+        const validTabs: ViewTab[] = [
+          "dashboard",
+          "ipos",
+          "applications",
+          "portfolio",
+          "messages",
+          "members",
+          "profile",
+        ];
+
         let targetTab: ViewTab = "dashboard";
         if (validTabs.includes(hashTab)) {
           targetTab = hashTab;
-        } else if (validTabs.includes(storedTab) && storedTab !== "dashboard") {
+        } else if (validTabs.includes(storedTab) && storedTab !== "dashboard" && validTabs.includes(storedTab)) {
           targetTab = storedTab;
-        } else if (storedRole === "SUPER_ADMIN" || storedRole === "ADMIN") {
-          targetTab = "admin";
         }
 
         setActiveTabState(targetTab);
@@ -556,82 +640,74 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       if (storedTxns !== null) setTransactions(JSON.parse(storedTxns));
     } catch {}
 
-    // Fetch authenticated identity from server-side session
-    fetch("/api/auth/me")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.authenticated && data.member) {
-          setCurrentUser(data.member);
-          const userRole = data.member.role || "MEMBER";
-          setCurrentUserRole(userRole);
-          setIsAuthenticated(true);
-
-          if (userRole === "SUPER_ADMIN" || userRole === "ADMIN") {
-            const hashTab = window.location.hash.replace("#", "").toLowerCase() as ViewTab;
-            if (hashTab === "admin") {
-              setActiveTabState("admin");
-            }
+    // Parallel SWR non-blocking network fetches with deduplication
+    nexoDataCache.fetchSWR(
+      "auth_me",
+      async () => {
+        const res = await fetch("/api/auth/me");
+        return res.json();
+      },
+      {
+        ttlMs: 60000,
+        onUpdate: (data) => {
+          if (data?.authenticated && data?.member) {
+            setCurrentUser(data.member);
+            const userRole = data.member.role || "MEMBER";
+            setCurrentUserRole(userRole);
+            setIsAuthenticated(true);
           }
+        },
+      }
+    ).then((data) => {
+      if (data?.authenticated && data?.member) {
+        setCurrentUser(data.member);
+        const userRole = data.member.role || "MEMBER";
+        setCurrentUserRole(userRole);
+        setIsAuthenticated(true);
 
-          try {
-            if (sessionStorage.getItem("nexo_just_logged_in") === "true") {
-              sessionStorage.removeItem("nexo_just_logged_in");
-              setIsLoginSuccessOpen(true);
-            }
-          } catch {}
-        } else if (data.authenticated === false) {
-          setIsAuthenticated(false);
-          setCurrentUser(null);
-          try {
-            localStorage.removeItem("nexo_session_user");
-          } catch {}
-        }
-      })
-      .catch(() => {})
-      .finally(() => {
-        setIsAuthLoaded(true);
-      });
+        try {
+          if (sessionStorage.getItem("nexo_just_logged_in") === "true") {
+            sessionStorage.removeItem("nexo_just_logged_in");
+            setIsLoginSuccessOpen(true);
+          }
+        } catch {}
+      } else if (data?.authenticated === false) {
+        setIsAuthenticated(false);
+        setCurrentUser(null);
+        try {
+          localStorage.removeItem("nexo_session_user");
+        } catch {}
+      }
+      setIsAuthLoaded(true);
+    }).catch(() => {
+      setIsAuthLoaded(true);
+    });
 
+    // Fire parallel cached initializers
     refreshMembers();
     refreshIpos();
-    refreshApplications();
 
     const handleHashChange = () => {
+      if (typeof window === "undefined" || window.location.pathname !== "/") return;
       const hashTab = window.location.hash.replace("#", "").toLowerCase() as ViewTab;
-      const validTabs: ViewTab[] = ["dashboard", "ipos", "applications", "portfolio", "members", "profile", "admin"];
+      const validTabs: ViewTab[] = ["dashboard", "ipos", "applications", "portfolio", "messages", "members", "profile"];
       if (validTabs.includes(hashTab)) {
         setActiveTabState(hashTab);
       }
     };
 
     window.addEventListener("hashchange", handleHashChange);
-    window.addEventListener("storage", refreshIpos);
+    window.addEventListener("storage", () => refreshIpos(true));
 
     // Auto-fetch fresh data from MongoDB every 8 seconds
-    const ipoInterval = setInterval(refreshIpos, 8000);
+    const ipoInterval = setInterval(() => refreshIpos(false), 8000);
 
     return () => {
       window.removeEventListener("hashchange", handleHashChange);
-      window.removeEventListener("storage", refreshIpos);
+      window.removeEventListener("storage", () => refreshIpos(true));
       clearInterval(ipoInterval);
     };
-  }, []);
-
-  const refreshMembers = async () => {
-    try {
-      const res = await fetch("/api/members");
-      if (!res.ok) return;
-      const data = await res.json().catch(() => null);
-      if (data?.success && Array.isArray(data.members) && data.members.length > 0) {
-        setMembers(data.members);
-        try {
-          localStorage.setItem("nexo_cached_members", JSON.stringify(data.members));
-        } catch {}
-      }
-    } catch (err) {
-      console.warn("Failed to fetch members from API:", err);
-    }
-  };
+  }, [refreshIpos, refreshMembers]);
 
   const addMember = async (memberData: Partial<Member> & { name: string; username: string; password: string }) => {
     const id = `mem_${Date.now()}`;
@@ -652,6 +728,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     };
 
     setMembers((prev) => [...prev, newMember]);
+    nexoDataCache.invalidate("members");
 
     try {
       await fetch("/api/members", {
@@ -671,6 +748,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     setMembers((prev) =>
       prev.map((m) => (m.id === id ? { ...m, ...patch } : m))
     );
+    nexoDataCache.invalidate("members");
 
     try {
       await fetch("/api/members", {
@@ -685,6 +763,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
 
   const deleteMember = async (id: string) => {
     setMembers((prev) => prev.filter((m) => m.id !== id));
+    nexoDataCache.invalidate("members");
 
     try {
       await fetch(`/api/admin/members/${id}`, {
@@ -797,12 +876,14 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
         setCurrentUser(data.member);
         setCurrentUserRole(data.member.role || "MEMBER");
         setIsAuthenticated(true);
-        const targetTab = (data.member.role === "SUPER_ADMIN" || data.member.role === "ADMIN") ? "admin" : "dashboard";
+        const targetTab: ViewTab = "dashboard";
         setActiveTabState(targetTab);
         try {
           localStorage.setItem("nexo_session_user", JSON.stringify(data.member));
           localStorage.setItem("nexo_active_tab", targetTab);
-          if (typeof window !== "undefined") window.history.replaceState(null, "", `#${targetTab}`);
+          if (typeof window !== "undefined" && window.location.pathname === "/") {
+            window.history.replaceState(null, "", `#${targetTab}`);
+          }
         } catch {}
         return { success: true, role: data.member.role, member: data.member };
       } else if (data.error && res.status !== 404 && res.status !== 500) {
@@ -839,12 +920,14 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     setCurrentUser(foundMember);
     setCurrentUserRole(foundMember.role);
     setIsAuthenticated(true);
-    const targetTab = (foundMember.role === "SUPER_ADMIN" || foundMember.role === "ADMIN") ? "admin" : "dashboard";
+    const targetTab: ViewTab = "dashboard";
     setActiveTabState(targetTab);
     try {
       localStorage.setItem("nexo_session_user", JSON.stringify(foundMember));
       localStorage.setItem("nexo_active_tab", targetTab);
-      if (typeof window !== "undefined") window.history.replaceState(null, "", `#${targetTab}`);
+      if (typeof window !== "undefined" && window.location.pathname === "/") {
+        window.history.replaceState(null, "", `#${targetTab}`);
+      }
     } catch {}
 
     return { success: true, role: foundMember.role, member: foundMember };
@@ -883,26 +966,35 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<BroadcastNotification[]>([]);
   const [portfolioSummary] = useState<PortfolioSummary>(MOCK_PORTFOLIO_SUMMARY);
 
-  useEffect(() => {
-    fetch("/api/notifications")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.notifications)) {
-          setNotifications(data.notifications);
-        }
-      })
-      .catch(() => {});
-  }, []);
-
-  const refreshNotifications = async () => {
+  const refreshNotifications = useCallback(async (forceRefresh = false) => {
     try {
-      const res = await fetch("/api/notifications");
-      const data = await res.json();
-      if (data.success && Array.isArray(data.notifications)) {
-        setNotifications(data.notifications);
+      const data = await nexoDataCache.fetchSWR<BroadcastNotification[]>(
+        "notifications",
+        async () => {
+          const res = await fetch("/api/notifications");
+          const json = await res.json();
+          if (json?.success && Array.isArray(json.notifications)) {
+            return json.notifications;
+          }
+          return [];
+        },
+        {
+          ttlMs: 30000,
+          forceRefresh,
+          onUpdate: (freshNotifs) => {
+            if (Array.isArray(freshNotifs)) setNotifications(freshNotifs);
+          },
+        }
+      );
+      if (Array.isArray(data)) {
+        setNotifications(data);
       }
     } catch {}
-  };
+  }, []);
+
+  useEffect(() => {
+    refreshNotifications();
+  }, [refreshNotifications]);
 
   const deleteNotification = async (id: string, scope: "me" | "everyone" = "everyone") => {
     // 1. Optimistic removal from state
@@ -951,7 +1043,6 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
   const [activeApplicationIpo, setActiveApplicationIpo] = useState<IPOOpportunity | null>(null);
   const [isAddIpoModalOpen, setIsAddIpoModalOpen] = useState(false);
 
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [revealedPans, setRevealedPans] = useState<Record<string, boolean>>({});
   const [isLoading] = useState(false);
@@ -1079,6 +1170,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     if (selectedIpo && selectedIpo.id === ipoId) {
       setSelectedIpo((prev) => (prev ? { ...prev, status } : null));
     }
+    nexoDataCache.invalidate("ipos_apps");
+    nexoDataCache.invalidate("admin_ipos");
   };
 
   const updateIpo = (ipoId: string, patch: Partial<IPOOpportunity>) => {
@@ -1088,6 +1181,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     if (selectedIpo && selectedIpo.id === ipoId) {
       setSelectedIpo((prev) => (prev ? { ...prev, ...patch } : null));
     }
+    nexoDataCache.invalidate("ipos_apps");
+    nexoDataCache.invalidate("admin_ipos");
   };
 
   const updateApplicationStatus = (
@@ -1114,6 +1209,9 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
         return ipo;
       })
     );
+
+    nexoDataCache.invalidate("ipos_apps");
+    nexoDataCache.invalidate("admin_allotment");
 
     // 1. Sync Application Status Update to MongoDB
     fetch("/api/applications", {
@@ -1303,6 +1401,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     }).catch(() => {});
 
     // Sync application response to MongoDB
+    nexoDataCache.invalidate("ipos_apps");
+    nexoDataCache.invalidate("admin_allotment");
     fetch("/api/applications", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -1438,6 +1538,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     );
 
     // Sync deletion to MongoDB
+    nexoDataCache.invalidate("ipos_apps");
+    nexoDataCache.invalidate("admin_allotment");
     fetch(`/api/applications?id=${encodeURIComponent(applicationId)}`, {
       method: "DELETE",
     }).catch((err) => console.error("Failed to delete application from MongoDB:", err));
@@ -1506,6 +1608,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     );
 
     // Sync update to MongoDB
+    nexoDataCache.invalidate("ipos_apps");
+    nexoDataCache.invalidate("admin_allotment");
     fetch("/api/applications", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
@@ -1554,14 +1658,19 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: "Please provide a valid IPO name." };
     }
 
+    const normName = cleanName.replace(/\s+/g, " ").toLowerCase();
     const isDuplicate = ipos.some(
-      (item) => item.name && item.name.trim().toLowerCase() === cleanName.toLowerCase()
+      (item) =>
+        !item.isHidden &&
+        !item.isArchived &&
+        item.name &&
+        item.name.trim().replace(/\s+/g, " ").toLowerCase() === normName
     );
 
     if (isDuplicate) {
       return {
         success: false,
-        message: `An IPO named "${cleanName}" already exists. IPO names must be unique.`,
+        message: `An active IPO named "${cleanName}" already exists. IPO names must be unique.`,
       };
     }
 
@@ -1870,6 +1979,9 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     updateMember,
     deleteMember,
     unreadMessageCount,
+    setUnreadMessageCount,
+    markConversationAsRead,
+    refreshUnreadMessageCount,
     activeConversationId,
     setActiveConversationId,
     openDirectChatWithUser,
@@ -1948,6 +2060,8 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     updateMember,
     deleteMember,
     unreadMessageCount,
+    markConversationAsRead,
+    refreshUnreadMessageCount,
     activeConversationId,
     setActiveConversationId,
     openDirectChatWithUser,

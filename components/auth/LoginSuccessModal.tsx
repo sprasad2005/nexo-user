@@ -19,8 +19,9 @@ export function LoginSuccessModal({ isOpen, onClose, user, isAdminConsole = fals
   const handleEnterWorkspace = useCallback(() => {
     onClose();
     if (typeof window !== "undefined") {
-      const target = isAdminConsole ? "/admin/members" : "/";
-      if (window.location.pathname !== target && !window.location.pathname.startsWith("/admin/members")) {
+      const isAdmin = user?.role === "SUPER_ADMIN" || user?.role === "ADMIN";
+      const target = (isAdminConsole || isAdmin) ? "/admin" : "/";
+      if (window.location.pathname !== target && !window.location.pathname.startsWith("/admin")) {
         router.push(target);
       }
     }

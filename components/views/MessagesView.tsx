@@ -1,12 +1,13 @@
 "use client";
 
-import React, { useState, useEffect, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { useNexo } from "@/context/NexoContext";
 import { Conversation } from "@/types/nexo";
 import { ConversationList } from "@/src/features/chat/components/ConversationList";
 import { ChatWindow } from "@/src/features/chat/components/ChatWindow";
 import { NewConversationModal } from "@/src/features/chat/components/NewConversationModal";
 import { chatRealtime } from "@/src/features/chat/utils/chatRealtime";
+import { chatDataCache } from "@/src/features/chat/utils/chatDataCache";
 import { ChatCircleDots } from "@phosphor-icons/react";
 
 const STATIC_FALLBACK_CONVERSATIONS: Conversation[] = [];
@@ -20,11 +21,14 @@ export function MessagesView() {
     ipos,
     activeConversationId,
     setActiveConversationId,
+    markConversationAsRead,
   } = useNexo();
   const activeUser = currentUser || currentMember || members[0];
   const currentMemberId = activeUser?.id || "mem_1";
 
-  const [conversations, setConversations] = useState<Conversation[]>(STATIC_FALLBACK_CONVERSATIONS);
+  const [conversations, setConversations] = useState<Conversation[]>(
+    () => chatDataCache.getConversations(currentMemberId) || STATIC_FALLBACK_CONVERSATIONS
+  );
   const [isNewMessageModalOpen, setIsNewMessageModalOpen] = useState(false);
 
   // Connect to real-time service
@@ -35,8 +39,16 @@ export function MessagesView() {
     };
   }, [currentMemberId]);
 
-  // Fetch conversations list from API, filtering for active workspace members
-  const fetchConversations = useCallback(async () => {
+  const lastConvSigRef = useRef<string>("");
+  const activeConvIdRef = useRef<string | null>(activeConversationId);
+  const lastMarkedReadMapRef = useRef<Map<string, number>>(new Map());
+
+  useEffect(() => {
+    activeConvIdRef.current = activeConversationId;
+  }, [activeConversationId]);
+
+  // Fetch conversations list from API with fast deduplication and signature check
+  const fetchConversations = useCallback(async (isInitial = false) => {
     try {
       const res = await fetch(`/api/conversations?memberId=${currentMemberId}`);
       const data = await res.json();
@@ -45,6 +57,16 @@ export function MessagesView() {
           (c: Conversation, index: number, self: Conversation[]) =>
             index === self.findIndex((item) => item.id === c.id)
         );
+
+        const sig = uniqueConversations
+          .map((c: Conversation) => `${c.id}_${c.lastMessageAt}_${c.unreadCount || 0}_${c.lastMessage}`)
+          .join("|");
+
+        if (!isInitial && sig === lastConvSigRef.current) {
+          return;
+        }
+        lastConvSigRef.current = sig;
+        chatDataCache.setConversations(currentMemberId, uniqueConversations);
         setConversations(uniqueConversations);
         return;
       }
@@ -67,6 +89,7 @@ export function MessagesView() {
         participants: [activeUser, m],
       }));
 
+      chatDataCache.setConversations(currentMemberId, generated);
       setConversations(generated);
     } catch (err) {
       console.error("Failed to fetch conversations:", err);
@@ -74,9 +97,22 @@ export function MessagesView() {
   }, [currentMemberId, members, activeUser]);
 
   useEffect(() => {
-    fetchConversations();
-    const interval = setInterval(fetchConversations, 1000);
-    return () => clearInterval(interval);
+    fetchConversations(true);
+
+    // Relaxed background sync every 10 seconds
+    const interval = setInterval(() => fetchConversations(false), 10000);
+
+    const handleVisibility = () => {
+      if (document.visibilityState === "visible") {
+        fetchConversations(false);
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+    };
   }, [fetchConversations]);
 
   useEffect(() => {
@@ -85,39 +121,107 @@ export function MessagesView() {
     }
   }, [activeConversationId, conversations, setActiveConversationId]);
 
+  // Read state handler for active conversation
+  useEffect(() => {
+    if (!activeConversationId) return;
+
+    const targetConv = conversations.find((c) => c.id === activeConversationId);
+    const unread = targetConv?.unreadCount || 0;
+    const now = Date.now();
+    const lastMarkedTime = lastMarkedReadMapRef.current.get(activeConversationId) || 0;
+
+    if (unread > 0 || now - lastMarkedTime > 20000) {
+      lastMarkedReadMapRef.current.set(activeConversationId, now);
+
+      // Optimistically clear unread count for this conversation in list
+      if (unread > 0) {
+        setConversations((prev) => {
+          const updated = prev.map((c) =>
+            c.id === activeConversationId ? { ...c, unreadCount: 0 } : c
+          );
+          chatDataCache.setConversations(currentMemberId, updated);
+          return updated;
+        });
+      }
+
+      markConversationAsRead(activeConversationId, unread);
+    }
+  }, [activeConversationId, conversations, currentMemberId, markConversationAsRead]);
+
   // Listen to real-time conversation updates & new messages
   useEffect(() => {
     const unsubNewMsg = chatRealtime.on("message:new", (msg: any) => {
       if (msg?.conversationId) {
+        const isCurrentActive =
+          activeConvIdRef.current === msg.conversationId &&
+          typeof document !== "undefined" &&
+          document.visibilityState === "visible";
+        const isOwn = msg.senderId === currentMemberId;
+
         setConversations((prev) => {
-          return prev.map((c) =>
-            c.id === msg.conversationId
-              ? {
-                  ...c,
-                  lastMessage: msg.text || (msg.attachment ? `[${msg.attachment.type}]` : "New message"),
-                  lastMessageAt: msg.createdAt || new Date().toISOString(),
-                }
-              : c
-          );
+          const updated = prev.map((c) => {
+            if (c.id === msg.conversationId) {
+              const addedUnread = !isCurrentActive && !isOwn ? 1 : 0;
+              return {
+                ...c,
+                lastMessage: msg.text || (msg.attachment ? `[${msg.attachment.type}]` : "New message"),
+                lastMessageAt: msg.createdAt || new Date().toISOString(),
+                unreadCount: isCurrentActive ? 0 : (c.unreadCount || 0) + addedUnread,
+              };
+            }
+            return c;
+          });
+
+          // Reorder: move the conversation with newest message to the top
+          const target = updated.find((c) => c.id === msg.conversationId);
+          const others = updated.filter((c) => c.id !== msg.conversationId);
+          const reordered = target ? [target, ...others] : updated;
+
+          chatDataCache.setConversations(currentMemberId, reordered);
+          return reordered;
         });
       }
-      fetchConversations();
+    });
+
+    const unsubRead = chatRealtime.on("message:read", (data: any) => {
+      if (data?.conversationId) {
+        chatDataCache.markConversationRead(data.conversationId);
+        setConversations((prev) =>
+          prev.map((c) =>
+            c.id === data.conversationId ? { ...c, unreadCount: 0 } : c
+          )
+        );
+      }
     });
 
     const unsubConvUpdate = chatRealtime.on("conversation:update", () => {
-      fetchConversations();
+      fetchConversations(false);
+    });
+
+    const unsubConvDelete = chatRealtime.on("conversation:delete", (data: any) => {
+      if (data?.conversationId) {
+        setConversations((prev) => {
+          const remaining = prev.filter((c) => c.id !== data.conversationId);
+          chatDataCache.setConversations(currentMemberId, remaining);
+          return remaining;
+        });
+        if (activeConvIdRef.current === data.conversationId) {
+          setActiveConversationId(null);
+        }
+      }
     });
 
     return () => {
       unsubNewMsg();
+      unsubRead();
       unsubConvUpdate();
+      unsubConvDelete();
     };
-  }, [fetchConversations]);
+  }, [currentMemberId, fetchConversations, setActiveConversationId]);
 
-  const handleSelectTargetMember = async (targetMemberId: string) => {
+  const handleSelectTargetMember = useCallback(async (targetMemberId: string) => {
     if (!targetMemberId || targetMemberId === currentMemberId) return;
 
-    // Immediately switch active conversation view
     setActiveConversationId(targetMemberId);
 
     try {
@@ -134,7 +238,7 @@ export function MessagesView() {
     } catch (err) {
       console.error("Failed to initiate direct conversation:", err);
     }
-  };
+  }, [currentMemberId, setActiveConversationId, fetchConversations]);
 
   const activeConversation = useMemo(() => {
     if (!activeConversationId) return conversations[0] || null;
@@ -187,12 +291,28 @@ export function MessagesView() {
     return conversations[0] || null;
   }, [conversations, activeConversationId, members, currentMemberId, activeUser]);
 
-  const handleOpenIpoPage = (ipoId: string) => {
+  const handleOpenIpoPage = useCallback((ipoId: string) => {
     const foundIpo = ipos.find((i) => i.id === ipoId);
     if (foundIpo) {
       openIpoDetail(foundIpo);
     }
-  };
+  }, [ipos, openIpoDetail]);
+
+  const handleSelectConversation = useCallback((id: string) => {
+    setActiveConversationId(id);
+  }, [setActiveConversationId]);
+
+  const handleOpenNewMessageModal = useCallback(() => {
+    setIsNewMessageModalOpen(true);
+  }, []);
+
+  const handleCloseNewMessageModal = useCallback(() => {
+    setIsNewMessageModalOpen(false);
+  }, []);
+
+  const handleBackMobile = useCallback(() => {
+    setActiveConversationId(null);
+  }, [setActiveConversationId]);
 
   return (
     <div className="h-full flex-1 max-h-full flex flex-col md:flex-row overflow-hidden bg-[#0C0E12] border border-line/70 rounded-2xl shadow-2xl font-sans relative select-none">
@@ -206,8 +326,8 @@ export function MessagesView() {
           conversations={conversations}
           activeConversationId={activeConversationId}
           currentMemberId={currentMemberId}
-          onSelectConversation={(id) => setActiveConversationId(id)}
-          onOpenNewMessageModal={() => setIsNewMessageModalOpen(true)}
+          onSelectConversation={handleSelectConversation}
+          onOpenNewMessageModal={handleOpenNewMessageModal}
         />
       </div>
 
@@ -221,7 +341,7 @@ export function MessagesView() {
           <ChatWindow
             conversation={activeConversation}
             currentMemberId={currentMemberId}
-            onBackMobile={() => setActiveConversationId(null)}
+            onBackMobile={handleBackMobile}
             onOpenIpoPage={handleOpenIpoPage}
             onConversationUpdated={fetchConversations}
           />
@@ -233,7 +353,7 @@ export function MessagesView() {
               Select a conversation from the left or start a new private message with a group member.
             </p>
             <button
-              onClick={() => setIsNewMessageModalOpen(true)}
+              onClick={handleOpenNewMessageModal}
               className="px-4 py-2 rounded-xl bg-accent text-white font-bold text-xs shadow-xs hover:bg-accent-hover transition-colors cursor-pointer"
             >
               + New Message
@@ -245,7 +365,7 @@ export function MessagesView() {
       {/* New Conversation Modal */}
       <NewConversationModal
         isOpen={isNewMessageModalOpen}
-        onClose={() => setIsNewMessageModalOpen(false)}
+        onClose={handleCloseNewMessageModal}
         onSelectMember={handleSelectTargetMember}
       />
     </div>

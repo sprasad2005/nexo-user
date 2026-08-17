@@ -2,8 +2,8 @@
 
 import React from "react";
 import { Conversation, Member, UserPresenceStatus } from "@/types/nexo";
-import { ArrowLeft, TrendUp, Users, ArrowUpRight } from "@phosphor-icons/react";
-
+import { ArrowLeft, TrendUp, Users, ArrowUpRight, Trash } from "@phosphor-icons/react";
+import { useNexo } from "@/context/NexoContext";
 import { GroupInfoModal } from "./GroupInfoModal";
 
 interface ChatHeaderProps {
@@ -23,6 +23,10 @@ export function ChatHeader({
   onOpenIpoPage,
   onMemberUpdated,
 }: ChatHeaderProps) {
+  const { currentMember, currentUser } = useNexo();
+  const activeRole = currentMember?.role || currentUser?.role;
+  const isAdmin = activeRole === "SUPER_ADMIN" || activeRole === "ADMIN";
+
   const [isGroupInfoOpen, setIsGroupInfoOpen] = React.useState(false);
   const isDirect = conversation.type === "DIRECT";
   const isIpo = conversation.type === "IPO";

@@ -2,7 +2,20 @@ import React, { useState, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
 import { Conversation } from "@/types/nexo";
 import { useNexo } from "@/context/NexoContext";
-import { Users, X, UserPlus, Trash, ShieldCheck, Check, Plus, Camera, UploadSimple, Image as ImageIcon } from "@phosphor-icons/react";
+import {
+  Users,
+  X,
+  UserPlus,
+  Trash,
+  ShieldCheck,
+  Check,
+  Plus,
+  Camera,
+  UploadSimple,
+  Image as ImageIcon,
+  PencilSimple,
+  WarningCircle,
+} from "@phosphor-icons/react";
 
 const PRESET_AVATARS = [
   { name: "Oggy", path: "/oggy.png" },
@@ -25,21 +38,29 @@ export function GroupInfoModal({
   conversation,
   onMemberUpdated,
 }: GroupInfoModalProps) {
-  const { members, currentMember, currentUser } = useNexo();
+  const { members, currentMember, currentUser, setActiveConversationId } = useNexo();
   const [activeTab, setActiveTab] = useState<"MEMBERS" | "ADD">("MEMBERS");
   const [loadingMemberId, setLoadingMemberId] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [isMounted, setIsMounted] = useState(false);
   const [isEditingLogo, setIsEditingLogo] = useState(false);
+  const [isEditingTitle, setIsEditingTitle] = useState(false);
+  const [groupTitle, setGroupTitle] = useState(conversation?.title || "");
+  const [isSavingTitle, setIsSavingTitle] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState<string>("/oggy.png");
   const [customAvatarUrl, setCustomAvatarUrl] = useState<string>("");
   const [isSavingLogo, setIsSavingLogo] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [isDeletingGroup, setIsDeletingGroup] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setIsMounted(true);
     if (conversation?.avatar) {
       setSelectedAvatar(conversation.avatar);
+    }
+    if (conversation?.title) {
+      setGroupTitle(conversation.title);
     }
   }, [conversation]);
 
@@ -113,6 +134,57 @@ export function GroupInfoModal({
     }
   };
 
+  const handleSaveTitle = async () => {
+    if (!groupTitle.trim()) {
+      showFeedback("Group name cannot be empty", "error");
+      return;
+    }
+    setIsSavingTitle(true);
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ title: groupTitle.trim() }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        conversation.title = groupTitle.trim();
+        showFeedback("Group name updated successfully!");
+        setIsEditingTitle(false);
+        if (onMemberUpdated) onMemberUpdated();
+      } else {
+        showFeedback(data.error || "Failed to update group name", "error");
+      }
+    } catch {
+      showFeedback("Network error updating group name", "error");
+    } finally {
+      setIsSavingTitle(false);
+    }
+  };
+
+  const handleDeleteGroup = async () => {
+    setIsDeletingGroup(true);
+    try {
+      const res = await fetch(`/api/conversations/${conversation.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showFeedback("Group deleted successfully!");
+        setActiveConversationId(null);
+        onClose();
+        if (onMemberUpdated) onMemberUpdated();
+      } else {
+        showFeedback(data.error || "Failed to delete group", "error");
+      }
+    } catch {
+      showFeedback("Network error deleting group", "error");
+    } finally {
+      setIsDeletingGroup(false);
+      setShowDeleteConfirm(false);
+    }
+  };
+
   const handleAddMember = async (memberId: string) => {
     setLoadingMemberId(memberId);
     try {
@@ -160,8 +232,8 @@ export function GroupInfoModal({
       <div className="bg-surface border border-line rounded-2xl w-full max-w-md overflow-hidden shadow-2xl space-y-4 my-auto">
         {/* Header */}
         <div className="p-4 border-b border-line flex items-center justify-between bg-surface-alt/50">
-          <div className="flex items-center gap-3">
-            <div className="relative group">
+          <div className="flex items-center gap-3 flex-1 min-w-0 mr-2">
+            <div className="relative group shrink-0">
               <img
                 src={conversation.avatar || "/oggy.png"}
                 alt={conversation.title}
@@ -179,9 +251,55 @@ export function GroupInfoModal({
                 </button>
               )}
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h3 className="text-sm font-extrabold text-ink">{conversation.title}</h3>
+            <div className="flex-1 min-w-0">
+              {isEditingTitle ? (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <input
+                    type="text"
+                    value={groupTitle}
+                    onChange={(e) => setGroupTitle(e.target.value)}
+                    className="px-2 py-1 rounded-lg bg-surface border border-line text-xs font-bold text-ink focus:outline-none focus:border-accent w-full"
+                    placeholder="Group Name"
+                    autoFocus
+                  />
+                  <button
+                    onClick={handleSaveTitle}
+                    disabled={isSavingTitle}
+                    className="p-1 rounded-lg bg-accent text-white hover:bg-accent-hover text-xs cursor-pointer shrink-0 disabled:opacity-50"
+                    title="Save Name"
+                  >
+                    <Check size={14} weight="bold" />
+                  </button>
+                  <button
+                    onClick={() => {
+                      setGroupTitle(conversation.title);
+                      setIsEditingTitle(false);
+                    }}
+                    className="p-1 rounded-lg text-ink-tertiary hover:text-ink text-xs cursor-pointer shrink-0"
+                    title="Cancel"
+                  >
+                    <X size={14} />
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-1.5">
+                  <h3 className="text-sm font-extrabold text-ink truncate">{conversation.title}</h3>
+                  {isAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setIsEditingTitle(true)}
+                      className="p-1 rounded text-ink-tertiary hover:text-accent transition-colors cursor-pointer shrink-0"
+                      title="Edit Group Name"
+                    >
+                      <PencilSimple size={13} weight="bold" />
+                    </button>
+                  )}
+                </div>
+              )}
+              <div className="flex items-center gap-2 mt-0.5">
+                <p className="text-[11px] text-ink-tertiary">
+                  {groupParticipants.length} group member(s)
+                </p>
                 {isAdmin && !isEditingLogo && (
                   <button
                     type="button"
@@ -192,14 +310,11 @@ export function GroupInfoModal({
                   </button>
                 )}
               </div>
-              <p className="text-[11px] text-ink-tertiary">
-                {groupParticipants.length} group member(s)
-              </p>
             </div>
           </div>
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-ink-tertiary hover:text-ink hover:bg-surface-hover transition-colors cursor-pointer"
+            className="p-1.5 rounded-lg text-ink-tertiary hover:text-ink hover:bg-surface-hover transition-colors cursor-pointer shrink-0"
           >
             <X size={18} />
           </button>
@@ -306,7 +421,7 @@ export function GroupInfoModal({
         )}
 
         {/* Navigation Tabs */}
-        {isAdmin && !isMainGroup && (
+        {isAdmin && (
           <div className="px-4 flex border-b border-line gap-4 text-xs font-bold">
             <button
               onClick={() => setActiveTab("MEMBERS")}
@@ -362,7 +477,7 @@ export function GroupInfoModal({
                       </div>
                     </div>
 
-                    {isAdmin && !isMainGroup && !isSelf && (
+                    {isAdmin && !isSelf && (
                       <button
                         onClick={() => handleRemoveMember(m.id)}
                         disabled={loadingMemberId === m.id}
@@ -415,6 +530,59 @@ export function GroupInfoModal({
             </div>
           )}
         </div>
+
+        {/* Admin Danger Zone - Delete Group */}
+        {isAdmin && (
+          <div className="p-4 pt-2 border-t border-line/60 bg-surface-alt/30">
+            {showDeleteConfirm ? (
+              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/25 space-y-2.5 animate-in fade-in duration-200">
+                <div className="flex items-start gap-2">
+                  <WarningCircle size={18} className="text-rose-500 shrink-0 mt-0.5" weight="fill" />
+                  <div>
+                    <p className="text-xs font-bold text-rose-500">Delete this group?</p>
+                    <p className="text-[11px] text-ink-secondary leading-snug">
+                      This will permanently remove the group and all its messages for all participants.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center justify-end gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => setShowDeleteConfirm(false)}
+                    disabled={isDeletingGroup}
+                    className="px-3 py-1 rounded-xl text-xs font-bold text-ink-tertiary hover:text-ink cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleDeleteGroup}
+                    disabled={isDeletingGroup}
+                    className="px-3 py-1 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-all shadow-xs cursor-pointer disabled:opacity-50 flex items-center gap-1"
+                  >
+                    <Trash size={13} weight="bold" />
+                    <span>{isDeletingGroup ? "Deleting..." : "Yes, Delete Group"}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs font-bold text-ink">Group Actions</p>
+                  <p className="text-[10px] text-ink-tertiary">Delete group and chat history</p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDeleteConfirm(true)}
+                  className="px-3 py-1.5 rounded-xl border border-rose-500/30 text-rose-500 hover:bg-rose-500/10 text-xs font-bold transition-colors cursor-pointer flex items-center gap-1.5"
+                >
+                  <Trash size={14} weight="bold" />
+                  <span>Delete Group</span>
+                </button>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -5,6 +5,12 @@ import { cookies } from "next/headers";
 import { validateSessionToken } from "@/src/lib/auth/session";
 import { logActivity } from "@/src/features/activity/activityService";
 import clientPromise from "@/lib/mongodb";
+import {
+  normalizeIpoName,
+  formatIpoName,
+  isValidIpoName,
+  handleDuplicateKeyError,
+} from "@/src/lib/validation/uniqueness";
 
 const DB_NAME = "nexo";
 const SHARED_FILE_PATH_PARENT = path.join(process.cwd(), "..", "shared_ipos.json");
@@ -218,6 +224,56 @@ export async function POST(req: NextRequest) {
     // 3. Action: Update Existing IPO Opportunity
     if (body.action === "updateIpo") {
       const { ipoId, data } = body;
+
+      let formattedName: string | undefined = undefined;
+      let nameNorm: string | undefined = undefined;
+
+      if (data.name && typeof data.name === "string" && data.name.trim()) {
+        formattedName = formatIpoName(data.name);
+        nameNorm = normalizeIpoName(data.name);
+
+        // Check duplicate name in shared local memory/file
+        const isDuplicateLocal = allIpos.some(
+          (item) =>
+            item.id !== ipoId &&
+            !item.isHidden &&
+            !item.isArchived &&
+            normalizeIpoName(item.name) === nameNorm
+        );
+
+        if (isDuplicateLocal) {
+          return NextResponse.json({
+            success: false,
+            code: "DUPLICATE_IPO_NAME",
+            error: `An active IPO named "${formattedName}" already exists. IPO names must be unique.`,
+            message: `An active IPO named "${formattedName}" already exists. IPO names must be unique.`,
+          }, { status: 409, headers: corsHeaders });
+        }
+
+        // Check duplicate in MongoDB
+        try {
+          const client = await clientPromise;
+          const db = client.db(DB_NAME);
+          const dbExisting = await db.collection("ipos").findOne({
+            id: { $ne: ipoId },
+            nameNormalized: nameNorm,
+            isHidden: { $ne: true },
+            isArchived: { $ne: true },
+          });
+
+          if (dbExisting) {
+            return NextResponse.json({
+              success: false,
+              code: "DUPLICATE_IPO_NAME",
+              error: `An active IPO named "${formattedName}" already exists in the database.`,
+              message: `An active IPO named "${formattedName}" already exists in the database.`,
+            }, { status: 409, headers: corsHeaders });
+          }
+        } catch (dbErr) {
+          console.warn("MongoDB unique name check warning in updateIpo:", dbErr);
+        }
+      }
+
       const updated = allIpos.map((ipo) => {
         if (ipo.id === ipoId) {
           const currentMetrics = ipo.metrics || {};
@@ -226,8 +282,9 @@ export async function POST(req: NextRequest) {
 
           return {
             ...ipo,
-            name: data.name ? data.name.trim() : ipo.name,
-            company: data.name ? data.name.trim() : ipo.company,
+            name: formattedName || ipo.name,
+            nameNormalized: nameNorm || ipo.nameNormalized || normalizeIpoName(ipo.name),
+            company: formattedName || ipo.company,
             thesis: data.description ? data.description.trim() : ipo.thesis,
             registrarUrl: data.registrarUrl !== undefined ? data.registrarUrl.trim() : ipo.registrarUrl,
             metrics: {
@@ -258,7 +315,7 @@ export async function POST(req: NextRequest) {
           { $or: [{ id: ipoId }, { _id: ipoId as any }] },
           {
             $set: {
-              ...(data.name ? { name: data.name.trim(), company: data.name.trim() } : {}),
+              ...(formattedName ? { name: formattedName, company: formattedName, nameNormalized: nameNorm } : {}),
               ...(data.description ? { thesis: data.description.trim() } : {}),
               ...(data.registrarUrl !== undefined ? { registrarUrl: data.registrarUrl.trim() } : {}),
               ...(data.status ? { status: data.status } : {}),
@@ -274,8 +331,17 @@ export async function POST(req: NextRequest) {
             },
           }
         );
-      } catch (dbErr) {
+      } catch (dbErr: any) {
         console.warn("MongoDB updateIpo error:", dbErr);
+        const dupError = handleDuplicateKeyError(dbErr);
+        if (dupError) {
+          return NextResponse.json({
+            success: false,
+            code: dupError.code,
+            error: dupError.message,
+            message: dupError.message,
+          }, { status: 409, headers: corsHeaders });
+        }
       }
 
       await logActivity({
@@ -289,7 +355,7 @@ export async function POST(req: NextRequest) {
         actorRole,
         targetType: "IPO",
         targetId: ipoId,
-        targetName: data.name || "IPO",
+        targetName: formattedName || data.name || "IPO",
         ipoId
       });
 
@@ -340,25 +406,35 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const cleanName = name.trim();
+    const cleanName = formatIpoName(name);
+    const normName = normalizeIpoName(name);
+
+    if (!isValidIpoName(cleanName)) {
+      return NextResponse.json({
+        success: false,
+        code: "INVALID_IPO_NAME",
+        error: "IPO name must be between 2 and 100 characters.",
+        message: "IPO name must be between 2 and 100 characters.",
+      }, { status: 400, headers: corsHeaders });
+    }
 
     // Enforce Unique IPO Name across all existing active IPOs (ignoring deleted/hidden ones)
     const isDuplicate = allIpos.some(
       (item) =>
         !item.isHidden &&
         !item.isArchived &&
-        item.name &&
-        item.name.trim().toLowerCase() === cleanName.toLowerCase()
+        normalizeIpoName(item.name) === normName
     );
 
     if (isDuplicate) {
       return NextResponse.json(
         {
           success: false,
+          code: "DUPLICATE_IPO_NAME",
           error: `An active IPO named "${cleanName}" already exists. IPO names must be unique.`,
           message: `An active IPO named "${cleanName}" already exists. IPO names must be unique.`,
         },
-        { status: 400, headers: corsHeaders }
+        { status: 409, headers: corsHeaders }
       );
     }
 
@@ -367,7 +443,7 @@ export async function POST(req: NextRequest) {
       const client = await clientPromise;
       const db = client.db(DB_NAME);
       const dbExisting = await db.collection("ipos").findOne({
-        name: { $regex: new RegExp(`^${cleanName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}$`, "i") },
+        nameNormalized: normName,
         isHidden: { $ne: true },
         isArchived: { $ne: true },
       });
@@ -375,10 +451,11 @@ export async function POST(req: NextRequest) {
         return NextResponse.json(
           {
             success: false,
+            code: "DUPLICATE_IPO_NAME",
             error: `An active IPO named "${cleanName}" already exists in the database.`,
             message: `An active IPO named "${cleanName}" already exists in the database.`,
           },
-          { status: 400, headers: corsHeaders }
+          { status: 409, headers: corsHeaders }
         );
       }
     } catch (dbErr) {
@@ -389,9 +466,10 @@ export async function POST(req: NextRequest) {
 
     const newIpo = {
       id: `ipo_${Date.now()}`,
-      name: name.trim(),
-      company: name.trim(),
-      logo: name.trim().substring(0, 2).toUpperCase(),
+      name: cleanName,
+      nameNormalized: normName,
+      company: cleanName,
+      logo: cleanName.substring(0, 2).toUpperCase(),
       category: body.type || body.category || "Mainboard",
       status: body.status || "APPLICATION_OPEN",
       recommendation: body.recommendation || body.decision || "APPLY",
@@ -428,8 +506,17 @@ export async function POST(req: NextRequest) {
         { $set: newIpo },
         { upsert: true }
       );
-    } catch (dbErr) {
+    } catch (dbErr: any) {
       console.warn("MongoDB insert optional fallback:", dbErr);
+      const dupError = handleDuplicateKeyError(dbErr);
+      if (dupError) {
+        return NextResponse.json({
+          success: false,
+          code: dupError.code,
+          error: dupError.message,
+          message: dupError.message,
+        }, { status: 409, headers: corsHeaders });
+      }
     }
 
     await logActivity({
@@ -443,14 +530,14 @@ export async function POST(req: NextRequest) {
       actorRole,
       targetType: "IPO",
       targetId: newIpo.id,
-      targetName: name.trim(),
+      targetName: cleanName,
       ipoId: newIpo.id
     });
 
     return NextResponse.json({
       success: true,
       ipo: newIpo,
-      message: `✓ IPO added successfully. ${name} is now visible on the user website.`,
+      message: `✓ IPO added successfully. ${cleanName} is now visible on the user website.`,
     }, { headers: corsHeaders });
   } catch (err: any) {
     console.error("POST /api/ipos error:", err);

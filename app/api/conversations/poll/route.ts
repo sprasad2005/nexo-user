@@ -72,6 +72,7 @@ export async function GET(req: Request) {
 
     /* 4. Compute unread counts per conversation */
     const unreadCounts: Record<string, number> = {};
+    let totalUnreadCount = 0;
     for (const convId of conversationIds) {
       const membership = authorizedMemberships.find((m) => m.conversationId === convId);
       const lastRead = membership?.lastReadAt ? new Date(membership.lastReadAt).getTime() : 0;
@@ -79,14 +80,17 @@ export async function GET(req: Request) {
         conversationId: convId,
         senderId: { $ne: memberId },
         createdAt: { $gt: new Date(lastRead) },
+        isDeletedByAdmin: { $ne: true },
       });
       unreadCounts[convId] = count;
+      totalUnreadCount += count;
     }
 
     return NextResponse.json({
       success: true,
       messages,
       unreadCounts,
+      totalUnreadCount,
       currentMemberId: memberId,
     });
   } catch (err: any) {

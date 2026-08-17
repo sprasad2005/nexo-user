@@ -7,7 +7,9 @@ interface TypingIndicatorProps {
   typingUsers: (TypingUser | string)[];
 }
 
-export function TypingIndicator({ typingUsers }: TypingIndicatorProps) {
+export const TypingIndicator = React.memo(function TypingIndicator({
+  typingUsers,
+}: TypingIndicatorProps) {
   if (!typingUsers || typingUsers.length === 0) return null;
 
   // Normalize typing users array to TypingUser objects
@@ -31,6 +33,8 @@ export function TypingIndicator({ typingUsers }: TypingIndicatorProps) {
             key={user.id || user.name}
             src={user.avatar || "/oggy.png"}
             alt={user.name}
+            loading="lazy"
+            decoding="async"
             className="w-6 h-6 rounded-full object-cover border-2 border-surface ring-1 ring-accent/30 shadow-xs"
             onError={(e) => {
               (e.target as HTMLImageElement).src = "/oggy.png";
@@ -66,4 +70,7 @@ export function TypingIndicator({ typingUsers }: TypingIndicatorProps) {
       </div>
     </div>
   );
-}
+}, (prev, next) => {
+  if ((prev.typingUsers?.length || 0) !== (next.typingUsers?.length || 0)) return false;
+  return true;
+});

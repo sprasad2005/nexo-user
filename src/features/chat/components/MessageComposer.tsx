@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useRef, useEffect, useCallback } from "react";
 import { MessageAttachment, MessageAttachmentType } from "@/types/nexo";
 import {
   PaperPlaneRight,
@@ -10,9 +10,7 @@ import {
   FileText,
   Microphone,
   X,
-  MusicNotes,
   Check,
-  Record,
 } from "@phosphor-icons/react";
 
 interface MessageComposerProps {
@@ -63,7 +61,7 @@ const EMOJI_CATEGORIES = [
   },
 ];
 
-export function MessageComposer({
+export const MessageComposer = React.memo(function MessageComposer({
   onSendMessage,
   onTypingStatusChange,
   disabled = false,
@@ -85,12 +83,17 @@ export function MessageComposer({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const typingTimerRef = useRef<NodeJS.Timeout | null>(null);
 
+  const typingThrottleRef = useRef<number>(0);
+  const isSubmittingRef = useRef<boolean>(false);
+
   // Hidden File Input Refs
   const imageInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
 
   // Auto-close Emoji Picker and Attachment Menu when clicking anywhere outside
   useEffect(() => {
+    if (!showEmojiPicker && !showAttachmentMenu) return;
+
     const handleClickOutside = (e: MouseEvent) => {
       if (composerRef.current && !composerRef.current.contains(e.target as Node)) {
         setShowEmojiPicker(false);
@@ -102,9 +105,21 @@ export function MessageComposer({
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
+  }, [showEmojiPicker, showAttachmentMenu]);
+
+  // Clean up timers on unmount
+  useEffect(() => {
+    return () => {
+      if (recordingTimerRef.current) clearInterval(recordingTimerRef.current);
+      if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== "inactive") {
+        mediaRecorderRef.current.stream.getTracks().forEach((t) => t.stop());
+        mediaRecorderRef.current.stop();
+      }
+    };
   }, []);
 
-  // Auto-resize textarea height between 40px and 140px
+  // Auto-resize textarea height between 40px and 140px without layout thrashing
   useEffect(() => {
     if (textareaRef.current) {
       textareaRef.current.style.height = "40px";
@@ -113,29 +128,30 @@ export function MessageComposer({
     }
   }, [text]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+  const handleChange = useCallback((e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setText(e.target.value);
 
     if (onTypingStatusChange) {
-      onTypingStatusChange(true);
+      const now = Date.now();
+      // Throttle typing network events to at most once every 3 seconds
+      if (now - typingThrottleRef.current > 3000) {
+        typingThrottleRef.current = now;
+        onTypingStatusChange(true);
+      }
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
       typingTimerRef.current = setTimeout(() => {
         onTypingStatusChange(false);
+        typingThrottleRef.current = 0;
       }, 2500);
     }
-  };
+  }, [onTypingStatusChange]);
 
-  const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
-  };
-
-  const handleSend = () => {
+  const handleSend = useCallback(() => {
+    if (isSubmittingRef.current) return;
     const trimmed = text.trim();
     if ((!trimmed && !selectedAttachment) || disabled) return;
 
+    isSubmittingRef.current = true;
     onSendMessage(trimmed, selectedAttachment || undefined);
     setText("");
     setSelectedAttachment(null);
@@ -144,21 +160,34 @@ export function MessageComposer({
 
     if (onTypingStatusChange) {
       if (typingTimerRef.current) clearTimeout(typingTimerRef.current);
+      typingThrottleRef.current = 0;
       onTypingStatusChange(false);
     }
 
     if (textareaRef.current) {
       textareaRef.current.style.height = "40px";
     }
-  };
 
-  const appendEmoji = (emoji: string) => {
+    requestAnimationFrame(() => {
+      isSubmittingRef.current = false;
+    });
+  }, [text, selectedAttachment, disabled, onSendMessage, onTypingStatusChange]);
+
+  const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      if (e.nativeEvent.isComposing) return;
+      e.preventDefault();
+      handleSend();
+    }
+  }, [handleSend]);
+
+  const appendEmoji = useCallback((emoji: string) => {
     setText((prev) => prev + emoji);
     if (textareaRef.current) textareaRef.current.focus();
-  };
+  }, []);
 
   // Process File Selection
-  const handleFileSelect = (
+  const handleFileSelect = useCallback((
     e: React.ChangeEvent<HTMLInputElement>,
     type: MessageAttachmentType
   ) => {
@@ -183,7 +212,7 @@ export function MessageComposer({
     };
     reader.readAsDataURL(file);
     e.target.value = "";
-  };
+  }, []);
 
   const formatFileSize = (bytes?: number) => {
     if (!bytes) return "";
@@ -198,10 +227,8 @@ export function MessageComposer({
     return `${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
   };
 
-  /* ────────────────────────────────────────────────────────────────
-     LIVE VOICE AUDIO RECORDING HANDLERS
-  ──────────────────────────────────────────────────────────────── */
-  const startVoiceRecording = async () => {
+  /* LIVE VOICE AUDIO RECORDING HANDLERS */
+  const startVoiceRecording = useCallback(async () => {
     try {
       if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
         alert("Audio recording is not supported on this browser.");
@@ -232,9 +259,9 @@ export function MessageComposer({
       console.error("Microphone access error:", err);
       alert("Unable to access microphone. Please allow permission.");
     }
-  };
+  }, []);
 
-  const cancelVoiceRecording = () => {
+  const cancelVoiceRecording = useCallback(() => {
     if (mediaRecorderRef.current) {
       mediaRecorderRef.current.stream.getTracks().forEach((track) => track.stop());
       if (mediaRecorderRef.current.state !== "inactive") {
@@ -245,9 +272,9 @@ export function MessageComposer({
     setIsRecording(false);
     setRecordingDuration(0);
     audioChunksRef.current = [];
-  };
+  }, []);
 
-  const stopAndSendVoiceRecording = () => {
+  const stopAndSendVoiceRecording = useCallback(() => {
     if (!mediaRecorderRef.current) return;
 
     const recorder = mediaRecorderRef.current;
@@ -278,7 +305,7 @@ export function MessageComposer({
     if (recorder.state !== "inactive") {
       recorder.stop();
     }
-  };
+  }, [recordingDuration, onSendMessage]);
 
   return (
     <div ref={composerRef} className="p-3 sm:p-4 bg-surface/95 backdrop-blur-md border-t border-line/70 shrink-0 pb-safe z-20 font-sans relative">
@@ -306,6 +333,8 @@ export function MessageComposer({
               <img
                 src={selectedAttachment.url}
                 alt={selectedAttachment.name}
+                loading="lazy"
+                decoding="async"
                 className="w-12 h-12 rounded-xl object-cover border border-line shrink-0"
               />
             ) : (
@@ -520,4 +549,4 @@ export function MessageComposer({
       </div>
     </div>
   );
-}
+});

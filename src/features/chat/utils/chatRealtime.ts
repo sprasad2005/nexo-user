@@ -64,6 +64,10 @@ class ChatRealtimeService {
         this.pusherChannel.bind("presence:update", (data: any) => {
           this.emit("presence:update", data);
         });
+
+        this.pusherChannel.bind("conversation:delete", (data: any) => {
+          this.emit("conversation:delete", data);
+        });
       }
     } catch (err) {
       console.warn("[Pusher Client] Subscription fallback:", err);

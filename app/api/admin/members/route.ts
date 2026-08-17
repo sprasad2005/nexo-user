@@ -6,6 +6,13 @@ import { MemberDocument } from "@/src/models/Member";
 import { hashPassword, normalizeEmail, validatePasswordStrength } from "@/src/lib/auth/password";
 import { logActivity } from "@/src/features/activity/activityService";
 import { MOCK_MEMBERS } from "@/lib/mockData";
+import {
+  normalizePan,
+  isValidPan,
+  normalizePhone,
+  isValidPhone,
+  handleDuplicateKeyError,
+} from "@/src/lib/validation/uniqueness";
 
 const DB_NAME = "nexo";
 
@@ -23,8 +30,8 @@ export async function GET(req: Request) {
     const client = await clientPromise;
     const db = client.db(DB_NAME);
 
-    // Fetch users and members concurrently in parallel with lean projections
-    const [users, initialMembers] = await Promise.all([
+    // Fetch users, members, and batched application counts concurrently in parallel with lean projections
+    const [users, initialMembers, appCounts] = await Promise.all([
       db.collection<UserDocument>("users").find({}, {
         projection: {
           id: 1,
@@ -58,8 +65,23 @@ export async function GET(req: Request) {
           isVerified: 1,
         },
       }).toArray(),
+      db.collection("applications").aggregate([
+        {
+          $group: {
+            _id: { $ifNull: ["$memberId", "$applicantName"] },
+            count: { $sum: 1 },
+          },
+        },
+      ]).toArray(),
     ]);
     let members = initialMembers;
+
+    const ipoCountMap = new Map<string, number>();
+    appCounts.forEach((ac: any) => {
+      if (ac._id) {
+        ipoCountMap.set(String(ac._id).toLowerCase().trim(), ac.count || 0);
+      }
+    });
 
     // Auto-seed if members collection is empty
     if (members.length === 0) {
@@ -116,6 +138,12 @@ export async function GET(req: Request) {
       const isEmailVerified = user?.emailVerified || false;
       const isVerified = member.panMasked ? true : isEmailVerified;
 
+      const mIpoCount =
+        ipoCountMap.get(member.id.toLowerCase()) ||
+        (member.username ? ipoCountMap.get(member.username.toLowerCase()) : 0) ||
+        ipoCountMap.get(member.name.toLowerCase()) ||
+        0;
+
       return {
         id: member.id,
         name: member.name,
@@ -129,6 +157,8 @@ export async function GET(req: Request) {
         isVerified: isVerified,
         lastLoginAt: user?.lastLoginAt || null,
         createdAt: member.createdAt || new Date(),
+        joinedAt: member.joinedAt,
+        ipoCount: mIpoCount,
         mustChangePassword: user?.mustChangePassword || false,
       };
     });
@@ -139,6 +169,11 @@ export async function GET(req: Request) {
       const uKey = u.memberId || u.id || uUsername;
       if (uKey && !memberIdsSeen.has(uKey) && !memberIdsSeen.has(uUsername)) {
         memberIdsSeen.add(uKey);
+        const mIpoCount =
+          ipoCountMap.get(uKey.toLowerCase()) ||
+          ipoCountMap.get(uUsername.toLowerCase()) ||
+          0;
+
         merged.push({
           id: u.memberId || u.id || `mem_${Date.now()}`,
           name: (u as any).name || uUsername,
@@ -152,6 +187,8 @@ export async function GET(req: Request) {
           isVerified: u.emailVerified || false,
           lastLoginAt: u.lastLoginAt || null,
           createdAt: u.createdAt || new Date(),
+          joinedAt: "Jan 2025",
+          ipoCount: mIpoCount,
           mustChangePassword: u.mustChangePassword || false,
         });
       }
@@ -247,7 +284,7 @@ export async function POST(req: Request) {
     const auth = await requireAdmin();
     const body = await req.json();
 
-    const { name, role, email, phone, avatar } = body;
+    const { name, role, email, phone, avatar, pan, panCard, panFull, defaultContribution } = body;
     let { username, password } = body;
 
     // Validation
@@ -284,6 +321,36 @@ export async function POST(req: Request) {
       }, { status: 400 });
     }
 
+    // ── PAN VALIDATION & NORMALIZATION ──
+    const rawPan = pan || panCard || panFull || "";
+    let panNormalized: string | undefined = undefined;
+    if (rawPan && typeof rawPan === "string" && rawPan.trim()) {
+      if (!isValidPan(rawPan)) {
+        return NextResponse.json({
+          success: false,
+          code: "INVALID_PAN",
+          error: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
+          message: "Please enter a valid 10-character PAN card number (e.g. ABCDE1234F).",
+        }, { status: 400 });
+      }
+      panNormalized = normalizePan(rawPan);
+    }
+
+    // ── PHONE VALIDATION & NORMALIZATION ──
+    const rawPhone = phone || "";
+    let phoneNormalized: string | undefined = undefined;
+    if (rawPhone && typeof rawPhone === "string" && rawPhone.trim()) {
+      if (!isValidPhone(rawPhone)) {
+        return NextResponse.json({
+          success: false,
+          code: "INVALID_PHONE",
+          error: "Please enter a valid phone number.",
+          message: "Please enter a valid phone number.",
+        }, { status: 400 });
+      }
+      phoneNormalized = normalizePhone(rawPhone);
+    }
+
     const isEmailProvided = Boolean(email && typeof email === "string" && email.trim());
     const userEmail = isEmailProvided ? email.trim() : `${cleanUsername}@nexo.private`;
     const emailNorm = normalizeEmail(userEmail);
@@ -291,7 +358,7 @@ export async function POST(req: Request) {
     const client = await clientPromise;
     const db = client.db(DB_NAME);
 
-    // Check username uniqueness first
+    // ── 1. Check Username Uniqueness ──
     const existingMember = await db.collection<MemberDocument>("members").findOne({ username: cleanUsername });
     const existingUserByUsername = await db.collection<UserDocument>("users").findOne({
       $or: [{ username: cleanUsername }, { memberId: cleanUsername }]
@@ -300,15 +367,48 @@ export async function POST(req: Request) {
     if (existingMember || existingUserByUsername) {
       return NextResponse.json({
         success: false,
-        error: `Username '${cleanUsername}' is already taken. Please choose another username.`
+        code: "DUPLICATE_USERNAME",
+        error: `Username '${cleanUsername}' is already taken. Please choose another username.`,
+        message: `Username '${cleanUsername}' is already taken. Please choose another username.`,
       }, { status: 409 });
     }
 
-    // Check email uniqueness only if custom email was provided
+    // ── 2. Check Email Uniqueness ──
     if (isEmailProvided) {
       const existingUserByEmail = await db.collection<UserDocument>("users").findOne({ emailNormalized: emailNorm });
       if (existingUserByEmail) {
-        return NextResponse.json({ success: false, error: "Email is already registered." }, { status: 409 });
+        return NextResponse.json({
+          success: false,
+          code: "DUPLICATE_EMAIL",
+          error: "This email address is already registered.",
+          message: "This email address is already registered.",
+        }, { status: 409 });
+      }
+    }
+
+    // ── 3. Check PAN Uniqueness ──
+    if (panNormalized) {
+      const existingByPan = await db.collection<MemberDocument>("members").findOne({ panNormalized });
+      if (existingByPan) {
+        return NextResponse.json({
+          success: false,
+          code: "DUPLICATE_PAN",
+          error: `PAN number '${panNormalized}' is already registered to member '${existingByPan.name}'.`,
+          message: `This PAN number is already registered to another member.`,
+        }, { status: 409 });
+      }
+    }
+
+    // ── 4. Check Phone Uniqueness ──
+    if (phoneNormalized) {
+      const existingByPhone = await db.collection<MemberDocument>("members").findOne({ phoneNormalized });
+      if (existingByPhone) {
+        return NextResponse.json({
+          success: false,
+          code: "DUPLICATE_PHONE",
+          error: `Phone number '${phoneNormalized}' is already registered to member '${existingByPhone.name}'.`,
+          message: `This phone number is already registered to another member.`,
+        }, { status: 409 });
       }
     }
 
@@ -332,11 +432,13 @@ export async function POST(req: Request) {
       avatar: chosenAvatar,
       role: role as any,
       status: "ACTIVE",
-      panMasked: "ABCDE1234F", // default dummy PAN for basic creation
-      panFull: "ABCDE1234F",
-      defaultContribution: 50000,
+      panMasked: panNormalized || "ABCDE1234F",
+      panFull: panNormalized || "ABCDE1234F",
+      panNormalized: panNormalized,
+      defaultContribution: Number(defaultContribution) || 50000,
       joinedAt: new Date().toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" }),
-      phone: phone || undefined,
+      phone: phoneNormalized || phone || undefined,
+      phoneNormalized: phoneNormalized,
       createdAt: new Date(),
       updatedAt: new Date(),
       permissions: {
@@ -359,6 +461,8 @@ export async function POST(req: Request) {
       status: "ACTIVE",
       emailVerified: true,
       mustChangePassword: true, // Force password change on first login
+      panNormalized: panNormalized,
+      phoneNormalized: phoneNormalized,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
@@ -369,17 +473,30 @@ export async function POST(req: Request) {
       name: name.trim(),
       displayName: name.trim(),
       email: emailNorm,
-      phone: phone || "+91 98200 12345",
+      phone: phoneNormalized || phone || "+91 98200 12345",
       avatar: chosenAvatar,
       bio: `NEXO ${role} Profile`,
       createdAt: new Date(),
       updatedAt: new Date(),
     };
 
-    // Save to Database
-    await db.collection<MemberDocument>("members").insertOne(memberDoc as any);
-    await db.collection<UserDocument>("users").insertOne(userDoc as any);
-    await db.collection("profiles").insertOne(profileDoc);
+    // Save to Database (Enforce final uniqueness via MongoDB unique indexes)
+    try {
+      await db.collection<MemberDocument>("members").insertOne(memberDoc as any);
+      await db.collection<UserDocument>("users").insertOne(userDoc as any);
+      await db.collection("profiles").insertOne(profileDoc);
+    } catch (insertErr: any) {
+      const dupError = handleDuplicateKeyError(insertErr);
+      if (dupError) {
+        return NextResponse.json({
+          success: false,
+          code: dupError.code,
+          error: dupError.message,
+          message: dupError.message,
+        }, { status: 409 });
+      }
+      throw insertErr;
+    }
 
     // Audit Event
     await logActivity({
@@ -412,6 +529,15 @@ export async function POST(req: Request) {
     });
   } catch (err: any) {
     console.error("POST /api/admin/members error:", err);
+    const dupError = handleDuplicateKeyError(err);
+    if (dupError) {
+      return NextResponse.json({
+        success: false,
+        code: dupError.code,
+        error: dupError.message,
+        message: dupError.message,
+      }, { status: 409 });
+    }
     if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {
       return NextResponse.json({ success: false, error: "Access Denied." }, { status: err.message === "UNAUTHORIZED" ? 401 : 403 });
     }

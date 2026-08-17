@@ -24,9 +24,11 @@ export default function Home() {
     return <LoginForm />;
   }
 
-  if (activeTab === "admin") {
-    return <FullAdminDashboard />;
-  }
+  React.useEffect(() => {
+    if (activeTab === ("admin" as any)) {
+      window.location.href = "/admin";
+    }
+  }, [activeTab]);
 
   return (
     <div className="flex h-screen overflow-hidden bg-page text-ink font-sans antialiased">

@@ -103,7 +103,27 @@ export async function PUT(
     };
 
     if (typeof body.name === "string" && body.name.trim()) {
-      updateFields.name = body.name.trim();
+      const { normalizeIpoName, formatIpoName } = await import("@/src/lib/validation/uniqueness");
+      const cleanName = formatIpoName(body.name);
+      const nameNorm = normalizeIpoName(body.name);
+      
+      // Check duplicate name excluding current record
+      const dupDoc = await collection.findOne({
+        _id: { $ne: new ObjectId(id) },
+        nameNormalized: nameNorm,
+        isHidden: { $ne: true },
+        isArchived: { $ne: true },
+      });
+
+      if (dupDoc) {
+        return NextResponse.json({
+          error: `An active IPO named "${cleanName}" already exists. IPO names must be unique.`,
+          code: "DUPLICATE_IPO_NAME",
+        }, { status: 409 });
+      }
+
+      updateFields.name = cleanName;
+      updateFields.nameNormalized = nameNorm;
     }
     if (typeof body.company === "string" && body.company.trim()) {
       updateFields.company = body.company.trim();
@@ -181,6 +201,11 @@ export async function PUT(
     return NextResponse.json({ success: true, ipo });
   } catch (error: any) {
     console.error("PUT /api/ipos/[id] error:", error);
+    const { handleDuplicateKeyError } = await import("@/src/lib/validation/uniqueness");
+    const dupErr = handleDuplicateKeyError(error);
+    if (dupErr) {
+      return NextResponse.json({ error: dupErr.message, code: dupErr.code }, { status: 409 });
+    }
     return NextResponse.json(
       { error: "Failed to update IPO opportunity" },
       { status: 500 }

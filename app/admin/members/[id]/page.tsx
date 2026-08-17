@@ -2,13 +2,13 @@
 
 import React, { useState, useEffect, Suspense } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { AdminProvider } from "@/admin/context/AdminContext";
-import { AdminSidebar } from "@/admin/components/AdminSidebar";
+import { AdminProvider } from "@/context/AdminContext";
+import { AdminSidebar } from "@/components/admin/AdminSidebar";
 import { AdminNavbarProfileMenu } from "@/components/admin/AdminNavbarProfileMenu";
 import { NotificationPopover } from "@/components/shell/NotificationPopover";
 import { AdminLogoutModal } from "@/components/admin/AdminLogoutModal";
-import { AddIPODrawer } from "@/admin/components/AddIPODrawer";
-import { AdminDataCache } from "@/lib/adminDataCache";
+import { AddIPODrawer } from "@/components/admin/AddIPODrawer";
+import { AdminDataCache } from "@/lib/nexoDataCache";
 import {
   ArrowLeft, ShieldCheck, User, Shield, Prohibit, CheckCircle, 
   Key, Keyhole, PencilSimple, ClockCountdown, ListChecks, 
@@ -98,6 +98,7 @@ function MemberDetailPageContent() {
   // Shell states
   const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
   const [isAddIpoOpen, setIsAddIpoOpen] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [adminStatus, setAdminStatus] = useState<"LOADING" | "AUTHORIZED" | "UNAUTHORIZED">("AUTHORIZED");
 
   // Data states
@@ -151,7 +152,7 @@ function MemberDetailPageContent() {
   useEffect(() => {
     let active = true;
     AdminDataCache.fetchSWR(
-      "admin_auth_status",
+      "auth_me",
       async () => {
         const r = await fetch("/api/auth/me");
         return r.json();
@@ -160,7 +161,7 @@ function MemberDetailPageContent() {
     )
       .then((data) => {
         if (!active) return;
-        if (data?.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN")) {
+        if (data?.authenticated && (data.user?.role === "SUPER_ADMIN" || data.user?.role === "ADMIN" || data.member?.role === "SUPER_ADMIN" || data.member?.role === "ADMIN")) {
           try {
             sessionStorage.setItem("nexo_admin_authenticated", "true");
           } catch {}
@@ -471,27 +472,36 @@ function MemberDetailPageContent() {
         setActiveTab={handleTabChange}
         onAddIpoClick={() => setIsAddIpoOpen(true)}
         onSignOutClick={() => setIsLogoutModalOpen(true)}
+        isOpen={isMobileSidebarOpen}
+        onClose={() => setIsMobileSidebarOpen(false)}
       />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col min-w-0 h-screen overflow-y-auto">
         
         {/* Top Header Bar */}
-        <header className="h-14 bg-white dark:bg-[#101114] border-b border-slate-200 dark:border-[#252931] px-6 flex items-center justify-between sticky top-0 z-20 shrink-0 select-none">
-          <div className="flex items-center gap-2">
+        <header className="h-14 bg-white dark:bg-[#101114] border-b border-slate-200 dark:border-[#252931] px-3.5 sm:px-6 flex items-center justify-between sticky top-0 z-20 shrink-0 select-none">
+          <div className="flex items-center gap-2 min-w-0">
+            <button
+              onClick={() => setIsMobileSidebarOpen(true)}
+              className="lg:hidden p-1.5 -ml-1 rounded-xl text-ink-tertiary hover:text-ink hover:bg-surface-hover transition-colors cursor-pointer mr-0.5 shrink-0"
+              title="Open Navigation Menu"
+            >
+              <span className="text-base font-bold">☰</span>
+            </button>
             <ArrowLeft 
               onClick={() => router.push("/admin/members")}
-              className="text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer w-4 h-4 mr-2" 
+              className="text-slate-400 hover:text-slate-900 dark:hover:text-white cursor-pointer w-4 h-4 mr-1 shrink-0" 
             />
-            <span className="text-xs font-bold text-slate-400 dark:text-[#858D99] uppercase tracking-wider">
+            <span className="text-[11px] sm:text-xs font-bold text-slate-400 dark:text-[#858D99] uppercase tracking-wider hidden sm:inline">
               Workspace / Members /
             </span>
-            <span className="text-xs font-extrabold text-slate-900 dark:text-[#F5F7FA] uppercase tracking-wider">
+            <span className="text-xs font-extrabold text-slate-900 dark:text-[#F5F7FA] uppercase tracking-wider truncate">
               {member?.name || "Member Workspace"}
             </span>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <NotificationPopover />
             <AdminNavbarProfileMenu
               activeTab="members"
@@ -512,7 +522,7 @@ function MemberDetailPageContent() {
         )}
 
         {/* Content Wrapper */}
-        <main className="p-4 sm:p-6 md:p-8 flex-1 max-w-6xl w-full mx-auto pb-20">
+        <main className="p-3 sm:p-5 md:p-8 flex-1 max-w-full lg:max-w-6xl w-full mx-auto pb-20 min-w-0">
           
           {isLoading || !member ? (
             <div className="p-12 text-center text-xs text-slate-400 space-y-4 animate-pulse">
@@ -575,7 +585,6 @@ function MemberDetailPageContent() {
                         <span className="font-mono text-blue-600 dark:text-[#6B93FF] font-bold">@{member.username}</span>
                         {member.email && <span>{member.email}</span>}
                         {member.phone && <span>{member.phone}</span>}
-                        {member.panMasked && <span className="font-mono text-slate-400">PAN: {member.panMasked}</span>}
                       </div>
                     </div>
                   </div>
@@ -725,10 +734,6 @@ function MemberDetailPageContent() {
                     <div>
                       <span className="text-[10px] text-slate-400 dark:text-[#858D99] block font-semibold uppercase">PHONE NUMBER</span>
                       <span className="font-extrabold text-slate-800 dark:text-slate-200">{member.phone || <span className="italic text-slate-400 font-normal">Not provided</span>}</span>
-                    </div>
-                    <div>
-                      <span className="text-[10px] text-slate-400 dark:text-[#858D99] block font-semibold uppercase">PAN IDENTIFIER</span>
-                      <span className="font-mono font-bold text-slate-800 dark:text-slate-200">{member.panMasked || "ABCDE1234F"}</span>
                     </div>
                     <div>
                       <span className="text-[10px] text-slate-400 dark:text-[#858D99] block font-semibold uppercase">JOIN DATE</span>

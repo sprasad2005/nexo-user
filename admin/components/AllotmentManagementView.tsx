@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CopyButton } from "@/components/ui/CopyButton";
-import { AdminDataCache } from "@/lib/adminDataCache";
+import { AdminDataCache } from "../../lib/nexoDataCache";
 import {
   CheckCircle,
   MagnifyingGlass,
@@ -22,12 +22,13 @@ import {
   ArrowSquareOut,
   Files,
 } from "@phosphor-icons/react";
-import { formatApplicantNames } from "@/lib/mockData";
+import { formatApplicantNames } from "../../lib/mockData";
 
 export interface ApplicationItem {
   id: string;
   applicantName: string;
   username: string;
+  memberAvatar?: string;
   pan: string;
   panNumbers?: string[];
   applicationNumber: string;
@@ -59,15 +60,8 @@ export interface IPOItem {
 
 export function AllotmentManagementView() {
   // Data states
-  const [ipos, setIpos] = useState<IPOItem[]>(() => {
-    return AdminDataCache.get<IPOItem[]>("admin_allotment_ipos") || [];
-  });
-  const [selectedIpoId, setSelectedIpoId] = useState<string>(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("nexo_admin_selected_ipo_id") || "";
-    }
-    return "";
-  });
+  const [ipos, setIpos] = useState<IPOItem[]>([]);
+  const [selectedIpoId, setSelectedIpoId] = useState<string>("");
   const [selectedIpo, setSelectedIpo] = useState<IPOItem | null>(null);
   const [applications, setApplications] = useState<ApplicationItem[]>([]);
   const [currentUserRole, setCurrentUserRole] = useState<string>("ADMIN");
@@ -392,6 +386,7 @@ export function AllotmentManagementView() {
         AdminDataCache.invalidate("admin_allotment_bootstrap");
         AdminDataCache.invalidate(`admin_allotment_apps_${selectedIpoId}`);
         AdminDataCache.invalidate("admin_ipos");
+        AdminDataCache.invalidate("ipos_apps");
         fetchApplicationsForIpo(selectedIpoId);
         fetchIpos();
       } else {
@@ -422,6 +417,7 @@ export function AllotmentManagementView() {
         AdminDataCache.invalidate("admin_allotment_bootstrap");
         AdminDataCache.invalidate(`admin_allotment_apps_${selectedIpoId}`);
         AdminDataCache.invalidate("admin_ipos");
+        AdminDataCache.invalidate("ipos_apps");
         fetchApplicationsForIpo(selectedIpoId);
         fetchIpos();
       } else {
@@ -891,8 +887,19 @@ export function AllotmentManagementView() {
                           {/* Applicant Name & Username */}
                           <td className="py-3 px-4">
                             <div className="flex items-center gap-2.5">
-                              <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-[#6B93FF] font-extrabold text-[11px] flex items-center justify-center uppercase shrink-0 border border-blue-200 dark:border-blue-800">
-                                {(app.applicantName.replace(/^[^a-zA-Z0-9]+/, "").charAt(0) || "A").toUpperCase()}
+                              <div className="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-950/80 text-blue-600 dark:text-[#6B93FF] font-extrabold text-[11px] flex items-center justify-center uppercase shrink-0 border border-blue-200 dark:border-blue-800 overflow-hidden">
+                                {app.memberAvatar ? (
+                                  <img
+                                    src={app.memberAvatar}
+                                    alt={app.applicantName}
+                                    className="w-full h-full object-cover"
+                                    onError={(e) => {
+                                      (e.currentTarget as HTMLImageElement).style.display = "none";
+                                    }}
+                                  />
+                                ) : (
+                                  (app.applicantName.replace(/^[^a-zA-Z0-9]+/, "").charAt(0) || "A").toUpperCase()
+                                )}
                               </div>
                               <div className="min-w-0">
                                 <p className="font-extrabold text-slate-800 dark:text-[#F5F7FA] truncate">

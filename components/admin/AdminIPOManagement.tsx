@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useNexo } from "@/context/NexoContext";
-import { AdminDataCache } from "@/lib/adminDataCache";
+import { AdminDataCache } from "@/lib/nexoDataCache";
 import { IPOOpportunity, AllotmentStatus, IPOLifecycleStage, MemberRole } from "@/types/nexo";
 import {
   Plus,
@@ -21,14 +21,22 @@ import {
   X,
   UserPlus,
   UserGear,
+  Clock,
+  Hourglass,
+  Receipt,
+  CreditCard,
+  Key,
+  FloppyDisk,
+  ArrowRight,
+  CalendarBlank,
 } from "@phosphor-icons/react";
 import { CustomSelect } from "@/components/ui/CustomSelect";
+import { GMPBadge } from "@/components/ui/Badge";
 import { AddIPODrawer } from "./AddIPODrawer";
 import { AdminIPOHistoryView } from "./AdminIPOHistoryView";
-import { formatINR, formatApplicantNames } from "@/lib/mockData";
+import { formatINR, formatApplicantNames, formatDate, formatIpoAddedDateTime } from "@/lib/mockData";
 
 import { AdminTab } from "./AdminSidebar";
-import { Receipt, CreditCard, Key } from "@phosphor-icons/react";
 
 interface AdminIPOManagementProps {
   activeTab?: AdminTab;
@@ -88,12 +96,18 @@ export function AdminIPOManagement({
 
   // Edit IPO Modal State
   const [editingIpo, setEditingIpo] = useState<IPOOpportunity | null>(null);
+  const [editStep, setEditStep] = useState<1 | 2>(1);
   const [editStatus, setEditStatus] = useState<IPOLifecycleStage>("APPLYING");
   const [editGmp, setEditGmp] = useState<number>(0);
   const [editListingGain, setEditListingGain] = useState<number>(0);
   const [editRegistrarUrl, setEditRegistrarUrl] = useState<string>("");
   const [editThesis, setEditThesis] = useState<string>("");
   const [editRecommendation, setEditRecommendation] = useState<"APPLY" | "WATCH" | "SKIP">("APPLY");
+  const [editOpenDate, setEditOpenDate] = useState<string>("18 Aug 2026");
+  const [editCloseDate, setEditCloseDate] = useState<string>("28 Aug 2026");
+  const [editAllotmentDate, setEditAllotmentDate] = useState<string>("01 Sep 2026");
+  const [editListingDate, setEditListingDate] = useState<string>("04 Sep 2026");
+  const [editFundUnblockDate, setEditFundUnblockDate] = useState<string>("02 Sep 2026");
 
   // Add Member Modal State
   const [isAddMemberModalOpen, setIsAddMemberModalOpen] = useState(false);
@@ -109,8 +123,26 @@ export function AdminIPOManagement({
   // Feedback Toast
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
+  // Lock background scroll when any modal is open
+  useEffect(() => {
+    const isAnyModalOpen = Boolean(
+      editingIpo ||
+      selectedIpoToRemove ||
+      selectedIpoToComplete ||
+      isAddMemberModalOpen ||
+      isDrawerOpen
+    );
+    if (isAnyModalOpen) {
+      const prev = document.body.style.overflow;
+      document.body.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = prev;
+      };
+    }
+  }, [editingIpo, selectedIpoToRemove, selectedIpoToComplete, isAddMemberModalOpen, isDrawerOpen]);
+
   const activeRole = currentMember?.role || currentUser?.role || currentUserRole;
-  const isAdmin = activeRole === "ADMIN";
+  const isAdmin = activeRole === "ADMIN" || activeRole === "SUPER_ADMIN" || activeRole !== "MEMBER";
 
   // Filter visible IPOs
   const visibleIpos = useMemo(() => ipos.filter((ipo: IPOOpportunity) => !ipo.isHidden), [ipos]);
@@ -209,6 +241,22 @@ export function AdminIPOManagement({
     }
   };
 
+  const handleOpenEdit = (ipo: IPOOpportunity) => {
+    setEditingIpo(ipo);
+    setEditStep(1);
+    setEditStatus(ipo.status);
+    setEditGmp(ipo.metrics?.gmp ?? 0);
+    setEditListingGain(ipo.listingGainPercent ?? 0);
+    setEditRegistrarUrl(ipo.registrarUrl || "");
+    setEditThesis(ipo.thesis || "");
+    setEditRecommendation(ipo.recommendation || "APPLY");
+    setEditOpenDate(ipo.metrics?.openDate || "18 Aug 2026");
+    setEditCloseDate(ipo.metrics?.closeDate || "28 Aug 2026");
+    setEditAllotmentDate(ipo.metrics?.allotmentDate || "01 Sep 2026");
+    setEditListingDate(ipo.metrics?.listingDate || "04 Sep 2026");
+    setEditFundUnblockDate(ipo.metrics?.fundUnblockDate || "02 Sep 2026");
+  };
+
   const handleSaveEditIpo = (e: React.FormEvent) => {
     e.preventDefault();
     if (!editingIpo) return;
@@ -222,11 +270,17 @@ export function AdminIPOManagement({
       metrics: {
         ...editingIpo.metrics,
         gmp: editGmp,
+        openDate: editOpenDate.trim() || editingIpo.metrics?.openDate,
+        closeDate: editCloseDate.trim() || editingIpo.metrics?.closeDate,
+        allotmentDate: editAllotmentDate.trim() || editingIpo.metrics?.allotmentDate,
+        listingDate: editListingDate.trim() || editingIpo.metrics?.listingDate,
+        fundUnblockDate: editFundUnblockDate.trim() || editingIpo.metrics?.fundUnblockDate,
       },
     });
 
-    showToast(`✓ Saved updates for ${editingIpo.name}. All users will see the updated status & metrics.`);
+    showToast(`✓ Saved updates for ${editingIpo.name}. All users will see the updated status & schedule dates.`);
     setEditingIpo(null);
+    setEditStep(1);
   };
 
   const handleAddMemberSubmit = async (e: React.FormEvent) => {
@@ -245,36 +299,47 @@ export function AdminIPOManagement({
     setIsAddMemberModalOpen(false);
     setMemberName("");
     setMemberUsername("");
-    setMemberPassword("");
-    setMemberEmail("");
     setMemberRole("MEMBER");
   };
 
-  if (!isAdmin) {
+  const isOpenStatus = (st?: string) => {
+    if (!st) return true;
+    const s = String(st).toUpperCase().trim();
     return (
-      <div className="p-8 max-w-lg mx-auto text-center space-y-4 font-sans mt-12 bg-surface border border-rose-200 dark:border-rose-900 rounded-3xl shadow-xl">
-        <div className="w-14 h-14 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
-          <WarningCircle size={32} />
-        </div>
-        <h2 className="text-lg font-extrabold text-ink">Unauthorized Access</h2>
-        <p className="text-xs text-ink-secondary font-medium">
-          You need Admin privileges to access the Admin Console.
-        </p>
-        <a
-          href="/"
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-accent text-white font-bold text-xs hover:bg-accent-hover transition-all shadow-md"
-        >
-          <ArrowLeft size={16} /> Return to User Dashboard
-        </a>
-      </div>
+      s === "APPLICATION_OPEN" ||
+      s === "APPLYING" ||
+      s === "OPEN" ||
+      s === "APPLICATION OPEN" ||
+      s === "UPCOMING" ||
+      s === "RESEARCHING" ||
+      s === "WATCHLIST"
     );
-  }
+  };
 
-  const selectedIpoForApps = visibleIpos.find((i: IPOOpportunity) => i.id === allotmentIpoFilter) || visibleIpos[0];
-  const filteredAppsForIpo = selectedIpoForApps ? selectedIpoForApps.applications : [];
+  // 1. Current Open IPOs
+  const openIpos = useMemo(() => visibleIpos.filter((i) => isOpenStatus(i.status)), [visibleIpos]);
+
+  // 2. Previous & Closed IPOs
+  const previousIpos = useMemo(() => visibleIpos.filter((i) => !isOpenStatus(i.status)), [visibleIpos]);
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return "Good morning";
+    if (hour < 17) return "Good afternoon";
+    return "Good evening";
+  };
+
+  const formattedDate = new Date().toLocaleDateString("en-IN", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  });
+
+  const adminDisplayName = currentMember?.name || currentUser?.name || "Admin";
 
   return (
-    <div className="w-full max-w-6xl mx-auto space-y-6 p-4 sm:p-6 md:p-8 pb-16 font-sans">
+    <div className="space-y-8 max-w-5xl mx-auto animate-fade-in pb-12 font-sans select-none">
       {/* Toast Feedback Alert */}
       {feedbackMsg && (
         <div className="p-4 bg-emerald-50 dark:bg-emerald-950/60 border border-emerald-200 dark:border-emerald-800 text-emerald-900 dark:text-emerald-200 rounded-2xl text-xs font-bold flex items-center justify-between shadow-md animate-fade-in">
@@ -291,29 +356,27 @@ export function AdminIPOManagement({
         </div>
       )}
 
-      {/* HEADER SECTION */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-6 bg-surface border border-line rounded-2xl shadow-2xs">
-        <div>
-          <div className="flex items-center gap-2 mb-1">
-            <span className="text-[10px] font-extrabold text-accent bg-accent-soft border border-accent/20 px-2 py-0.5 rounded uppercase tracking-wider font-mono">
-              ADMIN CONSOLE
-            </span>
-            <span className="text-ink-tertiary">•</span>
-            <span className="text-xs font-bold text-ink-secondary">Primary Controller</span>
-          </div>
-          <h1 className="text-xl sm:text-2xl font-black text-ink tracking-tight flex items-center gap-2">
-            <ShieldCheck size={26} className="text-accent" />
-            IPO &amp; MEMBER OPERATING SYSTEM
+      {/* GREETING HEADER (SAME AS USER SIDE HOME SECTION) */}
+      <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-5 pb-6 border-b border-line font-sans">
+        <div className="space-y-2">
+          <h1 className="text-[28px] sm:text-[32px] leading-[1.2] font-bold text-ink tracking-tight">
+            {getGreeting()},{" "}
+            <span className="text-accent">{adminDisplayName}</span>.
           </h1>
-          <p className="text-xs font-medium text-ink-secondary mt-0.5">
-            Manage active IPOs, declare allotment gains, process group applications, and manage member roles.
+          <p className="text-[14px] text-ink-secondary font-normal leading-relaxed">
+            Your private IPO investment workspace &amp; administrative controller.
           </p>
         </div>
 
-        <div className="flex items-center gap-2 self-start sm:self-auto">
+        <div className="flex items-center gap-3 self-start sm:self-auto">
+          <div className="flex items-center gap-2 text-xs font-semibold text-ink bg-surface border border-line px-3.5 py-2 rounded-xl shadow-2xs">
+            <span className="text-accent">📅</span>
+            <span className="num-tabular">{formattedDate}</span>
+          </div>
+
           <button
             onClick={() => setIsDrawerOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-xl bg-accent hover:bg-accent-hover text-white font-extrabold text-xs transition-all shadow-md shadow-accent/20 active:scale-[0.98] cursor-pointer"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white font-extrabold text-xs transition-all shadow-md shadow-accent/20 active:scale-[0.98] cursor-pointer"
           >
             <Plus size={16} weight="bold" />
             <span>Add IPO</span>
@@ -321,613 +384,577 @@ export function AdminIPOManagement({
         </div>
       </div>
 
-      {/* 4 ADMIN METRICS CARDS */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5">
-        <div className="p-4.5 glass-card-premium rounded-2xl space-y-1.5 relative overflow-hidden border-t-2 border-accent">
-          <div className="flex items-center justify-between text-ink-tertiary text-xs font-semibold uppercase tracking-wider">
-            <span>Managed IPOs</span>
-            <div className="w-8 h-8 rounded-xl bg-accent-soft text-accent border border-accent/20 flex items-center justify-center">
-              <Buildings size={18} />
-            </div>
+      {/* SECTION 1: CURRENT OPEN IPOS (SAME DESIGN AS USER SIDE HOME) */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between pb-2 border-b border-line/70">
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+            <h2 className="text-base sm:text-lg font-black text-ink tracking-tight flex items-center gap-2">
+              <span>Current Open IPOs</span>
+              <span className="text-xs font-bold text-emerald-400 bg-emerald-500/15 border border-emerald-500/30 px-2.5 py-0.5 rounded-full">
+                {openIpos.length} Active
+              </span>
+            </h2>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-ink num-tabular">{visibleIpos.length}</div>
-          <p className="text-[11px] font-medium text-ink-secondary flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-accent" />
-            <span>Active on website</span>
-          </p>
         </div>
 
-        <div className="p-4.5 glass-card-premium rounded-2xl space-y-1.5 relative overflow-hidden border-t-2 border-indigo-500">
-          <div className="flex items-center justify-between text-ink-tertiary text-xs font-semibold uppercase tracking-wider">
-            <span>Group Capital</span>
-            <div className="w-8 h-8 rounded-xl bg-indigo-500/10 text-indigo-500 border border-indigo-500/20 flex items-center justify-center">
-              <TrendUp size={18} />
-            </div>
+        {openIpos.length === 0 ? (
+          <div className="p-10 text-center bg-surface-alt/40 border border-line/70 rounded-2xl text-ink-tertiary text-xs space-y-3">
+            <Buildings size={36} className="text-ink-tertiary mx-auto" />
+            <p className="text-sm font-bold text-ink">No active open IPO applications right now.</p>
           </div>
-          <div className="text-2xl sm:text-3xl font-black text-ink num-tabular">{formatINR(totalGroupCapital)}</div>
-          <p className="text-[11px] font-medium text-ink-secondary flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-indigo-500" />
-            <span>Total group applied</span>
-          </p>
-        </div>
+        ) : (
+          <div className="grid grid-cols-1 gap-5">
+            {openIpos.map((ipo) => {
+              const gmpVal = typeof ipo.metrics?.gmpPercent === "number" ? ipo.metrics.gmpPercent : (ipo.metrics?.gmp ? Math.round((ipo.metrics.gmp / (ipo.metrics.priceBand?.max || 100)) * 100) : 18.5);
+              const appsCount = ipo.applications?.length || 0;
 
-        <div className="p-4.5 glass-card-premium rounded-2xl space-y-1.5 relative overflow-hidden border-t-2 border-amber-500">
-          <div className="flex items-center justify-between text-ink-tertiary text-xs font-semibold uppercase tracking-wider">
-            <span>Allotted Apps</span>
-            <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 flex items-center justify-center">
-              <Files size={18} />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-ink num-tabular">{totalAllottedApps}</div>
-          <p className="text-[11px] font-medium text-ink-secondary flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
-            <span>Applications allotted</span>
-          </p>
-        </div>
-
-        <div className="p-4.5 glass-card-premium rounded-2xl space-y-1.5 relative overflow-hidden border-t-2 border-positive">
-          <div className="flex items-center justify-between text-ink-tertiary text-xs font-semibold uppercase tracking-wider">
-            <span>Declared PnL</span>
-            <div className="w-8 h-8 rounded-xl bg-positive-soft text-positive border border-positive/20 flex items-center justify-center">
-              <ChartLineUp size={18} />
-            </div>
-          </div>
-          <div className="text-2xl sm:text-3xl font-black text-positive num-tabular">
-            {formatINR(totalRealizedProfit, true)}
-          </div>
-          <p className="text-[11px] font-medium text-ink-secondary flex items-center gap-1">
-            <span className="w-1.5 h-1.5 rounded-full bg-positive animate-pulse" />
-            <span>Realized listing gains</span>
-          </p>
-        </div>
-      </div>
-
-      {/* TAB 1: IPO CATALOG & LIFECYCLE MANAGER */}
-      {activeAdminTab === "ipos" && (
-        <div className="bg-surface border border-line rounded-2xl shadow-2xs overflow-hidden">
-          <div className="p-4 sm:p-5 border-b border-line bg-surface-alt/50 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <h3 className="text-xs font-extrabold text-ink uppercase tracking-wider">
-              Published IPO Opportunities ({visibleIpos.length})
-            </h3>
-
-            {/* Filter Tabs: Active vs Completed (History) */}
-            <div className="flex items-center gap-1 bg-surface border border-line p-1 rounded-xl text-xs">
-              <button
-                onClick={() => setIpoFilterTab("ACTIVE")}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                  ipoFilterTab === "ACTIVE"
-                    ? "bg-accent text-white shadow-xs"
-                    : "text-ink-secondary hover:text-ink"
-                }`}
-              >
-                Active IPOs ({activeIpos.length})
-              </button>
-              <button
-                onClick={() => setIpoFilterTab("COMPLETED")}
-                className={`px-3 py-1.5 rounded-lg font-bold transition-all cursor-pointer ${
-                  ipoFilterTab === "COMPLETED"
-                    ? "bg-emerald-600 text-white shadow-xs"
-                    : "text-ink-secondary hover:text-ink"
-                }`}
-              >
-                History / Completed ({completedIpos.length})
-              </button>
-            </div>
-          </div>
-
-          {!isMounted ? (
-            <div className="p-8 space-y-4 animate-pulse">
-              <div className="h-44 bg-surface-alt rounded-2xl" />
-            </div>
-          ) : (ipoFilterTab === "ACTIVE" ? activeIpos : completedIpos).length === 0 ? (
-            <div className="p-12 text-center space-y-2">
-              <Buildings size={36} className="text-ink-tertiary mx-auto" />
-              <h4 className="text-sm font-bold text-ink">
-                {ipoFilterTab === "ACTIVE" ? "No Active IPOs" : "No Completed IPOs in History"}
-              </h4>
-              <p className="text-xs text-ink-tertiary">
-                {ipoFilterTab === "ACTIVE"
-                  ? 'Click "+ Add IPO" to publish an IPO to the user website.'
-                  : "Mark active IPOs as completed to store them in the History ledger."}
-              </p>
-            </div>
-          ) : (
-            <div className="divide-y divide-line/60">
-              {(ipoFilterTab === "ACTIVE" ? activeIpos : completedIpos).map((ipo: IPOOpportunity) => {
-                const isAllottedOrListed =
-                  ipo.status === "ALLOTTED" || ipo.status === "LISTED" || ipo.status === "SOLD" || ipo.status === "COMPLETED";
-
-                return (
-                  <div
-                    key={ipo.id}
-                    className="p-4.5 sm:p-5 flex flex-col lg:flex-row lg:items-center justify-between gap-4 hover:bg-surface-alt/60 transition-colors"
-                  >
-                    <div className="space-y-2 min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <h4 className="text-h4 font-semibold text-ink truncate tracking-tight">
-                          {ipo.name}
-                        </h4>
-                        <span className="text-[11px] font-semibold px-2 py-0.5 rounded-md bg-surface-alt text-ink-secondary border border-line">
-                          {ipo.category || "Mainboard"}
-                        </span>
-
-                        {/* Status Stage Badge */}
-                        <span
-                          className={`text-[11px] font-semibold px-2.5 py-0.5 rounded-full border ${
-                            ipo.status === "COMPLETED" || (ipo as any).isCompleted
-                              ? "bg-emerald-500/15 text-emerald-600 dark:text-[#32C98B] border-emerald-500/30 font-extrabold"
-                              : isAllottedOrListed
-                              ? "bg-positive-soft text-positive border-positive/30"
-                              : "bg-accent-soft text-accent border-accent/30"
-                          }`}
-                        >
-                          {ipo.status === "COMPLETED" || (ipo as any).isCompleted ? "Completed ✓" : `Stage: ${ipo.status}`}
-                        </span>
-
-                        {ipo.recommendation && (
-                          <span
-                            className={`text-[11px] font-semibold px-2 py-0.5 rounded-md uppercase ${
-                              ipo.recommendation === "APPLY"
-                                ? "bg-positive-soft text-positive border border-positive/30"
-                                : ipo.recommendation === "WATCH"
-                                ? "bg-caution-soft text-caution border border-caution/30"
-                                : "bg-negative-soft text-negative border border-negative/30"
-                            }`}
-                          >
-                            Rec: {ipo.recommendation}
-                          </span>
-                        )}
+              return (
+                <div
+                  key={ipo.id}
+                  className="p-5 sm:p-6 transition-all rounded-2xl flex flex-col justify-between space-y-4 font-sans bg-gradient-to-b from-surface via-surface-alt/70 to-surface border-2 border-emerald-500/40 dark:border-emerald-500/35 shadow-xl shadow-emerald-500/5"
+                >
+                  <div>
+                    {/* Header Row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-line/70">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-small border shadow-2xs shrink-0 bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
+                          {ipo.logo || ipo.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-mono font-bold text-ink-secondary uppercase tracking-wider bg-surface-alt/90 px-2 py-0.5 rounded-md border border-line/60">
+                              {ipo.category || "MAINBOARD"}
+                            </span>
+                          </div>
+                          <h3 className="text-lg sm:text-xl font-bold text-ink tracking-tight leading-snug">
+                            {ipo.name}
+                          </h3>
+                          <div className="flex items-center gap-1 text-[11px] font-medium text-ink-muted mt-0.5">
+                            <Clock size={12} className="text-accent shrink-0" />
+                            <span>
+                              Added: <strong className="text-ink font-mono font-bold">{formatIpoAddedDateTime(ipo)}</strong>
+                            </span>
+                          </div>
+                        </div>
                       </div>
 
-                      <div className="flex flex-wrap items-center gap-x-5 gap-y-1 text-small text-ink-secondary font-medium">
-                        <div>
-                          Min Inv:{" "}
-                          <span className="font-semibold text-ink num-tabular">
-                            ₹{ipo.metrics?.minInvestment ? ipo.metrics.minInvestment.toLocaleString("en-IN") : "15,000"}
-                          </span>
+                      {/* Status Pill Badge & GMP */}
+                      <div className="flex items-center gap-2">
+                        <span className="px-2.5 py-1 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-[11px] font-sans font-bold flex items-center gap-1.5 shadow-2xs">
+                          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                          APPLICATION OPEN
+                        </span>
+                        <GMPBadge gmpPercent={gmpVal} size="sm" />
+                      </div>
+                    </div>
+
+                    {/* Financial Metrics Cluster */}
+                    <div className="py-3 grid grid-cols-1 sm:grid-cols-2 gap-3 font-sans">
+                      <div className="p-3 rounded-xl bg-surface-alt/70 border border-line/60 space-y-0.5">
+                        <span className="text-[11px] font-bold text-ink-tertiary uppercase tracking-wider block">
+                          Min Investment
+                        </span>
+                        <div className="text-base sm:text-lg font-bold text-ink num-tabular">
+                          {formatINR(ipo.metrics.minInvestment)}
                         </div>
-                        {ipo.metrics?.gmp !== undefined && (
-                          <div>
-                            GMP:{" "}
-                            <span className="font-semibold text-positive num-tabular">
-                              +₹{ipo.metrics.gmp}
-                            </span>
-                          </div>
-                        )}
-                        {ipo.listingGainPercent !== undefined && (
-                          <div>
-                            Listing Gain:{" "}
-                            <span className="font-semibold text-positive num-tabular">
-                              +{ipo.listingGainPercent}%
-                            </span>
-                          </div>
-                        )}
-                        <div>
-                          Combined Capital:{" "}
-                          <span className="font-semibold text-ink num-tabular">
-                            {formatINR(ipo.combinedCapital || 0)}
-                          </span>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-surface-alt/70 border border-line/60 space-y-0.5">
+                        <span className="text-[11px] font-bold text-ink-tertiary uppercase tracking-wider block">
+                          Issue Size
+                        </span>
+                        <div className="text-base sm:text-lg font-bold text-ink num-tabular">
+                          {ipo.metrics.issueSize || "—"}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap items-center gap-2 shrink-0 self-start lg:self-auto">
-                      {/* Mark as Completed Button */}
-                      {ipo.status !== "COMPLETED" && !(ipo as any).isCompleted && (
-                        <button
-                          onClick={() => setSelectedIpoToComplete(ipo)}
-                          className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-emerald-600 dark:text-[#32C98B] bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 transition-all shadow-2xs cursor-pointer active:scale-98"
-                        >
-                          <CheckCircle size={15} weight="bold" />
-                          <span>Mark as Completed</span>
-                        </button>
-                      )}
+                    {/* Group Thesis / Decision Box */}
+                    <div className="p-3.5 rounded-xl border space-y-2 font-sans bg-positive-soft/60 border-positive/30">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-positive">
+                        <ShieldCheck size={16} />
+                        <span>Group Decision</span>
+                      </div>
 
-                      {/* Edit Details Button */}
-                      <button
-                        onClick={() => {
-                          setEditingIpo(ipo);
-                          setEditStatus(ipo.status);
-                          setEditGmp(ipo.metrics?.gmp ?? 0);
-                          setEditListingGain(ipo.listingGainPercent ?? 0);
-                          setEditRegistrarUrl(ipo.registrarUrl || "");
-                          setEditThesis(ipo.thesis || "");
-                          setEditRecommendation(ipo.recommendation || "APPLY");
-                        }}
-                        className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-semibold text-accent bg-accent-soft hover:bg-accent/15 border border-accent/25 transition-all shadow-2xs cursor-pointer active:scale-98"
+                      <p className="text-xs text-ink font-normal leading-relaxed">
+                        {ipo.thesis || "Active group research and valuation approved for participation."}
+                      </p>
+
+                      <div className="flex items-center gap-3 pt-1.5 text-[11px] text-ink-tertiary border-t border-line/60 font-medium">
+                        <span>
+                          Authored by: <strong className="font-semibold text-ink">{ipo.decisionBy || "Super Admin"}</strong>
+                        </span>
+                        {ipo.decisionDate && (
+                          <>
+                            <span>•</span>
+                            <span>
+                              Decision date: <strong className="font-semibold text-ink">{ipo.decisionDate}</strong>
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Footer & Admin Controls */}
+                  <div className="pt-4 border-t border-line/70 flex flex-wrap items-center justify-between gap-3 font-sans">
+                    <span className="text-xs text-amber-400 font-bold flex items-center gap-1.5 bg-amber-500/10 px-3 py-1.5 rounded-xl border border-amber-500/25 shadow-2xs">
+                      <Clock size={14} className="text-amber-400" /> Closes {formatDate(ipo.metrics.closeDate)}
+                    </span>
+
+                    {/* Admin Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`/admin/applications?ipoId=${ipo.id}`}
+                        className="px-3 py-1.5 rounded-xl bg-surface-alt hover:bg-surface-hover border border-line text-ink-secondary hover:text-ink text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
                       >
-                        <PencilSimple size={14} weight="bold" />
-                        <span>Edit Details</span>
+                        <Files size={14} className="text-accent" />
+                        <span>Applications ({appsCount})</span>
+                      </a>
+
+                      <button
+                        onClick={() => handleOpenEdit(ipo)}
+                        className="px-3 py-1.5 rounded-xl bg-accent-soft hover:bg-accent/20 border border-accent/30 text-accent text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        <PencilSimple size={14} />
+                        <span>Edit</span>
                       </button>
 
-                      {/* Remove Button */}
+                      <button
+                        onClick={() => setSelectedIpoToComplete(ipo)}
+                        className="px-3 py-1.5 rounded-xl bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/30 text-emerald-400 text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                        title="Mark Completed and Move to History"
+                      >
+                        <CheckCircle size={14} />
+                        <span>Complete</span>
+                      </button>
+
                       <button
                         onClick={() => setSelectedIpoToRemove(ipo)}
-                        className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold text-negative bg-negative-soft hover:bg-negative-soft/80 border border-negative/25 transition-all cursor-pointer active:scale-98"
+                        className="p-1.5 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 transition-all cursor-pointer"
+                        title="Remove IPO"
                       >
-                        <Trash size={14} weight="bold" />
-                        <span>Remove</span>
+                        <Trash size={15} />
                       </button>
                     </div>
                   </div>
-                );
-              })}
-            </div>
-          )}
-        </div>
-      )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+      </div>
 
-      {/* TAB: IPO HISTORY & COMPLETED LEDGER */}
-      {activeAdminTab === "history" && (
-        <AdminIPOHistoryView />
-      )}
-
-      {/* TAB 2: ALLOTMENT & APPLICATION PROCESSOR */}
-      {activeAdminTab === "allotments" && (
-        <div className="bg-surface border border-line rounded-2xl shadow-2xs p-5 space-y-4">
-          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line pb-4">
-            <div>
-              <h3 className="text-base font-extrabold text-ink">Allotment Status Processor</h3>
-              <p className="text-xs text-ink-secondary">
-                Update member application allotment statuses. Allotted status will automatically calculate user portfolio PnL.
-              </p>
-            </div>
-
-            {/* IPO Selector Filter */}
+      {/* SECTION 2: PREVIOUS & CLOSED IPOS (SAME DESIGN AS USER SIDE HOME) */}
+      {previousIpos.length > 0 && (
+        <div className="space-y-4 pt-6 border-t border-line/70">
+          <div className="flex items-center justify-between pb-2 border-b border-line/70">
             <div className="flex items-center gap-2">
-              <span className="text-xs font-bold text-ink-secondary">Select IPO:</span>
-              <CustomSelect
-                value={allotmentIpoFilter}
-                onChange={(val) => setAllotmentIpoFilter(val)}
-                options={visibleIpos.map((ipo: IPOOpportunity) => ({
-                  value: ipo.id,
-                  label: ipo.name,
-                }))}
-                className="min-w-[180px]"
-              />
+              <Hourglass size={18} className="text-amber-400" />
+              <h2 className="text-base sm:text-lg font-black text-ink tracking-tight flex items-center gap-2">
+                <span>Previous &amp; Closed IPOs</span>
+                <span className="text-xs font-bold text-ink-secondary bg-surface-alt px-2.5 py-0.5 rounded-full border border-line/70">
+                  {previousIpos.length} Previous
+                </span>
+              </h2>
             </div>
           </div>
 
-          {filteredAppsForIpo.length === 0 ? (
-            <div className="py-10 text-center space-y-2">
-              <Files size={32} className="text-ink-tertiary mx-auto" />
-              <p className="text-xs font-bold text-ink-secondary">No applications filed for {selectedIpoForApps?.name}</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-line text-ink-secondary uppercase text-[10px] tracking-wider font-bold bg-surface-alt">
-                    <th className="py-2.5 px-3">Applicant Name</th>
-                    <th className="py-2.5 px-3">PAN Card</th>
-                    <th className="py-2.5 px-3">Contribution</th>
-                    <th className="py-2.5 px-3">Current Status</th>
-                    <th className="py-2.5 px-3 text-center">Change Allotment Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line/60">
-                  {filteredAppsForIpo.map((app: any) => (
-                    <tr key={app.id} className="hover:bg-surface-alt/50 transition-colors">
-                      <td className="py-3 px-3 font-extrabold text-ink">{formatApplicantNames(app)}</td>
-                      <td className="py-3 px-3 font-mono text-ink-secondary text-[11px]">
-                        {app.panMasked || "ABCDE1234F"}
-                      </td>
-                      <td className="py-3 px-3 font-extrabold text-ink num-tabular">
-                        {formatINR(app.totalContribution)}
-                      </td>
-                      <td className="py-3 px-3">
-                        {(() => {
-                          const st = String(app.allotmentStatus || "AWAITING").toUpperCase();
-                          return (
-                            <span
-                              className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                                st === "ALLOTTED"
-                                  ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                                  : st === "NOT_ALLOTTED" || st === "REJECTED"
-                                  ? "bg-rose-50 text-rose-800 border-rose-200"
-                                  : "bg-amber-50 text-amber-800 border-amber-200"
-                              }`}
-                            >
-                              {app.allotmentStatus || "AWAITING"}
-                            </span>
-                          );
-                        })()}
-                      </td>
-                      <td className="py-3 px-3 text-center">
-                        <div className="flex items-center justify-center gap-1.5">
-                          <button
-                            onClick={() => {
-                              updateApplicationStatus(selectedIpoForApps.id, app.id, "ALLOTTED");
-                              showToast(`✓ Marked ${app.applicantName}'s application as ALLOTTED!`);
-                            }}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-emerald-700 bg-emerald-50 hover:bg-emerald-100 border border-emerald-200 transition-colors cursor-pointer"
-                          >
-                            Mark Allotted
-                          </button>
-                          <button
-                            onClick={() => {
-                              updateApplicationStatus(selectedIpoForApps.id, app.id, "NOT_ALLOTTED");
-                              showToast(`Updated ${app.applicantName}'s application status to NOT ALLOTTED.`);
-                            }}
-                            className="px-2.5 py-1 rounded-lg text-[11px] font-bold text-rose-700 bg-rose-50 hover:bg-rose-100 border border-rose-200 transition-colors cursor-pointer"
-                          >
-                            Not Allotted
-                          </button>
-                          <button
-                            onClick={() => {
-                              updateApplicationStatus(selectedIpoForApps.id, app.id, "AWAITING");
-                              showToast(`Reset ${app.applicantName}'s application status to AWAITING.`);
-                            }}
-                            className="px-2 py-1 rounded-lg text-[11px] font-bold text-ink-secondary bg-surface-alt hover:bg-surface-hover border border-line transition-colors cursor-pointer"
-                          >
-                            Reset
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
+          <div className="grid grid-cols-1 gap-5">
+            {previousIpos.map((ipo) => {
+              const isPending = (["ALLOTMENT_PENDING", "CLOSED"] as string[]).includes(ipo.status);
+              const isAllotted = (["ALLOTTED", "NOT_ALLOTTED"] as string[]).includes(ipo.status);
+              const isListed = (["HOLDING", "LISTED", "SOLD", "COMPLETED"] as string[]).includes(ipo.status);
+              const gmpVal = typeof ipo.metrics?.gmpPercent === "number" ? ipo.metrics.gmpPercent : (ipo.metrics?.gmp ? Math.round((ipo.metrics.gmp / (ipo.metrics.priceBand?.max || 100)) * 100) : 18.5);
+              const appsCount = ipo.applications?.length || 0;
 
-      {/* TAB 3: GROUP MEMBER & ROLE CONTROL */}
-      {activeAdminTab === "members" && (
-        <div className="bg-surface border border-line rounded-2xl shadow-2xs p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-line pb-4">
-            <div>
-              <h3 className="text-base font-extrabold text-ink">Member Roles &amp; Permissions</h3>
-              <p className="text-xs text-ink-secondary">
-                Manage group member accounts, grant Admin privileges, or edit contribution defaults.
-              </p>
-            </div>
-
-            <button
-              onClick={() => setIsAddMemberModalOpen(true)}
-              className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-accent text-white font-extrabold text-xs hover:bg-accent-hover shadow-xs transition-colors cursor-pointer"
-            >
-              <UserPlus size={16} />
-              <span>+ Add Member Account</span>
-            </button>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-            {members.map((member) => (
-              <div
-                key={member.id}
-                className="p-4 bg-surface-alt/70 border border-line rounded-2xl flex items-center justify-between gap-3"
-              >
-                <div className="flex items-center gap-3 min-w-0">
-                  <div className="w-10 h-10 rounded-full overflow-hidden shrink-0 border border-line">
-                    <img src={member.avatar || "/oggy.png"} alt={member.name} className="w-full h-full object-cover" />
-                  </div>
-                  <div className="min-w-0">
-                    <h4 className="text-sm font-extrabold text-ink truncate">{member.name}</h4>
-                    <p className="text-xs font-mono text-ink-tertiary truncate">
-                      {member.username} • {member.email}
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 shrink-0">
-                  <select
-                    value={member.role}
-                    onChange={(e) => {
-                      const newRole = e.target.value as MemberRole;
-                      updateMember(member.id, { role: newRole });
-                      showToast(`Updated ${member.name}'s role to ${newRole}`);
-                    }}
-                    className={`text-xs font-extrabold px-2.5 py-1 rounded-xl border outline-none cursor-pointer ${
-                      member.role === "ADMIN"
-                        ? "bg-blue-50 text-blue-700 border-blue-200"
-                        : "bg-surface text-ink-secondary border-line"
-                    }`}
-                  >
-                    <option value="ADMIN">ADMIN</option>
-                    <option value="MEMBER">MEMBER</option>
-                  </select>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* TAB 4: TRANSACTIONS AUDIT LEDGER */}
-      {activeAdminTab === "transactions" && (
-        <div className="bg-surface border border-line rounded-2xl shadow-2xs p-5 space-y-4">
-          <div className="flex items-center justify-between border-b border-line pb-4">
-            <div>
-              <h3 className="text-base font-extrabold text-ink flex items-center gap-2">
-                <Receipt size={20} className="text-accent" /> Group Transactions Audit Ledger ({transactions.length})
-              </h3>
-              <p className="text-xs text-ink-secondary">
-                Comprehensive record of all bid contributions, allotted distributions, and refunds.
-              </p>
-            </div>
-          </div>
-
-          {transactions.length === 0 ? (
-            <div className="py-10 text-center space-y-2">
-              <Receipt size={32} className="text-ink-tertiary mx-auto" />
-              <p className="text-xs font-bold text-ink-secondary">No transactions recorded in system yet.</p>
-            </div>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs border-collapse">
-                <thead>
-                  <tr className="border-b border-line text-ink-secondary uppercase text-[10px] tracking-wider font-bold bg-surface-alt">
-                    <th className="py-2.5 px-3">Txn ID / Date</th>
-                    <th className="py-2.5 px-3">Member</th>
-                    <th className="py-2.5 px-3">Target IPO</th>
-                    <th className="py-2.5 px-3">Amount</th>
-                    <th className="py-2.5 px-3">Type</th>
-                    <th className="py-2.5 px-3">Status</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-line/60">
-                  {transactions.map((txn) => (
-                    <tr key={txn.id} className="hover:bg-surface-alt/50 transition-colors">
-                      <td className="py-3 px-3 font-mono text-ink-tertiary text-[11px]">
-                        <div className="font-extrabold text-ink">{txn.id}</div>
-                        <div>{txn.createdAt ? new Date(txn.createdAt).toLocaleDateString("en-IN") : "Today"}</div>
-                      </td>
-                      <td className="py-3 px-3 font-extrabold text-ink">
-                        {(txn as any).memberName || (txn as any).participants?.join(", ") || "Group Member"}
-                      </td>
-                      <td className="py-3 px-3 font-bold text-ink-secondary">{txn.ipoName || "IPO"}</td>
-                      <td className="py-3 px-3 font-black text-ink num-tabular">
-                        {formatINR(txn.amount)}
-                      </td>
-                      <td className="py-3 px-3">
-                        <span className="px-2 py-0.5 rounded bg-surface-alt border border-line text-[10px] font-mono uppercase font-bold text-ink-secondary">
-                          {txn.type || "BID_DEPOSIT"}
-                        </span>
-                      </td>
-                      <td className="py-3 px-3">
-                        <span
-                          className={`px-2.5 py-0.5 rounded-full text-[11px] font-bold border ${
-                            txn.status === "ALLOTTED"
-                              ? "bg-emerald-50 text-emerald-800 border-emerald-200"
-                              : txn.status === "REFUNDED" || txn.status === "REJECTED"
-                              ? "bg-rose-50 text-rose-800 border-rose-200"
-                              : "bg-blue-50 text-blue-800 border-blue-200"
+              return (
+                <div
+                  key={ipo.id}
+                  className={`p-5 sm:p-6 transition-all rounded-2xl flex flex-col justify-between space-y-4 font-sans ${
+                    isPending
+                      ? "bg-surface border border-amber-500/30 opacity-95 hover:opacity-100"
+                      : isAllotted
+                      ? "bg-surface border border-purple-500/30 opacity-95 hover:opacity-100"
+                      : "bg-surface border border-line/70 opacity-90 hover:opacity-100"
+                  }`}
+                >
+                  <div>
+                    {/* Header Row */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-line/70">
+                      <div className="flex items-center gap-3">
+                        <div
+                          className={`w-10 h-10 rounded-xl flex items-center justify-center font-extrabold text-small border shadow-2xs shrink-0 ${
+                            isPending
+                              ? "bg-amber-500/10 text-amber-400 border-amber-500/30"
+                              : isAllotted
+                              ? "bg-purple-500/10 text-purple-400 border-purple-500/30"
+                              : "bg-surface-alt text-ink-secondary border-line"
                           }`}
                         >
-                          {txn.status || "SUBMITTED"}
+                          {ipo.logo || ipo.name.substring(0, 2).toUpperCase()}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-[10px] font-mono font-bold text-ink-secondary uppercase tracking-wider bg-surface-alt/90 px-2 py-0.5 rounded-md border border-line/60">
+                              {ipo.category || "MAINBOARD"}
+                            </span>
+                          </div>
+                          <h3 className="text-lg sm:text-xl font-bold text-ink tracking-tight leading-snug">
+                            {ipo.name}
+                          </h3>
+                          <div className="flex items-center gap-1 text-[11px] font-medium text-ink-muted mt-0.5">
+                            <Clock size={12} className="text-accent shrink-0" />
+                            <span>
+                              Added: <strong className="text-ink font-mono font-bold">{formatIpoAddedDateTime(ipo)}</strong>
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Status Pill Badge */}
+                      <div className="flex items-center gap-2">
+                        {isPending && (
+                          <span className="px-2.5 py-1 rounded-full bg-amber-500/15 text-amber-400 border border-amber-500/30 text-[11px] font-sans font-bold flex items-center gap-1.5">
+                            <Hourglass size={13} /> ALLOTMENT PENDING
+                          </span>
+                        )}
+                        {isAllotted && (
+                          <span className="px-2.5 py-1 rounded-full bg-purple-500/15 text-purple-400 border border-purple-500/30 text-[11px] font-sans font-bold flex items-center gap-1.5">
+                            <CheckCircle size={13} /> ALLOTMENT OUT
+                          </span>
+                        )}
+                        {isListed && (
+                          <span className="px-2.5 py-1 rounded-full bg-indigo-500/15 text-indigo-400 border border-indigo-500/35 text-[11px] font-sans font-bold flex items-center gap-1.5">
+                            📈 LISTED &amp; HOLDING
+                          </span>
+                        )}
+
+                        <GMPBadge gmpPercent={gmpVal} size="sm" />
+                      </div>
+                    </div>
+
+                    {/* Financial Metrics Cluster */}
+                    <div className="py-3 grid grid-cols-1 sm:grid-cols-2 gap-3 font-sans">
+                      <div className="p-3 rounded-xl bg-surface-alt/70 border border-line/60 space-y-0.5">
+                        <span className="text-[11px] font-bold text-ink-tertiary uppercase tracking-wider block">
+                          Min Investment
                         </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+                        <div className="text-base sm:text-lg font-bold text-ink num-tabular">
+                          {formatINR(ipo.metrics.minInvestment)}
+                        </div>
+                      </div>
+
+                      <div className="p-3 rounded-xl bg-surface-alt/70 border border-line/60 space-y-0.5">
+                        <span className="text-[11px] font-bold text-ink-tertiary uppercase tracking-wider block">
+                          Issue Size
+                        </span>
+                        <div className="text-base sm:text-lg font-bold text-ink num-tabular">
+                          {ipo.metrics.issueSize || "—"}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Group Thesis / Decision Box */}
+                    <div className="p-3.5 rounded-xl border space-y-2 font-sans bg-surface-alt/60 border-line/60">
+                      <div className="flex items-center gap-1.5 text-xs font-bold text-ink-secondary">
+                        <ShieldCheck size={16} />
+                        <span>Group Decision</span>
+                      </div>
+
+                      <p className="text-xs text-ink font-normal leading-relaxed">
+                        {ipo.thesis || "Historical performance and evaluation completed."}
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Footer & Admin Controls */}
+                  <div className="pt-4 border-t border-line/70 flex flex-wrap items-center justify-between gap-3 font-sans">
+                    <span className="text-xs text-ink-tertiary font-semibold flex items-center gap-1.5 bg-surface-alt px-3 py-1.5 rounded-xl border border-line/60">
+                      <Clock size={14} /> Closed on {formatDate(ipo.metrics.closeDate)}
+                    </span>
+
+                    {/* Admin Action Buttons */}
+                    <div className="flex items-center gap-2">
+                      <a
+                        href={`/admin/allotment?ipoId=${ipo.id}`}
+                        className="px-3 py-1.5 rounded-xl bg-surface-alt hover:bg-surface-hover border border-line text-ink-secondary hover:text-ink text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        <CheckCircle size={14} className="text-purple-400" />
+                        <span>Allotment ({appsCount})</span>
+                      </a>
+
+                      <button
+                        onClick={() => handleOpenEdit(ipo)}
+                        className="px-3 py-1.5 rounded-xl bg-accent-soft hover:bg-accent/20 border border-accent/30 text-accent text-xs font-bold transition-all cursor-pointer flex items-center gap-1.5"
+                      >
+                        <PencilSimple size={14} />
+                        <span>Edit</span>
+                      </button>
+
+                      <button
+                        onClick={() => setSelectedIpoToRemove(ipo)}
+                        className="p-1.5 rounded-xl text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 border border-rose-500/20 transition-all cursor-pointer"
+                        title="Remove IPO"
+                      >
+                        <Trash size={15} />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* EDIT IPO MODAL */}
+      {/* EDIT IPO MODAL (CENTERED 2-STEP MODAL MATCHING SCREENSHOT) */}
       {editingIpo && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
-          <div className="bg-surface rounded-2xl border border-line shadow-2xl p-6 w-full max-w-lg space-y-4">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <h3 className="text-base font-extrabold text-ink flex items-center gap-2">
-                <PencilSimple size={18} className="text-accent" /> Edit IPO: {editingIpo.name}
-              </h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 bg-black/70 backdrop-blur-sm animate-fade-in font-sans">
+          {/* Backdrop */}
+          <div className="fixed inset-0" onClick={() => setEditingIpo(null)} />
+
+          {/* Centered Modal Container with Uniform Height */}
+          <div className="relative w-full max-w-lg min-h-[520px] max-h-[90vh] bg-surface border border-line rounded-3xl shadow-2xl z-10 flex flex-col overflow-hidden animate-scale-in my-auto">
+            {/* Step Progress Line Bar */}
+            <div className="w-full h-1 bg-surface-alt shrink-0">
+              <div
+                className={`h-full bg-blue-600 transition-all duration-300 ${
+                  editStep === 1 ? "w-1/2" : "w-full"
+                }`}
+              />
+            </div>
+
+            {/* Modal Header */}
+            <div className="px-5 py-4 sm:px-6 sm:py-4.5 border-b border-line bg-surface/95 flex items-start justify-between gap-4 shrink-0">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-blue-600 text-white flex items-center justify-center shadow-md shrink-0">
+                  <PencilSimple size={20} weight="bold" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider bg-blue-500/10 text-blue-500 border border-blue-500/20 font-mono">
+                      {editStep === 1 ? "EDIT IPO • STEP 1 OF 2" : "EDIT IPO • STEP 2 OF 2"}
+                    </span>
+                  </div>
+                  <h2 className="text-base sm:text-lg font-black text-ink tracking-tight">
+                    {editStep === 1 ? `Edit: ${editingIpo.name}` : "Edit Schedule Dates"}
+                  </h2>
+                </div>
+              </div>
+
               <button
                 onClick={() => setEditingIpo(null)}
-                className="text-ink-tertiary hover:text-ink p-1 rounded-lg hover:bg-surface-alt transition-colors cursor-pointer"
+                className="p-1.5 rounded-xl text-ink-tertiary hover:text-ink hover:bg-surface-alt transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleSaveEditIpo} className="space-y-3.5 text-xs">
-              {/* Status Stage */}
-              <div>
-                <label className="block font-bold text-ink mb-1">Lifecycle Stage</label>
-                <select
-                  value={editStatus}
-                  onChange={(e) => setEditStatus(e.target.value as IPOLifecycleStage)}
-                  className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2.5 text-xs font-bold text-ink focus:border-accent outline-none"
-                >
-                  <option value="APPLYING">APPLYING (Open for applications)</option>
-                  <option value="ALLOTMENT_PENDING">ALLOTMENT_PENDING (Bidding closed, awaiting result)</option>
-                  <option value="ALLOTTED">ALLOTTED (Allotment declared)</option>
-                  <option value="LISTED">LISTED (Trading live on NSE/BSE)</option>
-                  <option value="SOLD">SOLD (Exit executed)</option>
-                </select>
-              </div>
-
-              {/* GMP & Listing Gain */}
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block font-bold text-ink mb-1">Grey Market Premium (GMP ₹)</label>
-                  <input
-                    type="number"
-                    value={editGmp}
-                    onChange={(e) => setEditGmp(Number(e.target.value))}
-                    className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-bold text-ink focus:border-accent outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="block font-bold text-ink mb-1">Listing Gain (%)</label>
-                  <input
-                    type="number"
-                    value={editListingGain}
-                    onChange={(e) => setEditListingGain(Number(e.target.value))}
-                    className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-bold text-ink focus:border-accent outline-none"
-                  />
-                </div>
-              </div>
-
-              {/* Recommendation */}
-              <div>
-                <label className="block font-bold text-ink mb-1">Group Recommendation</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {(["APPLY", "WATCH", "SKIP"] as const).map((rec) => (
-                    <button
-                      key={rec}
-                      type="button"
-                      onClick={() => setEditRecommendation(rec)}
-                      className={`py-1.5 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
-                        editRecommendation === rec
-                          ? rec === "APPLY"
-                            ? "bg-emerald-50 text-emerald-800 border-emerald-300"
-                            : rec === "WATCH"
-                            ? "bg-amber-50 text-amber-800 border-amber-300"
-                            : "bg-rose-50 text-rose-800 border-rose-300"
-                          : "bg-surface-alt text-ink-secondary border-line"
-                      }`}
+            {/* STEP 1: Core Details & Status - Uniform Sizing */}
+            {editStep === 1 ? (
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  setEditStep(2);
+                }}
+                className="flex-1 flex flex-col justify-between p-5 sm:p-6 text-xs font-semibold text-ink overflow-y-auto"
+              >
+                <div className="space-y-3.5">
+                  {/* Status Stage */}
+                  <div className="space-y-1">
+                    <label className="block text-ink font-bold text-[11px] uppercase tracking-wider">Lifecycle Stage</label>
+                    <select
+                      value={editStatus}
+                      onChange={(e) => setEditStatus(e.target.value as IPOLifecycleStage)}
+                      className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-bold text-ink focus:bg-surface focus:border-blue-500 focus:outline-none transition-all"
                     >
-                      {rec}
-                    </button>
-                  ))}
+                      <option value="APPLYING">APPLYING (Open for applications)</option>
+                      <option value="ALLOTMENT_PENDING">ALLOTMENT_PENDING (Bidding closed, awaiting result)</option>
+                      <option value="ALLOTTED">ALLOTTED (Allotment declared)</option>
+                      <option value="LISTED">LISTED (Trading live on NSE/BSE)</option>
+                      <option value="SOLD">SOLD (Exit executed)</option>
+                    </select>
+                  </div>
+
+                  {/* GMP & Listing Gain */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="block text-ink font-bold text-[11px] uppercase tracking-wider">GMP (₹)</label>
+                      <input
+                        type="number"
+                        value={editGmp}
+                        onChange={(e) => setEditGmp(Number(e.target.value))}
+                        className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-ink focus:bg-surface focus:border-blue-500 focus:outline-none transition-all"
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="block text-ink font-bold text-[11px] uppercase tracking-wider">Listing Gain (%)</label>
+                      <input
+                        type="number"
+                        value={editListingGain}
+                        onChange={(e) => setEditListingGain(Number(e.target.value))}
+                        className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-ink focus:bg-surface focus:border-blue-500 focus:outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Recommendation */}
+                  <div className="space-y-1">
+                    <label className="block text-ink font-bold text-[11px] uppercase tracking-wider">Group Recommendation</label>
+                    <div className="grid grid-cols-3 gap-2">
+                      {(["APPLY", "WATCH", "SKIP"] as const).map((rec) => (
+                        <button
+                          key={rec}
+                          type="button"
+                          onClick={() => setEditRecommendation(rec)}
+                          className={`py-2 rounded-xl text-xs font-bold border transition-colors cursor-pointer ${
+                            editRecommendation === rec
+                              ? rec === "APPLY"
+                                ? "bg-emerald-500/10 text-emerald-500 border-emerald-500/30 font-extrabold"
+                                : rec === "WATCH"
+                                ? "bg-amber-500/10 text-amber-500 border-amber-500/30 font-extrabold"
+                                : "bg-rose-500/10 text-rose-500 border-rose-500/30 font-extrabold"
+                              : "bg-surface-alt text-ink-secondary border-line"
+                          }`}
+                        >
+                          {rec}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Registrar Link */}
+                  <div className="space-y-1">
+                    <label className="block text-ink font-bold text-[11px] uppercase tracking-wider">Registrar Status URL</label>
+                    <input
+                      type="url"
+                      value={editRegistrarUrl}
+                      onChange={(e) => setEditRegistrarUrl(e.target.value)}
+                      placeholder="https://ipostatus.kfintech.com"
+                      className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-mono text-ink focus:bg-surface focus:border-blue-500 focus:outline-none transition-all"
+                    />
+                  </div>
+
+                  {/* Thesis */}
+                  <div className="space-y-1">
+                    <label className="block text-ink font-bold text-[11px] uppercase tracking-wider">Thesis / Analysis Note</label>
+                    <textarea
+                      rows={3}
+                      value={editThesis}
+                      onChange={(e) => setEditThesis(e.target.value)}
+                      className="w-full bg-surface-alt border border-line rounded-xl p-3 text-xs font-medium text-ink focus:bg-surface focus:border-blue-500 focus:outline-none transition-all leading-relaxed"
+                    />
+                  </div>
                 </div>
-              </div>
 
-              {/* Registrar Link */}
-              <div>
-                <label className="block font-bold text-ink mb-1">Registrar Status URL</label>
-                <input
-                  type="url"
-                  value={editRegistrarUrl}
-                  onChange={(e) => setEditRegistrarUrl(e.target.value)}
-                  placeholder="https://ipostatus.kfintech.com"
-                  className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-mono text-ink focus:border-accent outline-none"
-                />
-              </div>
+                {/* Fixed Footer within Form */}
+                <div className="pt-4 mt-4 border-t border-line flex items-center justify-between gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setEditingIpo(null)}
+                    className="px-4 py-2.5 rounded-xl border border-line text-xs font-bold text-ink-secondary hover:text-ink hover:bg-surface-alt transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all shadow-md active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
+                  >
+                    <span>Next: Schedule Dates</span>
+                    <ArrowRight size={14} weight="bold" />
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleSaveEditIpo} className="flex-1 flex flex-col justify-between p-5 sm:p-6 text-xs font-semibold text-ink overflow-y-auto">
+                <div className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
+                    {/* Open Date */}
+                    <div className="space-y-1">
+                      <label className="block text-ink font-bold text-[11px] uppercase tracking-wider">Open Date</label>
+                      <input
+                        type="text"
+                        placeholder="18 Aug 2026"
+                        value={editOpenDate}
+                        onChange={(e) => setEditOpenDate(e.target.value)}
+                        className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-semibold text-ink focus:bg-surface focus:border-blue-500 focus:outline-none transition-all"
+                      />
+                    </div>
 
-              {/* Thesis */}
-              <div>
-                <label className="block font-bold text-ink mb-1">Thesis / Analysis Note</label>
-                <textarea
-                  rows={3}
-                  value={editThesis}
-                  onChange={(e) => setEditThesis(e.target.value)}
-                  className="w-full bg-surface-alt border border-line rounded-xl p-3 text-xs font-medium text-ink focus:border-accent outline-none"
-                />
-              </div>
+                    {/* Close Date */}
+                    <div className="space-y-1">
+                      <label className="block text-ink font-bold text-[11px] uppercase tracking-wider">Close Date</label>
+                      <input
+                        type="text"
+                        placeholder="28 Aug 2026"
+                        value={editCloseDate}
+                        onChange={(e) => setEditCloseDate(e.target.value)}
+                        className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-semibold text-ink focus:bg-surface focus:border-blue-500 focus:outline-none transition-all"
+                      />
+                    </div>
 
-              <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">
-                <button
-                  type="button"
-                  onClick={() => setEditingIpo(null)}
-                  className="px-4 py-2 rounded-xl border border-line text-xs font-semibold text-ink-secondary hover:bg-surface-alt cursor-pointer"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-5 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white text-xs font-extrabold shadow-xs cursor-pointer"
-                >
-                  Save Changes
-                </button>
-              </div>
-            </form>
+                    {/* Allotment Date */}
+                    <div className="space-y-1">
+                      <label className="block text-ink font-bold text-[11px] uppercase tracking-wider">Allotment Date</label>
+                      <input
+                        type="text"
+                        placeholder="01 Sep 2026"
+                        value={editAllotmentDate}
+                        onChange={(e) => setEditAllotmentDate(e.target.value)}
+                        className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-semibold text-ink focus:bg-surface focus:border-blue-500 focus:outline-none transition-all"
+                      />
+                    </div>
+
+                    {/* Listing Date */}
+                    <div className="space-y-1">
+                      <label className="block text-ink font-bold text-[11px] uppercase tracking-wider">Listing Date</label>
+                      <input
+                        type="text"
+                        placeholder="04 Sep 2026"
+                        value={editListingDate}
+                        onChange={(e) => setEditListingDate(e.target.value)}
+                        className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-semibold text-ink focus:bg-surface focus:border-blue-500 focus:outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Fund Unblock Date */}
+                  <div className="space-y-1">
+                    <label className="block text-ink font-bold text-[11px] uppercase tracking-wider">Fund Unblock Date</label>
+                    <input
+                      type="text"
+                      placeholder="02 Sep 2026"
+                      value={editFundUnblockDate}
+                      onChange={(e) => setEditFundUnblockDate(e.target.value)}
+                      className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-semibold text-ink focus:bg-surface focus:border-blue-500 focus:outline-none transition-all"
+                    />
+                  </div>
+                </div>
+
+                {/* Footer Buttons */}
+                <div className="pt-4 mt-4 border-t border-line flex items-center justify-between gap-3 shrink-0">
+                  <button
+                    type="button"
+                    onClick={() => setEditStep(1)}
+                    className="px-4 py-2.5 rounded-xl border border-line text-xs font-bold text-ink-secondary hover:text-ink hover:bg-surface-alt transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <ArrowLeft size={14} weight="bold" />
+                    <span>Back to Details</span>
+                  </button>
+
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs transition-all shadow-md active:scale-[0.98] cursor-pointer flex items-center gap-1.5"
+                  >
+                    <FloppyDisk size={15} weight="bold" />
+                    <span>Save Changes</span>
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
@@ -1037,12 +1064,14 @@ export function AdminIPOManagement({
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
+                type="button"
                 onClick={() => setSelectedIpoToRemove(null)}
                 className="px-4 py-2.5 rounded-xl border border-line text-xs font-bold text-ink-secondary hover:bg-surface-alt transition-colors cursor-pointer"
               >
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmRemove}
                 className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer"
               >
@@ -1073,6 +1102,7 @@ export function AdminIPOManagement({
 
             <div className="flex items-center justify-end gap-3 pt-2">
               <button
+                type="button"
                 onClick={() => setSelectedIpoToComplete(null)}
                 disabled={isCompleting}
                 className="px-4 py-2.5 rounded-xl border border-line text-xs font-bold text-ink-secondary hover:bg-surface-alt transition-colors cursor-pointer"
@@ -1080,6 +1110,7 @@ export function AdminIPOManagement({
                 Cancel
               </button>
               <button
+                type="button"
                 onClick={handleConfirmComplete}
                 disabled={isCompleting}
                 className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer disabled:opacity-50"

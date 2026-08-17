@@ -11,6 +11,7 @@ export interface IPODocument {
   _id?: ObjectId;
   id: string;                     // Unique IPO ID (e.g. "ipo_tata_tech")
   name: string;                   // IPO Display Name (e.g. "Tata Technologies")
+  nameNormalized?: string;        // Canonical normalized lowercase name for unique index
   company: string;                // Company Name (e.g. "Tata Technologies Limited")
   logo?: string;                  // Logo text or image URL
   category: "Mainboard" | "SME";  // IPO Market Category

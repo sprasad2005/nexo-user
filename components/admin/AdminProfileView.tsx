@@ -14,7 +14,7 @@ import {
   EyeSlash,
   Lock,
 } from "@phosphor-icons/react";
-import { useAdmin } from "@/admin/context/AdminContext";
+import { useAdmin } from "@/context/AdminContext";
 import { useTheme } from "@/components/providers/ThemeProvider";
 import { ProfileEditor } from "@/components/profile/ProfileEditor";
 

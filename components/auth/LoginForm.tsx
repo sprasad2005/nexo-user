@@ -59,7 +59,10 @@ export function LoginForm() {
       window.location.pathname.startsWith("/login")
     ) {
       const params = new URLSearchParams(window.location.search);
-      const target = safeNextPath(params.get("next"));
+      const nextParam = params.get("next");
+      const role = currentUser?.role;
+      const isAdmin = role === "SUPER_ADMIN" || role === "ADMIN";
+      const target = nextParam ? safeNextPath(nextParam) : (isAdmin ? "/admin" : "/");
       router.replace(target);
     }
   }, [isAuthenticated, step, router]);

@@ -31,7 +31,7 @@ export function IPOSnapshot({ ipo }: IPOSnapshotProps) {
           <p className="text-[22px] font-bold text-ink num-tabular leading-tight">
             {formatINR(ipo.metrics.minInvestment)}
             <span className="text-sm font-normal text-ink-secondary ml-1">
-              /{ipo.metrics.lotSize} shares
+              / IPO LOT
             </span>
           </p>
           <p className="text-xs text-ink-secondary font-medium mt-0.5">Minimum investment</p>

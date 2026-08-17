@@ -20,6 +20,8 @@ export interface UserDocument {
   status: UserStatus;             // "ACTIVE" | "SUSPENDED" | "DISABLED"
   emailVerified: boolean;         // Email verification flag
   mustChangePassword?: boolean;   // Force user to change password on login
+  panNormalized?: string;         // Canonical normalized PAN for unique index
+  phoneNormalized?: string;       // Canonical E.164 normalized phone for unique index
   createdAt: Date;
   updatedAt: Date;
   lastLoginAt?: Date;
