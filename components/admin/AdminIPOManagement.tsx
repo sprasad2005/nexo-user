@@ -327,21 +327,24 @@ export function AdminIPOManagement({
 
   const handleAddMemberSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!memberName.trim() || !memberUsername.trim() || !memberPassword.trim()) return;
+    const cleanUser = memberUsername.trim().toLowerCase().replace(/^@+/, "");
+    const cleanPass = memberPassword.trim();
+    if (!cleanUser || !cleanPass) return;
+
+    const formattedName = cleanUser.charAt(0).toUpperCase() + cleanUser.slice(1);
 
     await addMember({
-      name: memberName.trim(),
-      username: memberUsername.trim().toLowerCase(),
-      password: memberPassword.trim(),
-      email: memberEmail.trim() || `${memberUsername.trim()}@nexo.private`,
-      role: memberRole,
+      name: formattedName,
+      username: cleanUser,
+      password: cleanPass,
+      email: `${cleanUser}@nexo.private`,
+      role: "MEMBER",
     });
 
-    showToast(`✓ Created new member: ${memberName.trim()} (${memberRole})`);
+    showToast(`✓ Created new member: @${cleanUser}`);
     setIsAddMemberModalOpen(false);
-    setMemberName("");
     setMemberUsername("");
-    setMemberRole("MEMBER");
+    setMemberPassword("");
   };
 
   const isOpenStatus = (st?: string) => {
@@ -1017,53 +1020,29 @@ export function AdminIPOManagement({
               </button>
             </div>
 
-            <form onSubmit={handleAddMemberSubmit} className="space-y-3 text-xs">
+            <form onSubmit={handleAddMemberSubmit} className="space-y-3.5 text-xs">
               <div>
-                <label className="block font-bold text-ink mb-1">Full Name</label>
-                <input
-                  type="text"
-                  required
-                  value={memberName}
-                  onChange={(e) => setMemberName(e.target.value)}
-                  placeholder="e.g. Rahul Sharma"
-                  className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-bold text-ink focus:border-accent outline-none"
-                />
-              </div>
-
-              <div>
-                <label className="block font-bold text-ink mb-1">Username (Login ID)</label>
+                <label className="block font-bold text-ink mb-1">Assign Username *</label>
                 <input
                   type="text"
                   required
                   value={memberUsername}
-                  onChange={(e) => setMemberUsername(e.target.value)}
+                  onChange={(e) => setMemberUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
                   placeholder="e.g. rahul"
-                  className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-bold text-ink focus:border-accent outline-none"
+                  className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-ink focus:border-accent outline-none"
                 />
               </div>
 
               <div>
-                <label className="block font-bold text-ink mb-1">Assigned Password</label>
+                <label className="block font-bold text-ink mb-1">Assign Password *</label>
                 <input
-                  type="password"
+                  type="text"
                   required
                   value={memberPassword}
                   onChange={(e) => setMemberPassword(e.target.value)}
-                  placeholder="Password"
-                  className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-bold text-ink focus:border-accent outline-none"
+                  placeholder="e.g. user123"
+                  className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2.5 text-xs font-mono font-bold text-ink focus:border-accent outline-none"
                 />
-              </div>
-
-              <div>
-                <label className="block font-bold text-ink mb-1">Role</label>
-                <select
-                  value={memberRole}
-                  onChange={(e) => setMemberRole(e.target.value as MemberRole)}
-                  className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-bold text-ink focus:border-accent outline-none"
-                >
-                  <option value="MEMBER">MEMBER (Standard User)</option>
-                  <option value="ADMIN">ADMIN (Full Console Access)</option>
-                </select>
               </div>
 
               <div className="flex items-center justify-end gap-2 pt-3 border-t border-line">

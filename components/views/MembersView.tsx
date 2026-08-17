@@ -23,6 +23,8 @@ import {
   Eye,
   EyeSlash,
   Megaphone,
+  Copy,
+  Check,
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { Member, MemberRole } from "@/types/nexo";
@@ -39,15 +41,30 @@ export function MembersView() {
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"ALL" | "SUPER_ADMIN" | "MEMBER">("ALL");
 
-  // Add form state
-  const [name, setName] = useState("");
+  // Add form state (only 2 inputs: username & password)
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [phone, setPhone] = useState("");
-  const [role, setRole] = useState<MemberRole>("MEMBER");
-  const [pan, setPan] = useState("");
-  const [email, setEmail] = useState("");
-  const [avatar, setAvatar] = useState("/oggy.png");
+  const [createdUserCredentials, setCreatedUserCredentials] = useState<{
+    username: string;
+    password: string;
+  } | null>(null);
+  const [copiedField, setCopiedField] = useState<"username" | "password" | "all" | null>(null);
+  const [showCreatedPassword, setShowCreatedPassword] = useState(false);
+
+  const copyToClipboard = (text: string, field: "username" | "password" | "all") => {
+    if (typeof navigator !== "undefined" && navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text);
+    } else if (typeof document !== "undefined") {
+      const el = document.createElement("textarea");
+      el.value = text;
+      document.body.appendChild(el);
+      el.select();
+      document.execCommand("copy");
+      document.body.removeChild(el);
+    }
+    setCopiedField(field);
+    setTimeout(() => setCopiedField(null), 2500);
+  };
 
   // Edit form state
   const [editUsername, setEditUsername] = useState("");
@@ -252,33 +269,36 @@ export function MembersView() {
 
   const handleAddSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !username || !password) return;
+    const cleanUser = username.trim().toLowerCase().replace(/^@+/, "");
+    const cleanPass = password.trim();
+    if (!cleanUser || !cleanPass) return;
+
+    const formattedName = cleanUser.charAt(0).toUpperCase() + cleanUser.slice(1);
 
     await addMember({
-      name,
-      username: username.trim().toLowerCase(),
-      password: password.trim(),
-      phone: phone.trim() || "+91 98200 12345",
-      role,
-      panMasked: pan.trim().toUpperCase() || "ABCDE1234F",
-      panFull: pan.trim().toUpperCase() || "ABCDE1234F",
-      email: email || `${username.trim().toLowerCase()}@nexo.private`,
-      avatar,
+      name: formattedName,
+      username: cleanUser,
+      password: cleanPass,
+      phone: "+91 98200 12345",
+      role: "MEMBER",
+      panMasked: "ABCDE1234F",
+      panFull: "ABCDE1234F",
+      email: `${cleanUser}@nexo.private`,
+      avatar: "/oggy.png",
     });
 
-    setIsAddModalOpen(false);
-    resetAddForm();
+    setCreatedUserCredentials({
+      username: cleanUser,
+      password: cleanPass,
+    });
   };
 
   const resetAddForm = () => {
-    setName("");
     setUsername("");
     setPassword("");
-    setPhone("");
-    setRole("MEMBER");
-    setPan("");
-    setEmail("");
-    setAvatar("/oggy.png");
+    setCreatedUserCredentials(null);
+    setCopiedField(null);
+    setShowCreatedPassword(false);
   };
 
   const openEditModal = (member: Member) => {
@@ -640,112 +660,211 @@ export function MembersView() {
             <div className="flex items-center justify-between border-b border-line pb-3">
               <div>
                 <h3 className="text-body-md font-bold text-ink flex items-center gap-2">
-                  <UserPlus size={18} className="text-accent" />
-                  Add Member
+                  {createdUserCredentials ? <CheckCircle size={18} weight="fill" className="text-emerald-500" /> : <UserPlus size={18} className="text-accent" />}
+                  {createdUserCredentials ? "Member Account Created" : "Add Member"}
                 </h3>
                 <p className="text-caption text-ink-tertiary">
-                  Create member account with username & phone details
+                  {createdUserCredentials ? "Login credentials generated successfully." : "Assign login credentials for member access."}
                 </p>
               </div>
               <button
-                onClick={() => setIsAddModalOpen(false)}
-                className="text-ink-tertiary hover:text-ink p-1 rounded-lg hover:bg-surface-alt transition-colors"
+                onClick={() => {
+                  setIsAddModalOpen(false);
+                  resetAddForm();
+                }}
+                className="text-ink-tertiary hover:text-ink p-1 rounded-lg hover:bg-surface-alt transition-colors cursor-pointer"
               >
                 <X size={18} />
               </button>
             </div>
 
-            <form onSubmit={handleAddSubmit} className="space-y-4">
-              <div>
-                <label className="block text-caption font-semibold text-ink mb-1">Full Name *</label>
-                <input
-                  type="text"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    if (!username) setUsername(e.target.value.toLowerCase().replace(/\s+/g, ""));
-                  }}
-                  placeholder="e.g. Ashay Kumar"
-                  required
-                  className="w-full px-3.5 py-2 bg-surface-alt border border-line rounded-xl text-small text-ink focus:border-accent outline-none"
-                />
-              </div>
+            {createdUserCredentials ? (
+              <div className="space-y-4 text-xs font-semibold">
+                <div className="p-3.5 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-600 dark:text-emerald-400 space-y-0.5">
+                  <div className="flex items-center gap-1.5 font-bold text-xs">
+                    <CheckCircle size={15} weight="fill" />
+                    <span>Credentials Ready to Share</span>
+                  </div>
+                  <p className="text-[11px] text-ink-secondary">
+                    Click copy below or use the 1-click button to copy both details.
+                  </p>
+                </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-caption font-semibold text-ink mb-1">Username *</label>
-                  <input
-                    type="text"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    placeholder="e.g. ashay"
-                    required
-                    className="w-full px-3.5 py-2 bg-surface-alt border border-line rounded-xl text-small text-ink font-sans focus:border-accent outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-caption font-semibold text-ink mb-1">Password *</label>
-                  <input
-                    type="text"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="e.g. user123"
-                    required
-                    className="w-full px-3.5 py-2 bg-surface-alt border border-line rounded-xl text-small text-ink font-mono focus:border-accent outline-none"
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-caption font-semibold text-ink mb-1">Mobile Number</label>
-                  <input
-                    type="text"
-                    value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
-                    placeholder="e.g. +91 98200 12345"
-                    className="w-full px-3.5 py-2 bg-surface-alt border border-line rounded-xl text-small text-ink font-sans focus:border-accent outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-caption font-semibold text-ink mb-1">Role</label>
-                  <select
-                    value={role}
-                    onChange={(e) => setRole(e.target.value as any)}
-                    className="w-full px-3.5 py-2 bg-surface-alt border border-line rounded-xl text-small text-ink focus:border-accent outline-none"
-                  >
-                    <option value="MEMBER">Member</option>
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-caption font-semibold text-ink mb-1">Avatar Preset</label>
-                <div className="flex items-center gap-3 pt-1">
-                  {["/oggy.png", "/jack.png", "/sinchan.png", "/doremon.png", "/japlu.png"].map((img) => (
+                <div className="space-y-2.5">
+                  {/* Username Card */}
+                  <div className="p-3 rounded-xl bg-surface-alt border border-line flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[10px] uppercase font-bold text-ink-tertiary block tracking-wider mb-0.5">
+                        Username (Login ID)
+                      </span>
+                      <span className="font-mono font-bold text-sm text-ink truncate block">
+                        @{createdUserCredentials.username}
+                      </span>
+                    </div>
                     <button
-                      key={img}
                       type="button"
-                      onClick={() => setAvatar(img)}
-                      className={`relative rounded-full p-0.5 border-2 transition-all cursor-pointer ${
-                        avatar === img ? "border-accent scale-110" : "border-transparent opacity-70 hover:opacity-100"
+                      onClick={() => copyToClipboard(createdUserCredentials.username, "username")}
+                      className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer shrink-0 ${
+                        copiedField === "username"
+                          ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
+                          : "bg-surface border-line text-ink-secondary hover:border-accent hover:text-accent"
                       }`}
                     >
-                      <img src={img} alt="Avatar" className="w-8 h-8 rounded-full object-cover" />
+                      {copiedField === "username" ? (
+                        <>
+                          <Check size={14} weight="bold" />
+                          <span>Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy size={14} />
+                          <span>Copy</span>
+                        </>
+                      )}
                     </button>
-                  ))}
+                  </div>
+
+                  {/* Password Card */}
+                  <div className="p-3 rounded-xl bg-surface-alt border border-line flex items-center justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <span className="text-[10px] uppercase font-bold text-ink-tertiary block tracking-wider mb-0.5">
+                        Password
+                      </span>
+                      <span className="font-mono font-bold text-sm text-ink truncate block">
+                        {showCreatedPassword ? createdUserCredentials.password : "••••••••••••"}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setShowCreatedPassword(!showCreatedPassword)}
+                        className="p-1.5 rounded-lg text-ink-tertiary hover:text-ink hover:bg-surface transition-colors cursor-pointer"
+                        title={showCreatedPassword ? "Hide password" : "Show password"}
+                      >
+                        {showCreatedPassword ? <EyeSlash size={15} /> : <Eye size={15} />}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => copyToClipboard(createdUserCredentials.password, "password")}
+                        className={`px-3 py-1.5 rounded-lg border text-xs font-bold transition-all flex items-center gap-1.5 cursor-pointer ${
+                          copiedField === "password"
+                            ? "bg-emerald-500/15 border-emerald-500/40 text-emerald-500"
+                            : "bg-surface border-line text-ink-secondary hover:border-accent hover:text-accent"
+                        }`}
+                      >
+                        {copiedField === "password" ? (
+                          <>
+                            <Check size={14} weight="bold" />
+                            <span>Copied!</span>
+                          </>
+                        ) : (
+                          <>
+                            <Copy size={14} />
+                            <span>Copy</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+
+                {/* 1-Click Copy All Credentials Button */}
+                <button
+                  type="button"
+                  onClick={() =>
+                    copyToClipboard(
+                      `Username: ${createdUserCredentials.username}\nPassword: ${createdUserCredentials.password}`,
+                      "all"
+                    )
+                  }
+                  className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs transition-all flex items-center justify-center gap-2 shadow-md cursor-pointer ${
+                    copiedField === "all"
+                      ? "bg-emerald-600 text-white"
+                      : "bg-accent hover:bg-accent-hover text-white"
+                  }`}
+                >
+                  {copiedField === "all" ? (
+                    <>
+                      <Check size={15} weight="bold" />
+                      <span>✓ All Credentials Copied!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy size={15} weight="bold" />
+                      <span>Copy Credentials in 1-Click</span>
+                    </>
+                  )}
+                </button>
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      resetAddForm();
+                    }}
+                  >
+                    + Add Another
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="primary"
+                    size="sm"
+                    onClick={() => {
+                      setIsAddModalOpen(false);
+                      resetAddForm();
+                    }}
+                  >
+                    Done
+                  </Button>
                 </div>
               </div>
+            ) : (
+              <form onSubmit={handleAddSubmit} className="space-y-4">
+                <div className="space-y-3">
+                  <div>
+                    <label className="block text-caption font-semibold text-ink mb-1">Username *</label>
+                    <input
+                      type="text"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+                      placeholder="e.g. ashay"
+                      required
+                      className="w-full px-3.5 py-2.5 bg-surface-alt border border-line rounded-xl text-small font-mono text-ink focus:border-accent outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-caption font-semibold text-ink mb-1">Password *</label>
+                    <input
+                      type="text"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="e.g. user123"
+                      required
+                      className="w-full px-3.5 py-2.5 bg-surface-alt border border-line rounded-xl text-small font-mono text-ink focus:border-accent outline-none"
+                    />
+                  </div>
+                </div>
 
-              <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
-                <Button type="button" variant="outline" size="sm" onClick={() => setIsAddModalOpen(false)}>
-                  Cancel
-                </Button>
-                <Button type="submit" variant="primary" size="sm">
-                  <CheckCircle size={16} /> Save Member
-                </Button>
-              </div>
-            </form>
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-line">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setIsAddModalOpen(false);
+                      resetAddForm();
+                    }}
+                  >
+                    Cancel
+                  </Button>
+                  <Button type="submit" variant="primary" size="sm">
+                    <UserPlus size={15} /> Create Member
+                  </Button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}
