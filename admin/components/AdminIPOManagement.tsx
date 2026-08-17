@@ -26,13 +26,18 @@ export function AdminIPOManagement() {
   const handleConfirmRemove = async () => {
     if (!selectedIpoToRemove) return;
     const target = selectedIpoToRemove;
+    const targetId = target.id;
     try {
+      AdminDataCache.invalidate("admin_ipos");
+      AdminDataCache.invalidate("admin_dashboard_summary");
+      nexoDataCache.invalidate("ipos_apps");
+
       await fetch("/api/ipos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "updateIpo",
-          ipoId: target.id,
+          ipoId: targetId,
           data: {
             status: "COMPLETED",
             isCompleted: true,
@@ -44,7 +49,7 @@ export function AdminIPOManagement() {
       await fetch("/api/admin/ipos/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ipoId: target.id }),
+        body: JSON.stringify({ ipoId: targetId }),
       }).catch(() => {});
 
       setFeedbackMsg(`✓ "${target.name}" removed from user home page. It remains accessible in Applications, Workspace, and IPO History.`);

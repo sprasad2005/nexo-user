@@ -1186,14 +1186,19 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
   };
 
   const updateIpo = (ipoId: string, patch: Partial<IPOOpportunity>) => {
+    const cleanId = String(ipoId).trim().replace(/^pub_/, "");
     setIpos((prev) =>
-      prev.map((item) => (item.id === ipoId ? { ...item, ...patch } : item))
+      prev.map((item) => {
+        const itemCleanId = String(item.id).trim().replace(/^pub_/, "");
+        return item.id === ipoId || itemCleanId === cleanId ? { ...item, ...patch } : item;
+      })
     );
-    if (selectedIpo && selectedIpo.id === ipoId) {
+    if (selectedIpo && (selectedIpo.id === ipoId || String(selectedIpo.id).replace(/^pub_/, "") === cleanId)) {
       setSelectedIpo((prev) => (prev ? { ...prev, ...patch } : null));
     }
     nexoDataCache.invalidate("ipos_apps");
     nexoDataCache.invalidate("admin_ipos");
+    nexoDataCache.invalidate("admin_dashboard_summary");
   };
 
   const updateApplicationStatus = (

@@ -205,14 +205,29 @@ export function AdminIPOManagement({
   const handleConfirmRemove = async () => {
     if (!selectedIpoToRemove) return;
     const target = selectedIpoToRemove;
+    const targetId = target.id;
     try {
-      // 1. Hide from user home page / mark complete in backend
+      // 1. Immediately update UI state optimistically
+      if (typeof updateIpo === "function") {
+        updateIpo(targetId, {
+          status: "COMPLETED" as any,
+          isCompleted: true,
+          hideFromHome: true,
+        });
+      }
+
+      // 2. Invalidate all SWR caches
+      AdminDataCache.invalidate("admin_ipos");
+      AdminDataCache.invalidate("admin_dashboard_summary");
+      AdminDataCache.invalidate("ipos_apps");
+
+      // 3. Hide from user home page / mark complete in backend
       await fetch("/api/ipos", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           action: "updateIpo",
-          ipoId: target.id,
+          ipoId: targetId,
           data: {
             status: "COMPLETED",
             isCompleted: true,
@@ -225,32 +240,15 @@ export function AdminIPOManagement({
       await fetch("/api/admin/ipos/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ipoId: target.id }),
+        body: JSON.stringify({ ipoId: targetId }),
       }).catch(() => {});
 
-      if (typeof updateIpo === "function") {
-        updateIpo(target.id, {
-          status: "COMPLETED" as any,
-          isCompleted: true,
-          hideFromHome: true,
-        });
-      }
-
       showToast(`✓ "${target.name}" removed from user home page. It remains fully accessible in Applications, Workspace, and IPO History.`);
-      AdminDataCache.invalidate("admin_ipos");
-      AdminDataCache.invalidate("admin_dashboard_summary");
       if (typeof refreshIpos === "function") {
         await refreshIpos();
       }
       window.dispatchEvent(new Event("storage"));
     } catch {
-      if (typeof updateIpo === "function") {
-        updateIpo(target.id, {
-          status: "COMPLETED" as any,
-          isCompleted: true,
-          hideFromHome: true,
-        });
-      }
       showToast(`✓ "${target.name}" removed from user home page.`);
     } finally {
       setSelectedIpoToRemove(null);
