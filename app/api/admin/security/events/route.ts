@@ -42,7 +42,8 @@ export async function GET(request: Request) {
 
     // Search Query (Actor, Target, Type)
     if (search) {
-      const searchRegex = new RegExp(search, "i");
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = new RegExp(escapedSearch, "i");
       query.$or = [
         { actorName: searchRegex },
         { actorUsername: searchRegex },

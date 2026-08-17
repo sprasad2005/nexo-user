@@ -28,11 +28,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       return NextResponse.json({ success: false, error: "User credentials not found." }, { status: 404 });
     }
 
-    // Activate user
-    await db.collection("users").updateOne(
-      { memberId: targetMemberId },
-      { $set: { status: "ACTIVE", updatedAt: new Date() } }
-    );
+    // Activate user across both users and members collections
+    await Promise.all([
+      db.collection("users").updateOne(
+        { memberId: targetMemberId },
+        { $set: { status: "ACTIVE", updatedAt: new Date() } }
+      ),
+      db.collection("members").updateOne(
+        { id: targetMemberId },
+        { $set: { status: "ACTIVE", updatedAt: new Date() } }
+      ),
+    ]);
 
     // Log Activity
     await logActivity({

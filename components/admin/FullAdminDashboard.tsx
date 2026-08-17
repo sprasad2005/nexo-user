@@ -2,25 +2,28 @@
 
 import React, { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
+import dynamic from "next/dynamic";
 import { AdminProvider } from "@/context/AdminContext";
 import { AdminSidebar } from "./AdminSidebar";
-import { AdminIPOManagement } from "./AdminIPOManagement";
-import { AdminIPOHistoryView } from "./AdminIPOHistoryView";
-import { DistributeProfitView } from "./DistributeProfitView";
 import { AddIPODrawer } from "./AddIPODrawer";
 import { AdminNavbarProfileMenu } from "./AdminNavbarProfileMenu";
 import { NotificationPopover } from "../shell/NotificationPopover";
-import { AdminProfileView } from "./AdminProfileView";
-import { AdminSettingsView } from "./AdminSettingsView";
 import { AdminLogoutModal } from "./AdminLogoutModal";
-import { SuperAdminMemberManagement } from "./SuperAdminMemberManagement";
-import { ActivityPage } from "./activity/ActivityPage";
-import { AllotmentManagementView } from "./AllotmentManagementView";
-import { AdminApplicationsView } from "./AdminApplicationsView";
-import { AdminSecurityView } from "./AdminSecurityView";
-import { MessagesTab } from "@/src/features/admin/components/MessagesTab";
 import { UserCircle, Gear, SignOut, List } from "@phosphor-icons/react";
 import { AdminDataCache } from "@/lib/nexoDataCache";
+
+// Code-split admin views into async chunks to minimize initial dashboard bundle size
+const AdminIPOManagement = dynamic(() => import("./AdminIPOManagement").then((m) => m.AdminIPOManagement), { ssr: false });
+const AdminIPOHistoryView = dynamic(() => import("./AdminIPOHistoryView").then((m) => m.AdminIPOHistoryView), { ssr: false });
+const DistributeProfitView = dynamic(() => import("./DistributeProfitView").then((m) => m.DistributeProfitView), { ssr: false });
+const SuperAdminMemberManagement = dynamic(() => import("./SuperAdminMemberManagement").then((m) => m.SuperAdminMemberManagement), { ssr: false });
+const ActivityPage = dynamic(() => import("./activity/ActivityPage").then((m) => m.ActivityPage), { ssr: false });
+const AllotmentManagementView = dynamic(() => import("./AllotmentManagementView").then((m) => m.AllotmentManagementView), { ssr: false });
+const AdminApplicationsView = dynamic(() => import("./AdminApplicationsView").then((m) => m.AdminApplicationsView), { ssr: false });
+const AdminSecurityView = dynamic(() => import("./AdminSecurityView").then((m) => m.AdminSecurityView), { ssr: false });
+const MessagesTab = dynamic(() => import("@/src/features/admin/components/MessagesTab").then((m) => m.MessagesTab), { ssr: false });
+const AdminProfileView = dynamic(() => import("./AdminProfileView").then((m) => m.AdminProfileView), { ssr: false });
+const AdminSettingsView = dynamic(() => import("./AdminSettingsView").then((m) => m.AdminSettingsView), { ssr: false });
 
 function AdminOverview({ setActiveTab }: { setActiveTab: (tab: string) => void }) {
   const router = useRouter();
@@ -185,7 +188,24 @@ function AdminDashboardContent() {
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
   useEffect(() => {
-    document.title = "NEXO- Admin";
+    document.title = "NEXO - Admin";
+
+    // Idle prefetch of all admin views to eliminate tab switching delays
+    const timer = setTimeout(() => {
+      import("./AdminIPOManagement");
+      import("./SuperAdminMemberManagement");
+      import("./AllotmentManagementView");
+      import("./AdminApplicationsView");
+      import("./DistributeProfitView");
+      import("./AdminIPOHistoryView");
+      import("./AdminSecurityView");
+      import("./activity/ActivityPage");
+      import("@/src/features/admin/components/MessagesTab");
+      import("./AdminProfileView");
+      import("./AdminSettingsView");
+    }, 400);
+
+    return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {

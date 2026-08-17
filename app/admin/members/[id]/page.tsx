@@ -186,40 +186,80 @@ function MemberDetailPageContent() {
   }, [router]);
 
   // Fetch all member details in parallel
-  const fetchAllData = async () => {
+  const fetchAllData = async (forceFresh = false) => {
     if (!memberId) return;
-    setIsLoading(true);
-    try {
-      const [res, sessRes, actRes] = await Promise.all([
-        fetch(`/api/admin/members/${memberId}`).then((r) => r.json()).catch(() => null),
-        fetch(`/api/admin/members/${memberId}/sessions`).then((r) => r.json()).catch(() => null),
-        fetch(`/api/admin/members/${memberId}/activity`).then((r) => r.json()).catch(() => null),
-      ]);
+    const cacheKey = `admin_member_detail_${memberId}`;
 
-      if (res?.success && res.member) {
-        setMember(res.member);
-        setPortfolio(res.portfolio || null);
-        setApplications(res.applications || []);
-
-        // Populate edit form
-        setEditName(res.member.name);
-        setEditDisplayName(res.member.displayName || res.member.name);
-        setEditUsername(res.member.username);
-        setEditEmail(res.member.email);
-        setEditPhone(res.member.phone || "");
-        setEditAvatar(res.member.avatar || "");
+    if (!forceFresh) {
+      const cached = AdminDataCache.get<any>(cacheKey);
+      if (cached?.res?.success && cached?.res?.member) {
+        setMember(cached.res.member);
+        setPortfolio(cached.res.portfolio || null);
+        setApplications(cached.res.applications || []);
+        setEditName(cached.res.member.name);
+        setEditDisplayName(cached.res.member.displayName || cached.res.member.name);
+        setEditUsername(cached.res.member.username);
+        setEditEmail(cached.res.member.email);
+        setEditPhone(cached.res.member.phone || "");
+        setEditAvatar(cached.res.member.avatar || "");
+        if (cached.sessRes?.sessions) setSessions(cached.sessRes.sessions);
+        if (cached.actRes?.activities) setActivities(cached.actRes.activities);
+        setIsLoading(false);
       } else {
-        showToast(res?.error || "Failed to load member profile", "error");
+        setIsLoading(true);
+      }
+    }
+
+    try {
+      const data = await AdminDataCache.fetchSWR(
+        cacheKey,
+        async () => {
+          const [res, sessRes, actRes] = await Promise.all([
+            fetch(`/api/admin/members/${memberId}`).then((r) => r.json()).catch(() => null),
+            fetch(`/api/admin/members/${memberId}/sessions`).then((r) => r.json()).catch(() => null),
+            fetch(`/api/admin/members/${memberId}/activity`).then((r) => r.json()).catch(() => null),
+          ]);
+          return { res, sessRes, actRes };
+        },
+        {
+          ttlMs: 30000,
+          onUpdate: (freshData) => {
+            if (freshData?.res?.success && freshData.res.member) {
+              setMember(freshData.res.member);
+              setPortfolio(freshData.res.portfolio || null);
+              setApplications(freshData.res.applications || []);
+            }
+            if (freshData?.sessRes?.success && Array.isArray(freshData.sessRes.sessions)) {
+              setSessions(freshData.sessRes.sessions);
+            }
+            if (freshData?.actRes?.success && Array.isArray(freshData.actRes.activities)) {
+              setActivities(freshData.actRes.activities);
+            }
+          },
+        }
+      );
+
+      if (data?.res?.success && data.res.member) {
+        setMember(data.res.member);
+        setPortfolio(data.res.portfolio || null);
+        setApplications(data.res.applications || []);
+
+        setEditName(data.res.member.name);
+        setEditDisplayName(data.res.member.displayName || data.res.member.name);
+        setEditUsername(data.res.member.username);
+        setEditEmail(data.res.member.email);
+        setEditPhone(data.res.member.phone || "");
+        setEditAvatar(data.res.member.avatar || "");
       }
 
-      if (sessRes?.success && Array.isArray(sessRes.sessions)) {
-        setSessions(sessRes.sessions);
+      if (data?.sessRes?.success && Array.isArray(data.sessRes.sessions)) {
+        setSessions(data.sessRes.sessions);
       }
 
-      if (actRes?.success && Array.isArray(actRes.activities)) {
-        setActivities(actRes.activities);
+      if (data?.actRes?.success && Array.isArray(data.actRes.activities)) {
+        setActivities(data.actRes.activities);
       }
-    } catch (err) {
+    } catch {
       showToast("Unable to load administrative workspace", "error");
     } finally {
       setIsLoading(false);
@@ -228,22 +268,7 @@ function MemberDetailPageContent() {
 
   useEffect(() => {
     if (adminStatus !== "AUTHORIZED" || !memberId) return;
-
     fetchAllData();
-    const interval = setInterval(() => {
-      fetch(`/api/admin/members/${memberId}`)
-        .then((r) => r.json())
-        .then((d) => {
-          if (d?.success && d.member) {
-            setMember(d.member);
-            if (d.portfolio) setPortfolio(d.portfolio);
-            if (Array.isArray(d.applications)) setApplications(d.applications);
-          }
-        })
-        .catch(() => {});
-    }, 15000);
-
-    return () => clearInterval(interval);
   }, [adminStatus, memberId]);
 
   // Actions

@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { requireSuperAdmin, requireAdmin } from "@/src/lib/auth/authorization";
+import { requireSuperAdmin, requireAdmin, getAuthenticatedUser } from "@/src/lib/auth/authorization";
 import { UserDocument } from "@/src/models/User";
 import { MemberDocument } from "@/src/models/Member";
 import { hashPassword, normalizeEmail, validatePasswordStrength } from "@/src/lib/auth/password";
@@ -19,6 +19,8 @@ const DB_NAME = "nexo";
 // GET /api/admin/members
 export async function GET(req: Request) {
   try {
+    const auth = await getAuthenticatedUser();
+    const isAdmin = auth?.role === "SUPER_ADMIN" || auth?.role === "ADMIN";
     const { searchParams } = new URL(req.url);
 
     const search = (searchParams.get("search") || "").trim().toLowerCase();
@@ -67,8 +69,18 @@ export async function GET(req: Request) {
       }).toArray(),
       db.collection("applications").aggregate([
         {
+          $project: {
+            appOwner: { $ifNull: ["$memberId", "$applicantName"] },
+          },
+        },
+        {
+          $match: {
+            appOwner: { $ne: null },
+          },
+        },
+        {
           $group: {
-            _id: { $ifNull: ["$memberId", "$applicantName"] },
+            _id: "$appOwner",
             count: { $sum: 1 },
           },
         },
@@ -151,7 +163,7 @@ export async function GET(req: Request) {
         email: member.email,
         avatar: member.avatar,
         phone: member.phone,
-        password: member.password || "",
+        password: isAdmin ? (member.password || "") : "",
         role: user?.role || member.role || "MEMBER",
         status: user?.status || "ACTIVE",
         isVerified: isVerified,
@@ -258,23 +270,11 @@ export async function GET(req: Request) {
       }
     );
   } catch (err: any) {
-    console.error("GET /api/admin/members error, providing resilient fallback:", err);
-    const fallback = MOCK_MEMBERS.map((m) => ({
-      id: m.id,
-      name: m.name,
-      username: (m as any).username || m.name.toLowerCase(),
-      email: m.email,
-      avatar: m.avatar,
-      phone: m.phone || "+91 98200 12345",
-      password: (m as any).password || "user123",
-      role: m.role,
-      status: (m as any).status || "ACTIVE",
-      isVerified: true,
-      lastLoginAt: null,
-      createdAt: new Date(),
-      mustChangePassword: false,
-    }));
-    return NextResponse.json({ success: true, members: fallback });
+    console.error("GET /api/admin/members error:", err);
+    if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {
+      return NextResponse.json({ success: false, error: "Access Denied." }, { status: err.message === "UNAUTHORIZED" ? 401 : 403 });
+    }
+    return NextResponse.json({ success: false, error: err.message || "Failed to fetch members" }, { status: 500 });
   }
 }
 

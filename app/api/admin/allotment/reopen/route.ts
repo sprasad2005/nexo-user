@@ -79,23 +79,43 @@ export async function POST(req: Request) {
       const client = await clientPromise;
       const db = client.db(DB_NAME);
 
+      const escapedTargetName = targetIpoName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const dbIpo = await db.collection("ipos").findOne({
-        $or: [{ id: ipoId }, { name: { $regex: new RegExp(`^${targetIpoName}$`, "i") } }]
+        $or: [{ id: ipoId }, { name: { $regex: new RegExp(`^${escapedTargetName}$`, "i") } }]
       });
 
       if (dbIpo) {
         targetIpoName = dbIpo.name || targetIpoName;
-        await db.collection("ipos").updateOne(
-          { _id: dbIpo._id },
-          {
-            $set: {
-              allotmentFinalized: false,
-              allotmentFinalizedAt: null,
-              allotmentFinalizedBy: null,
-              updatedAt: new Date(),
+        const finalEscapedName = targetIpoName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        await Promise.all([
+          db.collection("ipos").updateOne(
+            { _id: dbIpo._id },
+            {
+              $set: {
+                allotmentFinalized: false,
+                allotmentFinalizedAt: null,
+                allotmentFinalizedBy: null,
+                updatedAt: new Date(),
+              }
             }
-          }
-        );
+          ),
+          db.collection("applications").updateMany(
+            {
+              $or: [
+                { ipoId: ipoId },
+                { ipoName: { $regex: new RegExp(`^${finalEscapedName}$`, "i") } },
+              ],
+            },
+            {
+              $set: {
+                allotmentStatus: "PENDING",
+                status: "PENDING",
+                allottedIndices: [],
+                updatedAt: new Date(),
+              },
+            }
+          ),
+        ]);
       }
     } catch (_dbErr) {
       console.warn("MongoDB reset optional, shared_ipos.json reset successfully.");

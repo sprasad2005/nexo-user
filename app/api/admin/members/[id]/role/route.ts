@@ -14,9 +14,9 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const targetMemberId = resolvedParams.id;
 
     const body = await req.json();
-    const { role } = body; // MEMBER, SUPER_ADMIN
+    const { role } = body; // MEMBER, ADMIN, SUPER_ADMIN
 
-    if (!role || !["MEMBER", "SUPER_ADMIN"].includes(role)) {
+    if (!role || !["MEMBER", "ADMIN", "SUPER_ADMIN"].includes(role)) {
       return NextResponse.json({ success: false, error: "A valid role is required." }, { status: 400 });
     }
 
@@ -67,30 +67,31 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     }
 
-    // Perform role update on user document
-    await db.collection<UserDocument>("users").updateOne(
-      { memberId: targetMemberId },
-      { $set: { role: role as any, updatedAt: new Date() } }
-    );
+    const isAdminOrSuper = role === "ADMIN" || role === "SUPER_ADMIN";
 
-    // Sync member role
-    await db.collection<MemberDocument>("members").updateOne(
-      { id: targetMemberId },
-      {
-        $set: {
-          role: role as any,
-          updatedAt: new Date(),
-          // update default permissions as well
-          permissions: {
-            canSubmitApplications: true,
-            canDistributeProfit: role === "SUPER_ADMIN",
-            canEditIpos: role === "SUPER_ADMIN",
-            canAccessAdminConsole: role === "SUPER_ADMIN",
-            canManageMembers: role === "SUPER_ADMIN",
-          }
+    // Perform role update across both users and members atomically
+    await Promise.all([
+      db.collection<UserDocument>("users").updateOne(
+        { memberId: targetMemberId },
+        { $set: { role: role as any, updatedAt: new Date() } }
+      ),
+      db.collection<MemberDocument>("members").updateOne(
+        { id: targetMemberId },
+        {
+          $set: {
+            role: role as any,
+            updatedAt: new Date(),
+            permissions: {
+              canSubmitApplications: true,
+              canDistributeProfit: isAdminOrSuper,
+              canEditIpos: isAdminOrSuper,
+              canAccessAdminConsole: isAdminOrSuper,
+              canManageMembers: isAdminOrSuper,
+            },
+          },
         }
-      }
-    );
+      ),
+    ]);
 
     // Log Activity
     await logActivity({

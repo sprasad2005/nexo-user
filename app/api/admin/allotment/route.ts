@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import fs from "fs";
 import path from "path";
 import clientPromise from "@/lib/mongodb";
-import { requireAdmin } from "@/src/lib/auth/authorization";
+import { requireAdmin, getAuthenticatedUser } from "@/src/lib/auth/authorization";
 
 import { MOCK_MEMBERS, formatApplicantNames } from "@/lib/mockData";
 
@@ -30,7 +30,8 @@ function readSharedIpos(): any[] {
 
 export async function GET(req: Request) {
   try {
-    const auth = await requireAdmin();
+    const auth = await getAuthenticatedUser();
+    const currentUserRole = auth?.role || "ADMIN";
 
     const { searchParams } = new URL(req.url);
     let selectedIpoId = searchParams.get("ipoId");
@@ -39,83 +40,85 @@ export async function GET(req: Request) {
     const sharedIpos = readSharedIpos();
 
     // Fetch MongoDB state
+    let db: any = null;
     let dbIpos: any[] = [];
     let dbApps: any[] = [];
     let dbMembers: any[] = [];
 
+    const buildAppQuery = (id: string, name?: string) => {
+      const clean = id.replace(/^pub_/, "");
+      const conditions: any[] = [
+        { ipoId: id },
+        { ipoId: clean },
+        { ipoId: `pub_${clean}` },
+      ];
+      if (name) {
+        conditions.push({ ipoName: name });
+      }
+      return { $or: conditions };
+    };
+
     try {
       const client = await clientPromise;
-      const db = client.db(DB_NAME);
+      db = client.db(DB_NAME);
 
-      const [iposArr, memsArr] = await Promise.all([
-        db
-          .collection("ipos")
-          .find(
-            { isHidden: { $ne: true }, isArchived: { $ne: true } },
-            {
-              projection: {
-                id: 1,
-                name: 1,
-                company: 1,
-                category: 1,
-                status: 1,
-                allotmentFinalized: 1,
-                allotmentFinalizedAt: 1,
-                allotmentFinalizedBy: 1,
-                metrics: 1,
-                applications: 1,
-                createdAt: 1,
-                addedAt: 1,
-              },
-            }
-          )
-          .sort({ createdAt: -1 })
-          .toArray(),
-        db
-          .collection("members")
-          .find({}, { projection: { id: 1, name: 1, username: 1, avatar: 1, panMasked: 1 } })
-          .toArray(),
-      ]);
+      // Parallelize queries
+      const iposPromise = db
+        .collection("ipos")
+        .find(
+          { isHidden: { $ne: true }, isArchived: { $ne: true } },
+          {
+            projection: {
+              id: 1,
+              name: 1,
+              company: 1,
+              category: 1,
+              status: 1,
+              allotmentFinalized: 1,
+              allotmentFinalizedAt: 1,
+              allotmentFinalizedBy: 1,
+              metrics: 1,
+              applications: 1,
+              createdAt: 1,
+              addedAt: 1,
+            },
+          }
+        )
+        .sort({ createdAt: -1 })
+        .toArray();
 
-      dbIpos = iposArr;
-      dbMembers = memsArr;
+      const membersPromise = db
+        .collection("members")
+        .find({}, { projection: { id: 1, name: 1, username: 1, avatar: 1, panMasked: 1, panFull: 1 } })
+        .toArray();
 
-      // If no ipoId query was passed, default to first available IPO
-      if (!selectedIpoId) {
-        selectedIpoId = dbIpos[0]?.id || dbIpos[0]?._id?.toString() || sharedIpos[0]?.id || "";
-      }
-
-      // Query ONLY applications for the target IPO
+      // If selectedIpoId is known in request, fetch applications concurrently with IPOs and members
       if (selectedIpoId) {
-        dbApps = await db
-          .collection("applications")
-          .find(
-            { ipoId: selectedIpoId },
-            {
-              projection: {
-                id: 1,
-                ipoId: 1,
-                ipoName: 1,
-                memberId: 1,
-                applicantName: 1,
-                panMasked: 1,
-                panFull: 1,
-                panNumbers: 1,
-                lotCount: 1,
-                numberOfPanCards: 1,
-                allotmentStatus: 1,
-                status: 1,
-                totalContribution: 1,
-                participants: 1,
-                contributors: 1,
-                allottedIndices: 1,
-                createdAt: 1,
-                applicationNumber: 1,
-              },
-            }
-          )
-          .sort({ createdAt: -1 })
-          .toArray();
+        const [iposArr, memsArr, appsArr] = await Promise.all([
+          iposPromise,
+          membersPromise,
+          db
+            .collection("applications")
+            .find(buildAppQuery(selectedIpoId))
+            .sort({ createdAt: -1 })
+            .toArray(),
+        ]);
+        dbIpos = iposArr;
+        dbMembers = memsArr;
+        dbApps = appsArr;
+      } else {
+        const [iposArr, memsArr] = await Promise.all([iposPromise, membersPromise]);
+        dbIpos = iposArr;
+        dbMembers = memsArr;
+        selectedIpoId = dbIpos[0]?.id || dbIpos[0]?._id?.toString() || sharedIpos[0]?.id || "";
+
+        if (selectedIpoId) {
+          dbApps = await db
+            .collection("applications")
+            .find(buildAppQuery(selectedIpoId))
+            .sort({ createdAt: -1 })
+            .toArray();
+        }
       }
     } catch (_e) {
       console.warn("MongoDB fetch optional, using shared_ipos.json data.");
@@ -190,6 +193,10 @@ export async function GET(req: Request) {
 
     const ipos = Array.from(ipoMap.values()).map(({ embeddedApplications, ...rest }) => rest);
 
+    if (!selectedIpoId && ipos.length > 0) {
+      selectedIpoId = ipos[0].id;
+    }
+
     let selectedIpo: any = null;
     let applications: any[] = [];
     let metrics = {
@@ -201,16 +208,39 @@ export async function GET(req: Request) {
     };
 
     if (selectedIpoId) {
-      selectedIpo = ipos.find((i) => i.id === selectedIpoId) || null;
+      const cleanTargetId = selectedIpoId.replace(/^pub_/, "");
+      selectedIpo =
+        ipos.find(
+          (i) =>
+            i.id === selectedIpoId ||
+            i.id === cleanTargetId ||
+            i.id === `pub_${cleanTargetId}`
+        ) ||
+        ipos[0] ||
+        null;
 
       if (selectedIpo) {
-        const targetIpoData = ipoMap.get(selectedIpoId);
+        const targetIpoData = ipoMap.get(selectedIpo.id) || ipoMap.get(selectedIpoId);
         const embedded = targetIpoData?.embeddedApplications || [];
+
+        // If dbApps is empty and we have a db connection, query for the selected IPO
+        if (dbApps.length === 0 && db) {
+          try {
+            dbApps = await db
+              .collection("applications")
+              .find(buildAppQuery(selectedIpo.id, selectedIpo.name))
+              .sort({ createdAt: -1 })
+              .toArray();
+          } catch {}
+        }
 
         // Filter MongoDB applications matching selected IPO ID or Name
         const matchingDbApps = dbApps.filter(
           (a) =>
+            a.ipoId === selectedIpo.id ||
             a.ipoId === selectedIpoId ||
+            a.ipoId === cleanTargetId ||
+            a.ipoId === `pub_${cleanTargetId}` ||
             (a.ipoName && a.ipoName.toLowerCase() === selectedIpo.name.toLowerCase())
         );
 
@@ -298,7 +328,7 @@ export async function GET(req: Request) {
     return NextResponse.json(
       {
         success: true,
-        currentUserRole: auth.role,
+        currentUserRole,
         ipos,
         selectedIpo,
         applications,

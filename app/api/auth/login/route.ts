@@ -11,7 +11,7 @@ import { MOCK_MEMBERS } from "@/lib/mockData";
 const DB_NAME = "nexo";
 
 function isAdminRole(role: string) {
-  return role === "SUPER_ADMIN";
+  return role === "SUPER_ADMIN" || role === "ADMIN";
 }
 
 export async function POST(req: Request) {

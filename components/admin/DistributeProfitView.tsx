@@ -5,6 +5,7 @@ import { Coins, CheckCircle, ArrowRight, User, Users, Calculator, Package, Walle
 import { CustomSelect } from "@/components/ui/CustomSelect";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { useAdmin } from "@/context/AdminContext";
+import { AdminDataCache } from "@/lib/nexoDataCache";
 
 export function DistributeProfitView() {
   const { ipos, publishProfitDistribution } = useAdmin();
@@ -25,6 +26,34 @@ export function DistributeProfitView() {
   const [realApplications, setRealApplications] = useState<any[]>([]);
   const [isFetchingApps, setIsFetchingApps] = useState(false);
   const [autoAllottedBadge, setAutoAllottedBadge] = useState<string | null>(null);
+
+  // Helper to calculate auto allotted count
+  const updateAutoAllotted = (apps: any[], hasDraftOrPublished: boolean) => {
+    let autoCount = 0;
+    apps.forEach((app: any) => {
+      if (Array.isArray(app.allottedIndices) && app.allottedIndices.length > 0) {
+        autoCount += app.allottedIndices.length;
+      } else if (app.allotmentStatus === "ALLOTTED") {
+        autoCount += Number(app.lotsApplied || app.lotCount || 1);
+      }
+    });
+
+    if (autoCount > 0) {
+      if (!hasDraftOrPublished) {
+        setAllottedLots(autoCount);
+      }
+      setAutoAllottedBadge(`✓ Auto-fetched ${autoCount} Allotted Lot${autoCount > 1 ? "s" : ""} from Allotment Section`);
+    } else {
+      const totalApplied = apps.reduce(
+        (sum: number, app: any) => sum + Number(app.lotsApplied || app.lotCount || 1),
+        0
+      );
+      if (!hasDraftOrPublished) {
+        setAllottedLots(totalApplied > 0 ? totalApplied : 1);
+      }
+      setAutoAllottedBadge("ℹ No lots marked Allotted yet in Allotment Section (showing total applied)");
+    }
+  };
 
   // Ensure selectedIpoId points to a valid IPO once activeIpos load
   React.useEffect(() => {
@@ -96,57 +125,32 @@ export function DistributeProfitView() {
       setAllottedLots(1);
     }
 
-    // 2. Load cached applications first for instant UI response
-    try {
-      const cached = localStorage.getItem(`nexo_admin_apps_${selectedIpoId}`);
-      if (cached) {
-        const parsed = JSON.parse(cached);
-        if (Array.isArray(parsed) && parsed.length > 0) {
-          setRealApplications(parsed);
-        }
-      } else {
-        setRealApplications([]);
-      }
-    } catch {
-      setRealApplications([]);
-    }
-
-    // 3. Fetch latest live applications
+    // 2. Fetch or reuse cached applications using shared AdminDataCache SWR
     setIsFetchingApps(true);
-    fetch(`/api/admin/allotment?ipoId=${selectedIpoId}`)
-      .then((res) => res.json())
+    AdminDataCache.fetchSWR(
+      `admin_allotment_apps_${selectedIpoId}`,
+      async () => {
+        const res = await fetch(`/api/admin/allotment?ipoId=${encodeURIComponent(selectedIpoId)}`);
+        const json = await res.json();
+        if (res.ok && json.success) return json;
+        throw new Error(json.error || "Failed to load applications");
+      },
+      {
+        ttlMs: 30000,
+        onUpdate: (freshData) => {
+          if (!isMounted) return;
+          if (freshData?.success && Array.isArray(freshData.applications)) {
+            setRealApplications(freshData.applications);
+            updateAutoAllotted(freshData.applications, hasDraftOrPublished);
+          }
+        },
+      }
+    )
       .then((data) => {
         if (!isMounted) return;
-        if (data.success && Array.isArray(data.applications)) {
+        if (data?.success && Array.isArray(data.applications)) {
           setRealApplications(data.applications);
-          try {
-            localStorage.setItem(`nexo_admin_apps_${selectedIpoId}`, JSON.stringify(data.applications));
-          } catch {}
-
-          let autoCount = 0;
-          data.applications.forEach((app: any) => {
-            if (Array.isArray(app.allottedIndices) && app.allottedIndices.length > 0) {
-              autoCount += app.allottedIndices.length;
-            } else if (app.allotmentStatus === "ALLOTTED") {
-              autoCount += Number(app.lotsApplied || app.lotCount || 1);
-            }
-          });
-
-          if (autoCount > 0) {
-            if (!hasDraftOrPublished) {
-              setAllottedLots(autoCount);
-            }
-            setAutoAllottedBadge(`✓ Auto-fetched ${autoCount} Allotted Lot${autoCount > 1 ? "s" : ""} from Allotment Section`);
-          } else {
-            const totalApplied = data.applications.reduce(
-              (sum: number, app: any) => sum + Number(app.lotsApplied || app.lotCount || 1),
-              0
-            );
-            if (!hasDraftOrPublished) {
-              setAllottedLots(totalApplied > 0 ? totalApplied : 1);
-            }
-            setAutoAllottedBadge("ℹ No lots marked Allotted yet in Allotment Section (showing total applied)");
-          }
+          updateAutoAllotted(data.applications, hasDraftOrPublished);
         }
       })
       .catch(() => {})
@@ -157,7 +161,7 @@ export function DistributeProfitView() {
     return () => {
       isMounted = false;
     };
-  }, [selectedIpoId]);
+  }, [selectedIpoId, activeIpos]);
 
   const handleProfitChange = (val: number | "") => {
     setTotalProfit(val);

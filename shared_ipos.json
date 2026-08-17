@@ -1,1 +1,39 @@
-[]
+[
+  {
+    "id": "ipo_1786971335240",
+    "name": "Shiprocket",
+    "nameNormalized": "shiprocket",
+    "company": "Shiprocket",
+    "logo": "SH",
+    "category": "Mainboard",
+    "status": "COMPLETED",
+    "recommendation": "APPLY",
+    "thesis": "Applied ON 14 AUG 26",
+    "isHidden": false,
+    "metrics": {
+      "issueSize": "₹1,617 Cr",
+      "priceBand": {
+        "min": 0,
+        "max": 0
+      },
+      "lotSize": 1,
+      "minInvestment": 14938,
+      "gmpPercent": 18.5,
+      "openDate": "18 Aug 2026",
+      "closeDate": "14 Aug 2026",
+      "allotmentDate": "01 Sep 2026",
+      "listingDate": "04 Sep 2026",
+      "fundUnblockDate": "02 Sep 2026"
+    },
+    "createdBy": "Ankit",
+    "participantsCount": 0,
+    "combinedCapital": 0,
+    "applications": [],
+    "createdAt": "2026-08-17T12:55:35.240Z",
+    "addedAt": "2026-08-17T12:55:35.241Z",
+    "isCompleted": true,
+    "allotmentFinalized": true,
+    "completedAt": "2026-08-17T16:58:53.797Z",
+    "completedBy": "Ankit"
+  }
+]

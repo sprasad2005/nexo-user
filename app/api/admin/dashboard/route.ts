@@ -21,8 +21,7 @@ export async function GET() {
       return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
     }
 
-    const { user } = sessionData;
-    if (user.role !== "SUPER_ADMIN" && user.role !== "ADMIN") {
+    if (sessionData.user.role !== "SUPER_ADMIN" && sessionData.user.role !== "ADMIN") {
       return NextResponse.json({ success: false, error: "Forbidden" }, { status: 403 });
     }
 

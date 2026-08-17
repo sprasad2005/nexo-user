@@ -62,28 +62,28 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
     const temporaryPassword = generateSecurePassword();
     const passwordHash = hashPassword(temporaryPassword);
 
-    // Update user: set mustChangePassword = true, update passwordHash
-    await db.collection<UserDocument>("users").updateOne(
-      { memberId: targetMemberId },
-      {
-        $set: {
-          passwordHash: passwordHash,
-          mustChangePassword: true,
-          updatedAt: new Date(),
-        },
-      }
-    );
-
-    // Also clear plaintext password in member profile for safety
-    await db.collection<MemberDocument>("members").updateOne(
-      { id: targetMemberId },
-      {
-        $set: {
-          password: temporaryPassword,
-          updatedAt: new Date(),
-        },
-      }
-    );
+    // Update user credentials and member record concurrently
+    await Promise.all([
+      db.collection<UserDocument>("users").updateOne(
+        { memberId: targetMemberId },
+        {
+          $set: {
+            passwordHash: passwordHash,
+            mustChangePassword: true,
+            updatedAt: new Date(),
+          },
+        }
+      ),
+      db.collection<MemberDocument>("members").updateOne(
+        { id: targetMemberId },
+        {
+          $set: {
+            password: temporaryPassword,
+            updatedAt: new Date(),
+          },
+        }
+      ),
+    ]);
 
     // Revoke all existing sessions so they are forced to log in with the new credentials
     await revokeAllUserSessions(user.id);

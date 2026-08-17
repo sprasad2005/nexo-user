@@ -14,12 +14,9 @@ export async function GET(req: Request) {
     const client = await clientPromise;
     const col = client.db(DB).collection<MemberDocument>(COL);
 
-    let members = await col.find({}).toArray();
-
-    /* Fallback to mock members if database is empty */
-    if (members.length === 0) {
-      members = MOCK_MEMBERS as any;
-    }
+    let members = await col.find({}, {
+      projection: { id: 1, name: 1, username: 1, avatar: 1, role: 1 }
+    }).toArray();
 
     const filtered = members.filter((m) => {
       const uName = (m.username || m.name.toLowerCase()).toLowerCase();

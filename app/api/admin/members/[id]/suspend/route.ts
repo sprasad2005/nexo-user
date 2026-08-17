@@ -52,11 +52,17 @@ export async function POST(req: Request, { params }: { params: Promise<{ id: str
       }
     }
 
-    // Suspend user
-    await db.collection("users").updateOne(
-      { memberId: targetMemberId },
-      { $set: { status: "SUSPENDED", updatedAt: new Date() } }
-    );
+    // Suspend user across both users and members collections
+    await Promise.all([
+      db.collection("users").updateOne(
+        { memberId: targetMemberId },
+        { $set: { status: "SUSPENDED", updatedAt: new Date() } }
+      ),
+      db.collection("members").updateOne(
+        { id: targetMemberId },
+        { $set: { status: "SUSPENDED", updatedAt: new Date() } }
+      ),
+    ]);
 
     // Revoke all sessions for target user
     await revokeAllUserSessions(user.id);

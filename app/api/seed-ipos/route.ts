@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getIposCollection } from "@/src/features/ipo/data";
+import { requireSuperAdmin } from "@/src/lib/auth/authorization";
 
 const SEED_DATA = [
   {
@@ -116,6 +117,7 @@ const SEED_DATA = [
 
 export async function POST() {
   try {
+    await requireSuperAdmin();
     const collection = await getIposCollection();
     await collection.deleteMany({});
     const result = await collection.insertMany(SEED_DATA);
@@ -125,6 +127,9 @@ export async function POST() {
     });
   } catch (error: any) {
     console.error("POST /api/seed-ipos error:", error);
+    if (error.message === "UNAUTHORIZED" || error.message === "FORBIDDEN") {
+      return NextResponse.json({ success: false, error: "Access Denied. Super Admin access required." }, { status: error.message === "UNAUTHORIZED" ? 401 : 403 });
+    }
     return NextResponse.json(
       { error: "Failed to seed IPO records into MongoDB" },
       { status: 500 }

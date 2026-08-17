@@ -52,7 +52,7 @@ export async function GET() {
       // 1. Active Sessions
       sessionsCol.countDocuments({ revokedAt: null, expiresAt: { $gt: now } }),
       // 2. Active Admins
-      usersCol.countDocuments({ role: "ADMIN", status: "ACTIVE" }),
+      usersCol.countDocuments({ role: { $in: ["ADMIN", "SUPER_ADMIN"] }, status: "ACTIVE" }),
       // 3. Active Members
       usersCol.countDocuments({ role: "MEMBER", status: "ACTIVE" }),
       // 4. Suspended Accounts

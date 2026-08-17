@@ -8,6 +8,7 @@ import { AdminNavbarProfileMenu } from "@/components/admin/AdminNavbarProfileMen
 import { NotificationPopover } from "@/components/shell/NotificationPopover";
 import { AdminLogoutModal } from "@/components/admin/AdminLogoutModal";
 import { AddIPODrawer } from "@/components/admin/AddIPODrawer";
+import { AdminDataCache } from "@/lib/nexoDataCache";
 import { 
   Users, UserPlus, ShieldCheck, Shield, MagnifyingGlass, 
   Funnel, CaretDown, Check, X, DotsThreeOutlineVertical, 
@@ -201,50 +202,53 @@ function MembersPageContent() {
   }, [router]);
 
   // Fetch members
-  const fetchMembers = async () => {
-    setIsLoading(true);
-    try {
-      const q = new URLSearchParams({
-        search: searchQuery,
-        role: roleFilter,
-        status: statusFilter,
-        verification: verifFilter,
-        sortBy
-      });
-      const res = await fetch(`/api/admin/members?${q}`);
-      const data = await res.json();
-      if (data?.success && Array.isArray(data.members) && data.members.length > 0) {
-        setMembers(data.members);
-        try {
-          localStorage.setItem("nexo_cached_admin_members", JSON.stringify(data.members));
-        } catch {}
+  const fetchMembers = async (forceFresh = false) => {
+    const q = new URLSearchParams({
+      search: searchQuery,
+      role: roleFilter,
+      status: statusFilter,
+      verification: verifFilter,
+      sortBy
+    });
+    const cacheKey = `admin_members_query_${q.toString()}`;
+
+    if (!forceFresh) {
+      const cached = AdminDataCache.get<any>(cacheKey);
+      if (cached?.success && Array.isArray(cached.members) && cached.members.length > 0) {
+        setMembers(cached.members);
+        setIsLoading(false);
       } else {
-        const fallbackRes = await fetch("/api/members");
-        const fallbackData = await fallbackRes.json();
-        if (fallbackData?.success && Array.isArray(fallbackData.members) && fallbackData.members.length > 0) {
-          setMembers(fallbackData.members);
-          try {
-            localStorage.setItem("nexo_cached_admin_members", JSON.stringify(fallbackData.members));
-          } catch {}
-        } else {
-          showToast(data.error || "Failed to fetch members list", "error");
+        setIsLoading(true);
+      }
+    }
+
+    try {
+      const data = await AdminDataCache.fetchSWR(
+        cacheKey,
+        async () => {
+          const res = await fetch(`/api/admin/members?${q}`);
+          const json = await res.json();
+          if (json?.success && Array.isArray(json.members)) return json;
+          const fallbackRes = await fetch("/api/members");
+          const fallbackData = await fallbackRes.json();
+          if (fallbackData?.success && Array.isArray(fallbackData.members)) return fallbackData;
+          throw new Error(json?.error || "Failed to fetch members");
+        },
+        {
+          ttlMs: 30000,
+          onUpdate: (freshData: any) => {
+            if (freshData?.success && Array.isArray(freshData.members)) {
+              setMembers(freshData.members);
+            }
+          },
         }
+      );
+
+      if (data?.success && Array.isArray(data.members)) {
+        setMembers(data.members);
       }
     } catch {
-      try {
-        const fallbackRes = await fetch("/api/members");
-        const fallbackData = await fallbackRes.json();
-        if (fallbackData?.success && Array.isArray(fallbackData.members) && fallbackData.members.length > 0) {
-          setMembers(fallbackData.members);
-          try {
-            localStorage.setItem("nexo_cached_admin_members", JSON.stringify(fallbackData.members));
-          } catch {}
-        } else {
-          showToast("Unable to connect to administration server", "error");
-        }
-      } catch {
-        showToast("Unable to connect to administration server", "error");
-      }
+      // Retain existing state if fetch fails
     } finally {
       setIsLoading(false);
     }
@@ -252,27 +256,7 @@ function MembersPageContent() {
 
   useEffect(() => {
     if (adminStatus !== "AUTHORIZED") return;
-
     fetchMembers();
-    const interval = setInterval(() => {
-      const q = new URLSearchParams({
-        search: searchQuery,
-        role: roleFilter,
-        status: statusFilter,
-        verification: verifFilter,
-        sortBy
-      });
-      fetch(`/api/admin/members?${q}`)
-        .then((r) => r.json())
-        .then((d) => {
-          if (d?.success && Array.isArray(d.members)) {
-            setMembers(d.members);
-          }
-        })
-        .catch(() => {});
-    }, 15000);
-
-    return () => clearInterval(interval);
   }, [adminStatus, searchQuery, roleFilter, statusFilter, verifFilter, sortBy]);
 
   // Real-time search debouncing or execution on enter/click

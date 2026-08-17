@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
-import { requireSuperAdmin } from "@/src/lib/auth/authorization";
+import { requireAdmin } from "@/src/lib/auth/authorization";
 import { UserDocument } from "@/src/models/User";
 import { MemberDocument } from "@/src/models/Member";
 import { revokeAllUserSessions } from "@/src/lib/auth/session";
@@ -10,7 +10,7 @@ const DB_NAME = "nexo";
 
 export async function POST(req: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
-    const auth = await requireSuperAdmin();
+    const auth = await requireAdmin();
     const resolvedParams = await params;
     const targetMemberId = resolvedParams.id;
 

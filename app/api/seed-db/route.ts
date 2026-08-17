@@ -3,11 +3,13 @@ import clientPromise from "@/lib/mongodb";
 import { MOCK_MEMBERS, MOCK_IPOS } from "@/lib/mockData";
 import { hashPassword, normalizeEmail } from "@/src/lib/auth/password";
 import { ensureActivityIndexes } from "@/src/features/activity/activityService";
+import { requireSuperAdmin } from "@/src/lib/auth/authorization";
 
 const DB_NAME = "nexo";
 
 export async function POST() {
   try {
+    await requireSuperAdmin();
     await ensureActivityIndexes();
     const client = await clientPromise;
     const db = client.db(DB_NAME);
@@ -151,6 +153,9 @@ export async function POST() {
     });
   } catch (err: any) {
     console.error("POST /api/seed-db error:", err);
+    if (err.message === "UNAUTHORIZED" || err.message === "FORBIDDEN") {
+      return NextResponse.json({ success: false, error: "Access Denied. Super Admin access required." }, { status: err.message === "UNAUTHORIZED" ? 401 : 403 });
+    }
     return NextResponse.json(
       { success: false, error: "Failed to seed database: " + err.message },
       { status: 500 }

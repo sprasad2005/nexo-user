@@ -37,22 +37,28 @@ import { normalizePan, isValidPan } from "@/src/lib/validation/uniqueness";
 
 export function SuperAdminMemberManagement() {
   const router = useRouter();
-  const { currentUser } = useNexo();
+  const { currentUser, members: contextMembers } = useNexo();
   const isSuperAdmin = currentUser?.role === "SUPER_ADMIN";
 
   const [isSendNotifOpen, setIsSendNotifOpen] = useState(false);
 
-  // ⚠ Do NOT call AdminDataCache.get/has() in useState initializers.
-  // AdminDataCache internally reads localStorage, which the server cannot access.
-  // Server always returns MOCK_MEMBERS (fallback); client may return real cached data.
-  // That divergence causes React hydration errors on all 4 derived metric cards.
-  // Fix: start both server and client with the same constant default, then apply
-  // cache inside useEffect (after hydration is complete).
-  const [members, setMembers] = useState<Member[]>(MOCK_MEMBERS as any);
-  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [members, setMembers] = useState<Member[]>(() => {
+    if (Array.isArray(contextMembers) && contextMembers.length > 1) {
+      return contextMembers;
+    }
+    return MOCK_MEMBERS as any;
+  });
+  const [isLoading, setIsLoading] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [roleFilter, setRoleFilter] = useState<"ALL" | "SUPER_ADMIN" | "MEMBER">("ALL");
   const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "SUSPENDED">("ALL");
+
+  // Sync with context members when available
+  useEffect(() => {
+    if (Array.isArray(contextMembers) && contextMembers.length > 1) {
+      setMembers(contextMembers);
+    }
+  }, [contextMembers]);
 
   // Feedback Toast
   const [toastMsg, setToastMsg] = useState<string | null>(null);
@@ -122,28 +128,30 @@ export function SuperAdminMemberManagement() {
 
   const fetchMembers = useCallback(async () => {
     try {
-      const res = await fetch("/api/members");
+      const res = await fetch("/api/admin/members");
       if (res.ok) {
-        const data = await res.json();
-        if (data.members) {
-          setMembers(data.members);
-          AdminDataCache.set("admin_members_list", data.members);
+        const json = await res.json();
+        if (json?.success && Array.isArray(json.members) && json.members.length > 0) {
+          setMembers(json.members);
+          return;
+        }
+      }
+      const fallbackRes = await fetch("/api/members");
+      if (fallbackRes.ok) {
+        const fallbackJson = await fallbackRes.json();
+        if (fallbackJson?.success && Array.isArray(fallbackJson.members) && fallbackJson.members.length > 0) {
+          setMembers(fallbackJson.members);
+          return;
         }
       }
     } catch {
-      // Keep existing cached state on error
+      // Keep existing members
     } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
-    // Immediately hydrate from cache (safe: runs client-side only, post-hydration)
-    const cached = AdminDataCache.get<Member[]>("admin_members_list");
-    if (cached && cached.length > 0) {
-      setMembers(cached);
-      setIsLoading(false);
-    }
     fetchMembers();
   }, [fetchMembers]);
 

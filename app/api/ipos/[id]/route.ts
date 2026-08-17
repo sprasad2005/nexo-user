@@ -33,16 +33,31 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
-    if (!id || !ObjectId.isValid(id)) {
+    if (!id || !id.trim()) {
       return NextResponse.json(
         { error: "Invalid IPO ID parameter" },
         { status: 400 }
       );
     }
 
+    const trimmedId = id.trim();
+    const cleanId = trimmedId.replace(/^pub_/, "");
+
     const collection = await getIposCollection();
+    const orConditions: any[] = [
+      { id: trimmedId },
+      { id: cleanId },
+      { id: `pub_${cleanId}` },
+    ];
+    if (ObjectId.isValid(trimmedId)) {
+      orConditions.push({ _id: new ObjectId(trimmedId) });
+    }
+    if (ObjectId.isValid(cleanId)) {
+      orConditions.push({ _id: new ObjectId(cleanId) });
+    }
+
     const doc = await collection.findOne({
-      _id: new ObjectId(id),
+      $or: orConditions,
       isArchived: { $ne: true },
     });
 
@@ -70,12 +85,15 @@ export async function PUT(
 ) {
   try {
     const { id } = await params;
-    if (!id || !ObjectId.isValid(id)) {
+    if (!id || !id.trim()) {
       return NextResponse.json(
         { error: "Invalid IPO ID parameter" },
         { status: 400 }
       );
     }
+
+    const trimmedId = id.trim();
+    const cleanId = trimmedId.replace(/^pub_/, "");
 
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {
@@ -86,8 +104,20 @@ export async function PUT(
     }
 
     const collection = await getIposCollection();
+    const orConditions: any[] = [
+      { id: trimmedId },
+      { id: cleanId },
+      { id: `pub_${cleanId}` },
+    ];
+    if (ObjectId.isValid(trimmedId)) {
+      orConditions.push({ _id: new ObjectId(trimmedId) });
+    }
+    if (ObjectId.isValid(cleanId)) {
+      orConditions.push({ _id: new ObjectId(cleanId) });
+    }
+
     const existingDoc = await collection.findOne({
-      _id: new ObjectId(id),
+      $or: orConditions,
       isArchived: { $ne: true },
     });
 
@@ -191,11 +221,11 @@ export async function PUT(
     }
 
     await collection.updateOne(
-      { _id: new ObjectId(id) },
+      { _id: existingDoc._id },
       { $set: updateFields }
     );
 
-    const updatedDoc = await collection.findOne({ _id: new ObjectId(id) });
+    const updatedDoc = await collection.findOne({ _id: existingDoc._id });
     const ipo = mapDocumentToIPO(updatedDoc);
 
     return NextResponse.json({ success: true, ipo });

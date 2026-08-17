@@ -149,8 +149,16 @@ export const nexoDataCache = {
         if (lastInval && lastInval > requestStartedAt) {
           return fresh;
         }
-        this.set(key, fresh, ttlMs);
-        if (onUpdate) {
+
+        const isValidFresh =
+          fresh !== null &&
+          fresh !== undefined &&
+          (typeof fresh !== "object" || (fresh as any).success !== false);
+
+        if (isValidFresh) {
+          this.set(key, fresh, ttlMs);
+        }
+        if (onUpdate && isValidFresh) {
           try {
             if (JSON.stringify(cached) !== JSON.stringify(fresh)) {
               onUpdate(fresh);

@@ -43,8 +43,7 @@ export async function getAuthenticatedUser(): Promise<AuthContext | null> {
       username: member.username,
       displayName: member.name,
     };
-  } catch (err) {
-    console.error("getAuthenticatedUser error:", err);
+  } catch (_err) {
     return null;
   }
 }
@@ -61,10 +60,13 @@ export async function requireUser(): Promise<AuthContext> {
 }
 
 /**
- * Requires an authenticated user session WITH explicit ADMIN role privileges.
+ * Requires an authenticated user session WITH explicit ADMIN or SUPER_ADMIN role privileges.
  */
 export async function requireAdmin(): Promise<AuthContext> {
-  const auth = await requireUser();
+  const auth = await getAuthenticatedUser();
+  if (!auth) {
+    throw new Error("UNAUTHORIZED");
+  }
   if (auth.role !== "SUPER_ADMIN" && auth.role !== "ADMIN") {
     throw new Error("FORBIDDEN");
   }
@@ -75,10 +77,14 @@ export async function requireAdmin(): Promise<AuthContext> {
  * Requires an authenticated user session WITH explicit SUPER_ADMIN role privileges.
  */
 export async function requireSuperAdmin(): Promise<AuthContext> {
-  const auth = await requireUser();
+  const auth = await getAuthenticatedUser();
+  if (!auth) {
+    throw new Error("UNAUTHORIZED");
+  }
   if (auth.role !== "SUPER_ADMIN") {
     throw new Error("FORBIDDEN");
   }
   return auth;
 }
+
 

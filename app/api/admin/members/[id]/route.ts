@@ -74,12 +74,51 @@ export async function GET(req: Request, { params }: { params: Promise<{ id: stri
     const activeMember = member!;
     const activeUser = user!;
 
-    // Fetch applications
-    const applications = await db.collection("applications").find({ memberId: activeMember.id }).toArray();
+    // Fetch applications with lean projections
+    const applications = await db
+      .collection("applications")
+      .find(
+        { memberId: activeMember.id },
+        {
+          projection: {
+            id: 1,
+            ipoId: 1,
+            ipoName: 1,
+            totalContribution: 1,
+            lotsCount: 1,
+            allottedLotsCount: 1,
+            fundingStructure: 1,
+            category: 1,
+            status: 1,
+            allotmentStatus: 1,
+            panMasked: 1,
+            createdAt: 1,
+          },
+        }
+      )
+      .sort({ createdAt: -1 })
+      .toArray();
 
-    // Fetch IPOs to resolve details
-    const ipoIds = applications.map((app) => app.ipoId);
-    const ipos = await db.collection("ipos").find({ id: { $in: ipoIds } }).toArray();
+    // Fetch IPOs to resolve details with lean projections
+    const ipoIds = applications.map((app) => app.ipoId).filter(Boolean);
+    const ipos = ipoIds.length > 0
+      ? await db
+          .collection("ipos")
+          .find(
+            { id: { $in: ipoIds } },
+            {
+              projection: {
+                id: 1,
+                name: 1,
+                logo: 1,
+                gmpPercent: 1,
+                lotSize: 1,
+                status: 1,
+              },
+            }
+          )
+          .toArray()
+      : [];
     const ipoMap = new Map<string, any>();
     ipos.forEach((ipo) => ipoMap.set(ipo.id, ipo));
 
@@ -449,9 +488,9 @@ export async function DELETE(req: Request, { params }: { params: Promise<{ id: s
 
     // Delete records from members, users, profiles, and sessions
     await db.collection("members").deleteOne({ id: targetMemberId });
-    await db.collection("users").deleteOne({ memberId: targetMemberId });
+    await db.collection("users").deleteOne({ $or: [{ memberId: targetMemberId }, { id: targetMemberId }] });
     await db.collection("profiles").deleteOne({ userId: targetMemberId });
-    await db.collection("sessions").deleteMany({ memberId: targetMemberId });
+    await db.collection("sessions").deleteMany({ $or: [{ userId: targetMemberId }, { userId: user?.id }] });
 
     // Audit Event
     const { logActivity } = await import("@/src/features/activity/activityService");

@@ -35,8 +35,8 @@ export async function GET(req: Request) {
       }
     );
   } catch (err: any) {
-    console.warn("GET /api/transactions MongoDB unavailable, returning empty array fallback.");
-    return NextResponse.json({ success: true, transactions: [] });
+    console.error("GET /api/transactions error:", err);
+    return NextResponse.json({ success: false, error: err.message || "Failed to fetch transactions" }, { status: 500 });
   }
 }
 
@@ -60,13 +60,9 @@ export async function POST(req: Request) {
       createdAt: new Date(),
     };
 
-    try {
-      const client = await clientPromise;
-      const col = client.db(DB).collection<TransactionDocument>(COL);
-      await col.insertOne(newDoc as any);
-    } catch (dbErr) {
-      console.warn("POST /api/transactions MongoDB unavailable, continuing locally.");
-    }
+    const client = await clientPromise;
+    const col = client.db(DB).collection<TransactionDocument>(COL);
+    await col.insertOne(newDoc as any);
 
     return NextResponse.json({
       success: true,

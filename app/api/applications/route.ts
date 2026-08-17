@@ -128,8 +128,8 @@ export async function GET(req: Request) {
       }
     );
   } catch (err: any) {
-    console.warn("GET /api/applications error, returning fallback.");
-    return NextResponse.json({ success: true, applications: [] });
+    console.error("GET /api/applications error:", err);
+    return NextResponse.json({ success: false, error: "Failed to fetch applications" }, { status: 500 });
   }
 }
 

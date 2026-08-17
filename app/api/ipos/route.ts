@@ -144,9 +144,28 @@ export async function POST(req: NextRequest) {
     // 1. Action: Publish Profit Distribution
     if (body.action === "publishProfit") {
       const { ipoId, profitDistribution, memberPayouts = [] } = body;
+
+      if (!ipoId || typeof ipoId !== "string") {
+        return NextResponse.json(
+          { success: false, message: "IPO ID is required to publish profit distribution." },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      if (!profitDistribution || typeof profitDistribution !== "object") {
+        return NextResponse.json(
+          { success: false, message: "Valid profit distribution details are required." },
+          { status: 400, headers: corsHeaders }
+        );
+      }
+
+      const totalProfit = Number(profitDistribution.totalProfit || profitDistribution.netProfit || 0);
       const fullProfitDist = {
         ...profitDistribution,
-        memberPayouts,
+        totalProfit: isNaN(totalProfit) ? 0 : totalProfit,
+        memberPayouts: Array.isArray(memberPayouts) ? memberPayouts : [],
+        publishedAt: new Date().toISOString(),
+        publishedBy: actorName || "Admin",
       };
 
       const updated = allIpos.map((ipo) =>
@@ -154,14 +173,14 @@ export async function POST(req: NextRequest) {
       );
       writeSharedIpos(updated);
 
-      // Persist to MongoDB
+      // Persist to MongoDB with atomic upsert
       try {
         const client = await clientPromise;
         const db = client.db(DB_NAME);
 
-        // Update IPO record in MongoDB
+        // 1. Update IPO record in MongoDB
         await db.collection("ipos").updateOne(
-          { $or: [{ id: ipoId }, { _id: ipoId as any }] },
+          { $or: [{ id: ipoId }, { _id: ObjectId.isValid(ipoId) ? new ObjectId(ipoId) : (ipoId as any) }] },
           {
             $set: {
               profitDistribution: fullProfitDist,
@@ -170,16 +189,24 @@ export async function POST(req: NextRequest) {
           }
         );
 
-        // Store full profit distribution history record in profit_distributions collection
-        await db.collection("profit_distributions").insertOne({
-          ipoId,
-          profitDistribution,
-          memberPayouts,
-          publishedAt: new Date(),
-          publishedBy: actorName || "Admin",
-          actorUserId,
-          actorMemberId,
-        });
+        // 2. Store full profit distribution history record with atomic upsert
+        await db.collection("profit_distributions").updateOne(
+          { ipoId },
+          {
+            $set: {
+              ipoId,
+              profitDistribution: fullProfitDist,
+              memberPayouts: fullProfitDist.memberPayouts,
+              publishedAt: new Date(),
+              publishedBy: actorName || "Admin",
+              actorUserId,
+              actorMemberId,
+              updatedAt: new Date(),
+            },
+            $setOnInsert: { createdAt: new Date() },
+          },
+          { upsert: true }
+        );
       } catch (dbErr) {
         console.warn("MongoDB profit distribution update optional fallback:", dbErr);
       }

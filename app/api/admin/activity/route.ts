@@ -116,7 +116,8 @@ export async function GET(request: Request) {
 
     // Search Query (Actor, Event, Target, Metadata)
     if (search) {
-      const searchRegex = new RegExp(search, "i");
+      const escapedSearch = search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const searchRegex = new RegExp(escapedSearch, "i");
       const searchConditions = [
         { actorName: searchRegex },
         { actorUsername: searchRegex },

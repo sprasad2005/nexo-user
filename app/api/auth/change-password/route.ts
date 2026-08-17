@@ -33,12 +33,11 @@ export async function POST(req: Request) {
       );
     }
 
-    // 1. Verify Current Password (PBKDF2 hash, member assigned password, or default admin123)
+    // 1. Verify Current Password (PBKDF2 hash or member assigned password)
     const isHashValid = verifyPassword(currentPassword, auth.user.passwordHash);
     const isPlainValid = auth.member?.password ? currentPassword === auth.member.password : false;
-    const isDefaultValid = currentPassword === "admin123";
 
-    if (!isHashValid && !isPlainValid && !isDefaultValid) {
+    if (!isHashValid && !isPlainValid) {
       return NextResponse.json({ success: false, error: "Incorrect current password. Please enter your active or temporary password." }, { status: 401 });
     }
 

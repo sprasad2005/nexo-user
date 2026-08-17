@@ -89,27 +89,53 @@ export async function GET() {
 
     const notifications = await db
       .collection("notifications")
-      .find({})
+      .find(
+        {},
+        {
+          projection: {
+            id: 1,
+            senderName: 1,
+            targetMemberId: 1,
+            targetMemberName: 1,
+            title: 1,
+            message: 1,
+            severity: 1,
+            ipoId: 1,
+            ipoName: 1,
+            ctaLabel: 1,
+            ctaLink: 1,
+            createdAt: 1,
+          },
+        }
+      )
       .sort({ createdAt: -1 })
       .limit(50)
       .toArray();
 
-    return NextResponse.json({
-      success: true,
-      notifications: notifications.map((n) => ({
-        id: n.id,
-        senderName: n.senderName,
-        targetMemberId: n.targetMemberId,
-        title: n.title,
-        message: n.message,
-        severity: n.severity,
-        ipoId: n.ipoId,
-        ipoName: n.ipoName,
-        ctaLabel: n.ctaLabel,
-        ctaLink: n.ctaLink,
-        createdAt: n.createdAt,
-      })),
-    });
+    return NextResponse.json(
+      {
+        success: true,
+        notifications: notifications.map((n) => ({
+          id: n.id,
+          senderName: n.senderName,
+          targetMemberId: n.targetMemberId,
+          targetMemberName: n.targetMemberName,
+          title: n.title,
+          message: n.message,
+          severity: n.severity,
+          ipoId: n.ipoId,
+          ipoName: n.ipoName,
+          ctaLabel: n.ctaLabel,
+          ctaLink: n.ctaLink,
+          createdAt: n.createdAt,
+        })),
+      },
+      {
+        headers: {
+          "Cache-Control": "private, max-age=5, stale-while-revalidate=15",
+        },
+      }
+    );
   } catch (err: any) {
     console.error("GET /api/admin/notifications error:", err);
     return NextResponse.json({ success: false, error: "Failed to fetch notifications history." }, { status: 500 });

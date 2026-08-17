@@ -91,26 +91,13 @@ export async function GET() {
       { success: true, members },
       {
         headers: {
-          "Cache-Control": "private, max-age=5, stale-while-revalidate=15",
+          "Cache-Control": "private, max-age=5, stale-while-revalidate=30",
         },
       }
     );
   } catch (err: any) {
-    console.warn("GET /api/members MongoDB unavailable, returning mock members fallback.");
-    const fallback = [...MOCK_MEMBERS].sort((a: any, b: any) => {
-      const getPriority = (m: any): number => {
-        const u = (m.username || m.name || "").toLowerCase().trim();
-        if (m.role === "SUPER_ADMIN" || u === "ankitgod" || u === "ankit") return 1;
-        if (u === "aanikett" || u.startsWith("aaniket") || u === "aniket") return 2;
-        if (u === "shivam_p" || u.startsWith("shivam")) return 3;
-        return 4;
-      };
-      const pA = getPriority(a);
-      const pB = getPriority(b);
-      if (pA !== pB) return pA - pB;
-      return (a.name || "").localeCompare(b.name || "");
-    });
-    return NextResponse.json({ success: true, members: fallback });
+    console.error("GET /api/members error:", err);
+    return NextResponse.json({ success: false, error: err.message || "Failed to fetch members" }, { status: 500 });
   }
 }
 

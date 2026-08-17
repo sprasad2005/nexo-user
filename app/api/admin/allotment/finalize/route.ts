@@ -126,21 +126,23 @@ export async function POST(req: Request) {
       const client = await clientPromise;
       const db = client.db(DB_NAME);
 
+      const escapedTargetName = targetIpoName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       const dbIpo = await db.collection("ipos").findOne({
-        $or: [{ id: ipoId }, { name: { $regex: new RegExp(`^${targetIpoName}$`, "i") } }]
+        $or: [{ id: ipoId }, { name: { $regex: new RegExp(`^${escapedTargetName}$`, "i") } }]
       });
 
       if (dbIpo) {
         targetIpoName = dbIpo.name || targetIpoName;
       }
 
+      const finalEscapedName = targetIpoName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
       // Always query applications by ipoId or targetIpoName
       const dbApps = await db
         .collection("applications")
         .find({
           $or: [
             { ipoId: ipoId },
-            { ipoName: { $regex: new RegExp(`^${targetIpoName}$`, "i") } },
+            { ipoName: { $regex: new RegExp(`^${finalEscapedName}$`, "i") } },
           ],
         })
         .toArray();

@@ -66,6 +66,7 @@ export async function ensureDatabaseIndexes(dbInstance?: Db): Promise<void> {
     await Promise.allSettled([
       usersCol.createIndex({ username: 1 }, { unique: true, sparse: true, background: true }),
       usersCol.createIndex({ memberId: 1 }, { background: true }),
+      usersCol.createIndex({ memberId: 1, status: 1, role: 1 }, { background: true }),
       usersCol.createIndex({ emailNormalized: 1 }, { background: true }),
       usersCol.createIndex({ email: 1 }, { background: true }),
       usersCol.createIndex({ panNormalized: 1 }, { background: true }),
@@ -83,6 +84,8 @@ export async function ensureDatabaseIndexes(dbInstance?: Db): Promise<void> {
     await Promise.allSettled([
       membersCol.createIndex({ id: 1 }, { unique: true, background: true }),
       membersCol.createIndex({ username: 1 }, { unique: true, sparse: true, background: true }),
+      membersCol.createIndex({ id: 1, role: 1, status: 1 }, { background: true }),
+      membersCol.createIndex({ username: 1, status: 1 }, { background: true }),
       membersCol.createIndex({ panNormalized: 1 }, { background: true }),
       membersCol.createIndex({ phoneNormalized: 1 }, { background: true }),
       membersCol.createIndex({ email: 1 }, { background: true }),
@@ -95,6 +98,7 @@ export async function ensureDatabaseIndexes(dbInstance?: Db): Promise<void> {
     const iposCol = db.collection("ipos");
     await Promise.allSettled([
       iposCol.createIndex({ id: 1 }, { background: true }),
+      iposCol.createIndex({ id: 1, isHidden: 1, isArchived: 1 }, { background: true }),
       iposCol.createIndex(
         { nameNormalized: 1 },
         {
@@ -104,8 +108,9 @@ export async function ensureDatabaseIndexes(dbInstance?: Db): Promise<void> {
         }
       ),
       iposCol.createIndex({ isHidden: 1, isArchived: 1, status: 1, createdAt: -1 }, { background: true }),
+      iposCol.createIndex({ isHidden: 1, isArchived: 1, createdAt: -1 }, { background: true }),
       iposCol.createIndex({ name: 1 }, { background: true }),
-      iposCol.createIndex({ status: 1 }, { background: true }),
+      iposCol.createIndex({ status: 1, createdAt: -1 }, { background: true }),
       iposCol.createIndex({ createdAt: -1 }, { background: true }),
     ]);
 
@@ -113,9 +118,12 @@ export async function ensureDatabaseIndexes(dbInstance?: Db): Promise<void> {
     const appsCol = db.collection("applications");
     await Promise.allSettled([
       appsCol.createIndex({ id: 1 }, { background: true }),
+      appsCol.createIndex({ ipoId: 1, createdAt: -1 }, { background: true }),
       appsCol.createIndex({ ipoId: 1, allotmentStatus: 1 }, { background: true }),
+      appsCol.createIndex({ memberId: 1, createdAt: -1 }, { background: true }),
       appsCol.createIndex({ memberId: 1, ipoId: 1 }, { background: true }),
       appsCol.createIndex({ userId: 1 }, { background: true }),
+      appsCol.createIndex({ applicantName: 1 }, { background: true }),
       appsCol.createIndex({ applicationNumber: 1 }, { background: true }),
       appsCol.createIndex({ createdAt: -1 }, { background: true }),
     ]);
@@ -158,9 +166,18 @@ export async function ensureDatabaseIndexes(dbInstance?: Db): Promise<void> {
     await Promise.allSettled([
       notifsCol.createIndex({ recipientId: 1, isRead: 1, createdAt: -1 }, { background: true }),
       notifsCol.createIndex({ memberId: 1, createdAt: -1 }, { background: true }),
+      notifsCol.createIndex({ targetMemberId: 1, createdAt: -1 }, { background: true }),
+      notifsCol.createIndex({ createdAt: -1 }, { background: true }),
     ]);
 
-    // 9. Conversations & Messages indexes
+    // 9. Profit Distributions collection indexes
+    const profitDistCol = db.collection("profit_distributions");
+    await Promise.allSettled([
+      profitDistCol.createIndex({ ipoId: 1 }, { background: true }),
+      profitDistCol.createIndex({ publishedAt: -1 }, { background: true }),
+    ]);
+
+    // 10. Conversations & Messages indexes
     const messagesCol = db.collection("messages");
     await Promise.allSettled([
       messagesCol.createIndex({ conversationId: 1, createdAt: -1 }, { background: true }),

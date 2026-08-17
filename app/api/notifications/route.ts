@@ -48,6 +48,6 @@ export async function GET() {
     });
   } catch (err: any) {
     console.error("GET /api/notifications error:", err);
-    return NextResponse.json({ success: true, notifications: [] });
+    return NextResponse.json({ success: false, error: err.message || "Failed to fetch notifications" }, { status: 500 });
   }
 }
