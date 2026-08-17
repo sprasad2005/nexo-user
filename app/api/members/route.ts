@@ -210,6 +210,8 @@ export async function POST(req: Request) {
         {
           $set: {
             id: `usr_${Date.now()}`,
+            username: cleanUsername,
+            name: newMember.name,
             email: userEmail,
             emailNormalized: emailNorm,
             passwordHash: passwordHash,
