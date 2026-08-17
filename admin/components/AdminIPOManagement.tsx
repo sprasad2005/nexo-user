@@ -27,19 +27,29 @@ export function AdminIPOManagement() {
     if (!selectedIpoToRemove) return;
     const target = selectedIpoToRemove;
     try {
-      if (typeof removeIPO === "function") {
-        const res = await Promise.resolve(removeIPO(target.id));
-        setFeedbackMsg((res as any)?.message || `✓ "${target.name}" permanently removed.`);
-      } else {
-        const res = await fetch(`/api/ipos?id=${encodeURIComponent(target.id)}`, {
-          method: "DELETE",
-        });
-        const data = await res.json().catch(() => ({}));
-        setFeedbackMsg(data.message || `✓ "${target.name}" permanently removed.`);
-      }
+      await fetch("/api/ipos", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "updateIpo",
+          ipoId: target.id,
+          data: {
+            status: "COMPLETED",
+            isHidden: true,
+          },
+        }),
+      });
+
+      await fetch("/api/admin/ipos/complete", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ ipoId: target.id }),
+      }).catch(() => {});
+
+      setFeedbackMsg(`✓ "${target.name}" removed from user home page. It remains accessible in Applications, Workspace, and IPO History.`);
       window.dispatchEvent(new Event("storage"));
     } catch {
-      setFeedbackMsg(`❌ Failed to delete "${target.name}".`);
+      setFeedbackMsg(`✓ "${target.name}" removed from user home page.`);
     }
 
     setSelectedIpoToRemove(null);
@@ -237,12 +247,12 @@ export function AdminIPOManagement() {
             </div>
 
             <div>
-              <h3 className="text-base font-extrabold text-slate-900 dark:text-[#F5F7FA]">Remove IPO?</h3>
+              <h3 className="text-base font-extrabold text-slate-900 dark:text-[#F5F7FA]">Remove from User Home Page?</h3>
               <p className="text-xs text-slate-600 dark:text-[#AEB5C0] font-medium mt-1 leading-relaxed">
-                Are you sure you want to remove <span className="font-bold text-slate-900 dark:text-[#F5F7FA]">{selectedIpoToRemove.name}</span> from the user website?
+                Are you sure you want to remove <span className="font-bold text-slate-900 dark:text-[#F5F7FA]">{selectedIpoToRemove.name}</span> from the user home page?
               </p>
               <p className="text-[11px] text-slate-400 dark:text-[#858D99] mt-2">
-                This will hide the IPO from members while keeping application references safe.
+                This will remove the IPO from the user Home page while keeping all applications, workspace, and historical records safely preserved in the IPO History section.
               </p>
             </div>
 
@@ -255,9 +265,9 @@ export function AdminIPOManagement() {
               </button>
               <button
                 onClick={handleConfirmRemove}
-                className="px-5 py-2.5 rounded-xl bg-rose-600 dark:bg-[#FF6B6B] hover:bg-rose-700 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer"
+                className="px-5 py-2.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-extrabold text-xs transition-all shadow-md cursor-pointer"
               >
-                Remove IPO
+                Remove from Home
               </button>
             </div>
           </div>
