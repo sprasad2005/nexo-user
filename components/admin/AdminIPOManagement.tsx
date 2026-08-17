@@ -144,14 +144,14 @@ export function AdminIPOManagement({
   const activeRole = currentMember?.role || currentUser?.role || currentUserRole;
   const isAdmin = activeRole === "ADMIN" || activeRole === "SUPER_ADMIN" || activeRole !== "MEMBER";
 
-  // Filter visible IPOs
-  const visibleIpos = useMemo(() => ipos.filter((ipo: IPOOpportunity) => !ipo.isArchived), [ipos]);
+  // Filter visible IPOs for IPO Management view (Open and Closed on Home)
+  const visibleIpos = useMemo(() => ipos.filter((ipo: IPOOpportunity) => !ipo.isArchived && !ipo.hideFromHome), [ipos]);
   const activeIpos = useMemo(
-    () => visibleIpos.filter((i: IPOOpportunity) => !i.hideFromHome && i.status !== "COMPLETED" && !(i as any).isCompleted),
+    () => visibleIpos.filter((i: IPOOpportunity) => i.status !== "COMPLETED" && !(i as any).isCompleted),
     [visibleIpos]
   );
   const completedIpos = useMemo(
-    () => visibleIpos.filter((i: IPOOpportunity) => i.status === "COMPLETED" || (i as any).isCompleted || i.hideFromHome),
+    () => visibleIpos.filter((i: IPOOpportunity) => i.status === "COMPLETED" || (i as any).isCompleted),
     [visibleIpos]
   );
 

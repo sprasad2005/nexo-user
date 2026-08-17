@@ -21,7 +21,7 @@ export function AdminIPOManagement() {
   const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
   // Filter visible IPOs for management list
-  const visibleIpos = ipos.filter((ipo) => !ipo.isHidden);
+  const visibleIpos = ipos.filter((ipo) => !ipo.isArchived && !ipo.hideFromHome);
 
   const handleConfirmRemove = async () => {
     if (!selectedIpoToRemove) return;
