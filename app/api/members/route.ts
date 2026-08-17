@@ -161,18 +161,6 @@ export async function POST(req: Request) {
       }, { status: 409 });
     }
 
-    if (phoneNormalized) {
-      const existingPhone = await col.findOne({ phoneNormalized });
-      if (existingPhone) {
-        return NextResponse.json({
-          success: false,
-          code: "DUPLICATE_PHONE",
-          error: `Phone number '${phoneNormalized}' is already registered to member '${existingPhone.name}'.`,
-          message: "This phone number is already registered to another member.",
-        }, { status: 409 });
-      }
-    }
-
     const newMember: MemberDocument = {
       id: body.id || `mem_${Date.now()}`,
       name: body.name.trim(),
@@ -333,33 +321,12 @@ export async function PUT(req: Request) {
       }
     }
 
-    // ── PHONE VALIDATION & UNIQUENESS ──
+    // ── PHONE NORMALIZATION ──
     let phoneNormalized: string | undefined = undefined;
     if (body.phone !== undefined && body.phone !== null) {
       const phoneStr = String(body.phone).trim();
       if (phoneStr) {
-        if (!isValidPhone(phoneStr)) {
-          return NextResponse.json({
-            success: false,
-            code: "INVALID_PHONE",
-            error: "Please enter a valid phone number.",
-            message: "Please enter a valid phone number.",
-          }, { status: 400 });
-        }
         phoneNormalized = normalizePhone(phoneStr);
-
-        const dupPhone = await col.findOne({
-          id: { $ne: body.id },
-          phoneNormalized: phoneNormalized,
-        });
-        if (dupPhone) {
-          return NextResponse.json({
-            success: false,
-            code: "DUPLICATE_PHONE",
-            error: `Phone number '${phoneNormalized}' is already registered to member '${dupPhone.name}'.`,
-            message: "This phone number is already registered to another member.",
-          }, { status: 409 });
-        }
       }
     }
 

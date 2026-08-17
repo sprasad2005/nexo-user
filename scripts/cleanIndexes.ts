@@ -8,32 +8,24 @@ async function main() {
     await client.connect();
     const db = client.db("nexo");
 
-    console.log("Connected to MongoDB!");
+    console.log("Connected to MongoDB! Dropping all non-username unique indexes...");
 
-    // Inspect members indexes
-    const membersIndexes = await db.collection("members").indexes();
-    console.log("Members indexes:", membersIndexes);
+    const membersCol = db.collection("members");
+    const usersCol = db.collection("users");
 
-    // Inspect users indexes
-    const usersIndexes = await db.collection("users").indexes();
-    console.log("Users indexes:", usersIndexes);
+    await membersCol.dropIndex("panNormalized_1").catch(() => {});
+    await membersCol.dropIndex("phoneNormalized_1").catch(() => {});
+    await membersCol.dropIndex("email_1").catch(() => {});
+    await membersCol.dropIndex("emailNormalized_1").catch(() => {});
 
-    // Drop any unique index on panNormalized or phoneNormalized if problematic
-    for (const idx of membersIndexes) {
-      if (idx.name && idx.name.includes("panNormalized")) {
-        console.log(`Dropping index on members: ${idx.name}`);
-        await db.collection("members").dropIndex(idx.name).catch((e) => console.log("Drop err:", e.message));
-      }
-    }
+    await usersCol.dropIndex("panNormalized_1").catch(() => {});
+    await usersCol.dropIndex("phoneNormalized_1").catch(() => {});
+    await usersCol.dropIndex("email_1").catch(() => {});
+    await usersCol.dropIndex("emailNormalized_1").catch(() => {});
 
-    for (const idx of usersIndexes) {
-      if (idx.name && idx.name.includes("panNormalized")) {
-        console.log(`Dropping index on users: ${idx.name}`);
-        await db.collection("users").dropIndex(idx.name).catch((e) => console.log("Drop err:", e.message));
-      }
-    }
-
-    console.log("Index cleanup finished successfully!");
+    console.log("Remaining members indexes:", await membersCol.indexes());
+    console.log("Remaining users indexes:", await usersCol.indexes());
+    console.log("Index cleanup done!");
   } catch (err) {
     console.error("Index cleanup error:", err);
   } finally {

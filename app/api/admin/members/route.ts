@@ -362,32 +362,6 @@ export async function POST(req: Request) {
       }, { status: 409 });
     }
 
-    // ── 2. Check Email Uniqueness ──
-    if (isEmailProvided) {
-      const existingUserByEmail = await db.collection<UserDocument>("users").findOne({ emailNormalized: emailNorm });
-      if (existingUserByEmail) {
-        return NextResponse.json({
-          success: false,
-          code: "DUPLICATE_EMAIL",
-          error: "This email address is already registered.",
-          message: "This email address is already registered.",
-        }, { status: 409 });
-      }
-    }
-
-    // ── 3. Check Phone Uniqueness ──
-    if (phoneNormalized) {
-      const existingByPhone = await db.collection<MemberDocument>("members").findOne({ phoneNormalized });
-      if (existingByPhone) {
-        return NextResponse.json({
-          success: false,
-          code: "DUPLICATE_PHONE",
-          error: `Phone number '${phoneNormalized}' is already registered to member '${existingByPhone.name}'.`,
-          message: `This phone number is already registered to another member.`,
-        }, { status: 409 });
-      }
-    }
-
     const memberId = `mem_${Date.now()}`;
     const userId = `usr_${Date.now()}`;
 

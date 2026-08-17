@@ -86,12 +86,12 @@ export function handleDuplicateKeyError(err: any): DuplicateErrorResponse | null
   const keyValue = err.keyValue || {};
   const errMsg = err.message || "";
 
-  if (keyPattern.phoneNormalized || errMsg.includes("phoneNormalized") || errMsg.includes("phone")) {
-    const val = keyValue.phoneNormalized || "";
+  if (keyPattern.username || errMsg.includes("username")) {
+    const val = keyValue.username || "";
     return {
       status: 409,
-      code: "DUPLICATE_PHONE",
-      message: val ? `Phone number '${val}' is already registered to another member.` : "This phone number is already registered to another member.",
+      code: "DUPLICATE_USERNAME",
+      message: val ? `Username '${val}' is already taken.` : "This username is already taken.",
     };
   }
 
@@ -104,26 +104,9 @@ export function handleDuplicateKeyError(err: any): DuplicateErrorResponse | null
     };
   }
 
-  if (keyPattern.username || errMsg.includes("username")) {
-    const val = keyValue.username || "";
-    return {
-      status: 409,
-      code: "DUPLICATE_USERNAME",
-      message: val ? `Username '${val}' is already taken.` : "This username is already taken.",
-    };
-  }
-
-  if (keyPattern.emailNormalized || keyPattern.email || errMsg.includes("email")) {
-    return {
-      status: 409,
-      code: "DUPLICATE_EMAIL",
-      message: "This email address is already registered.",
-    };
-  }
-
   return {
     status: 409,
-    code: "DUPLICATE_KEY",
-    message: "A record with this identifier already exists.",
+    code: "DUPLICATE_USERNAME",
+    message: "This username is already taken.",
   };
 }

@@ -60,13 +60,16 @@ export async function ensureDatabaseIndexes(dbInstance?: Db): Promise<void> {
     // 1. Users collection indexes
     const usersCol = db.collection("users");
     await usersCol.dropIndex("panNormalized_1").catch(() => {});
+    await usersCol.dropIndex("phoneNormalized_1").catch(() => {});
+    await usersCol.dropIndex("emailNormalized_1").catch(() => {});
+    await usersCol.dropIndex("email_1").catch(() => {});
     await Promise.allSettled([
       usersCol.createIndex({ username: 1 }, { unique: true, sparse: true, background: true }),
       usersCol.createIndex({ memberId: 1 }, { background: true }),
-      usersCol.createIndex({ emailNormalized: 1 }, { unique: true, sparse: true, background: true }),
-      usersCol.createIndex({ email: 1 }, { sparse: true, background: true }),
+      usersCol.createIndex({ emailNormalized: 1 }, { background: true }),
+      usersCol.createIndex({ email: 1 }, { background: true }),
       usersCol.createIndex({ panNormalized: 1 }, { background: true }),
-      usersCol.createIndex({ phoneNormalized: 1 }, { unique: true, sparse: true, background: true }),
+      usersCol.createIndex({ phoneNormalized: 1 }, { background: true }),
       usersCol.createIndex({ status: 1, role: 1 }, { background: true }),
       usersCol.createIndex({ mustChangePassword: 1 }, { background: true }),
       usersCol.createIndex({ createdAt: -1 }, { background: true }),
@@ -75,11 +78,13 @@ export async function ensureDatabaseIndexes(dbInstance?: Db): Promise<void> {
     // 2. Members collection indexes
     const membersCol = db.collection("members");
     await membersCol.dropIndex("panNormalized_1").catch(() => {});
+    await membersCol.dropIndex("phoneNormalized_1").catch(() => {});
+    await membersCol.dropIndex("email_1").catch(() => {});
     await Promise.allSettled([
       membersCol.createIndex({ id: 1 }, { unique: true, background: true }),
       membersCol.createIndex({ username: 1 }, { unique: true, sparse: true, background: true }),
       membersCol.createIndex({ panNormalized: 1 }, { background: true }),
-      membersCol.createIndex({ phoneNormalized: 1 }, { unique: true, sparse: true, background: true }),
+      membersCol.createIndex({ phoneNormalized: 1 }, { background: true }),
       membersCol.createIndex({ email: 1 }, { background: true }),
       membersCol.createIndex({ name: 1 }, { background: true }),
       membersCol.createIndex({ role: 1, status: 1, createdAt: -1 }, { background: true }),

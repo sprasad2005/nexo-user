@@ -280,34 +280,12 @@ export async function PUT(req: Request, { params }: { params: Promise<{ id: stri
       }
     }
 
-    // ── PHONE VALIDATION & UNIQUENESS (EXCLUDING CURRENT MEMBER) ──
+    // ── PHONE NORMALIZATION ──
     let phoneNormalized: string | undefined = undefined;
     if (phone !== undefined && phone !== null) {
       const phoneStr = String(phone).trim();
       if (phoneStr) {
-        if (!isValidPhone(phoneStr)) {
-          return NextResponse.json({
-            success: false,
-            code: "INVALID_PHONE",
-            error: "Please enter a valid phone number.",
-            message: "Please enter a valid phone number.",
-          }, { status: 400 });
-        }
         phoneNormalized = normalizePhone(phoneStr);
-
-        const duplicatePhone = await db.collection<MemberDocument>("members").findOne({
-          id: { $ne: memberId },
-          phoneNormalized: phoneNormalized,
-        });
-
-        if (duplicatePhone) {
-          return NextResponse.json({
-            success: false,
-            code: "DUPLICATE_PHONE",
-            error: `Phone number '${phoneNormalized}' is already registered to member '${duplicatePhone.name}'.`,
-            message: "This phone number is already registered to another member.",
-          }, { status: 409 });
-        }
       }
     }
 
