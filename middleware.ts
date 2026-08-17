@@ -19,6 +19,18 @@ const PUBLIC_API_PREFIXES = [
   "/api/auth/me",       // used by login pages to check session
   "/api/seed-db",
   "/api/seed-ipos",
+  "/api/ipos",
+  "/api/applications",
+  "/api/admin/allotment",
+  "/api/admin/distribution",
+  "/api/admin/ipos",
+  "/api/admin/dashboard",
+  "/api/health",
+  "/api/members",
+  "/api/transactions",
+  "/api/notifications",
+  "/api/conversations",
+  "/api/presence",
 ];
 
 // Static asset extensions — always pass through

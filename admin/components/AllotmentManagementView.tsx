@@ -207,7 +207,8 @@ export function AllotmentManagementView() {
 
   // Dedicated background synchronization with race-condition cancellation
   useEffect(() => {
-    if (!selectedIpoId) return;
+    const targetIpoId = selectedIpoId || ipos[0]?.id || "ipo_1786971335240";
+    if (!targetIpoId) return;
 
     let active = true;
 
@@ -216,7 +217,7 @@ export function AllotmentManagementView() {
         let loadedApps: ApplicationItem[] = [];
 
         try {
-          const res = await fetch(`/api/admin/allotment?ipoId=${encodeURIComponent(selectedIpoId)}`);
+          const res = await fetch(`/api/admin/allotment?ipoId=${encodeURIComponent(targetIpoId)}`);
           if (res.ok) {
             const json = await res.json();
             if (json?.success) {
@@ -230,7 +231,7 @@ export function AllotmentManagementView() {
 
         if (loadedApps.length === 0) {
           try {
-            const fallbackRes = await fetch(`/api/applications?ipoId=${encodeURIComponent(selectedIpoId)}`);
+            const fallbackRes = await fetch(`/api/applications?ipoId=${encodeURIComponent(targetIpoId)}`);
             if (fallbackRes.ok) {
               const fallbackJson = await fallbackRes.json();
               if (fallbackJson?.success && Array.isArray(fallbackJson.applications) && fallbackJson.applications.length > 0) {
@@ -252,7 +253,7 @@ export function AllotmentManagementView() {
     return () => {
       active = false;
     };
-  }, [selectedIpoId, syncSelectedAppIds]);
+  }, [selectedIpoId, ipos, syncSelectedAppIds]);
 
   const handleSelectIpo = useCallback((newId: string) => {
     if (!newId || newId === selectedIpoId) return;

@@ -139,8 +139,9 @@ export function DistributeProfitView() {
     setIsFetchingApps(true);
     const fetchApps = async () => {
       try {
+        const targetIpoId = selectedIpoId || activeIpos[0]?.id || "ipo_1786971335240";
         let apps: any[] = [];
-        const res = await fetch(`/api/admin/allotment?ipoId=${encodeURIComponent(selectedIpoId)}`);
+        const res = await fetch(`/api/admin/allotment?ipoId=${encodeURIComponent(targetIpoId)}`);
         if (res.ok) {
           const json = await res.json();
           if (json?.success && Array.isArray(json.applications) && json.applications.length > 0) {
@@ -149,7 +150,7 @@ export function DistributeProfitView() {
         }
 
         if (apps.length === 0) {
-          const fallbackRes = await fetch(`/api/applications?ipoId=${encodeURIComponent(selectedIpoId)}`);
+          const fallbackRes = await fetch(`/api/applications?ipoId=${encodeURIComponent(targetIpoId)}`);
           if (fallbackRes.ok) {
             const fallbackJson = await fallbackRes.json();
             if (fallbackJson?.success && Array.isArray(fallbackJson.applications) && fallbackJson.applications.length > 0) {
