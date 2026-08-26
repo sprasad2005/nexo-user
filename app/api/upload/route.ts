@@ -21,11 +21,17 @@ export async function POST(req: Request) {
       uploadedAt: Date;
     };
 
+    const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB
+
     if (contentType.includes("multipart/form-data")) {
       const formData = await req.formData();
       const file = formData.get("file") as File | null;
       if (!file) {
         return NextResponse.json({ success: false, error: "No file uploaded." }, { status: 400 });
+      }
+
+      if (file.size > MAX_FILE_SIZE) {
+        return NextResponse.json({ success: false, error: "File size exceeds 2MB limit." }, { status: 413 });
       }
 
       const bytes = await file.arrayBuffer();
@@ -47,12 +53,17 @@ export async function POST(req: Request) {
         return NextResponse.json({ success: false, error: "Missing data payload." }, { status: 400 });
       }
 
+      const size = body.size || body.data.length;
+      if (size > MAX_FILE_SIZE * 1.4) {
+        return NextResponse.json({ success: false, error: "Payload exceeds 2MB limit." }, { status: 413 });
+      }
+
       const fileId = body.id || `file_${Date.now()}_${Math.random().toString(36).substring(2, 8)}`;
       fileDoc = {
         id: fileId,
         filename: body.filename || "upload.png",
         contentType: body.contentType || "image/png",
-        size: body.size || body.data.length,
+        size: size,
         data: body.data,
         uploadedAt: new Date(),
       };
@@ -73,7 +84,6 @@ export async function POST(req: Request) {
         id: fileDoc.id,
         filename: fileDoc.filename,
         url: `/api/upload?id=${fileDoc.id}`,
-        dataUrl: fileDoc.data,
         contentType: fileDoc.contentType,
         size: fileDoc.size,
       },

@@ -89,27 +89,6 @@ export async function ensureDatabaseIndexes(db: Db): Promise<void> {
       db.collection("profiles").createIndexes([
         { key: { userId: 1 }, unique: true, sparse: true, name: "idx_profiles_userId_unique" },
       ]).catch(() => {}),
-
-      // 10. Conversations
-      db.collection("conversations").createIndexes([
-        { key: { id: 1 }, unique: true, name: "idx_conv_id_unique" },
-        { key: { directKey: 1 }, sparse: true, name: "idx_conv_directKey" },
-        { key: { lastMessageAt: -1 }, name: "idx_conv_lastMessageAt" },
-      ]).catch(() => {}),
-
-      // 11. ConversationMembers
-      db.collection("conversationMembers").createIndexes([
-        { key: { id: 1 }, unique: true, name: "idx_cm_id_unique" },
-        { key: { conversationId: 1, memberId: 1 }, unique: true, name: "idx_cm_conv_member_unique" },
-        { key: { memberId: 1, lastReadAt: 1 }, name: "idx_cm_member_lastRead" },
-      ]).catch(() => {}),
-
-      // 12. Messages
-      db.collection("messages").createIndexes([
-        { key: { id: 1 }, unique: true, name: "idx_msg_id_unique" },
-        { key: { conversationId: 1, seq: -1 }, name: "idx_msg_conv_seq" },
-        { key: { conversationId: 1, createdAt: -1 }, name: "idx_msg_conv_createdAt" },
-      ]).catch(() => {}),
     ]);
 
     indexesEnsured = true;

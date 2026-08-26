@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAuthenticatedUser } from "@/src/lib/auth/authorization";
+import { getSafeAvatarUrl } from "@/lib/avatarHelper";
 
 export async function GET() {
   try {
@@ -26,7 +27,7 @@ export async function GET() {
         name: auth.member.name,
         username: auth.member.username,
         email: auth.member.email,
-        avatar: auth.member.avatar,
+        avatar: getSafeAvatarUrl(auth.member.avatar, auth.member.id),
         role: auth.member.role,
         panMasked: auth.member.panMasked || "ABCDE1234F",
         defaultContribution: auth.member.defaultContribution,

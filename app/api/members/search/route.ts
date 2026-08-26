@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { MemberDocument } from "@/src/models/Member";
 import { MOCK_MEMBERS } from "@/lib/mockData";
+import { getSafeAvatarUrl } from "@/lib/avatarHelper";
 
 const DB = "nexo";
 const COL = "members";
@@ -30,7 +31,7 @@ export async function GET(req: Request) {
       id: m.id,
       name: m.name,
       username: m.username || m.name.toLowerCase(),
-      avatar: m.avatar || "/oggy.png",
+      avatar: getSafeAvatarUrl(m.avatar, m.id),
       role: m.role || "MEMBER",
       verified: true,
     }));

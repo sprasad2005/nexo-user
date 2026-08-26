@@ -6,8 +6,8 @@ import {
   toPublicProfile,
 } from "@/src/models/Profile";
 import { getAuthenticatedUser } from "@/src/lib/auth/authorization";
-
 import { cleanOldAvatar } from "@/lib/avatarCleanup";
+import { getSafeAvatarUrl } from "@/lib/avatarHelper";
 
 const DB  = "nexo";
 const COL = "profiles";
@@ -21,6 +21,7 @@ export async function GET() {
   try {
     const auth = await getAuthenticatedUser().catch(() => null);
     const userId = auth?.userId || "singleton";
+    const memberId = auth?.memberId || userId;
 
     const client = await clientPromise;
     const col    = client.db(DB).collection<ProfileDocument>(COL);
@@ -39,7 +40,10 @@ export async function GET() {
       doc = { ...seed, _id: res.insertedId } as any;
     }
 
-    return NextResponse.json({ profile: toPublicProfile(doc!) });
+    const publicProf = toPublicProfile(doc!);
+    publicProf.avatar = getSafeAvatarUrl(publicProf.avatar, memberId || userId);
+
+    return NextResponse.json({ profile: publicProf });
   } catch (err: any) {
     console.warn("GET /api/profile MongoDB unavailable, returning default profile fallback.");
     return NextResponse.json({ profile: toPublicProfile(defaultProfile() as any) });
@@ -54,6 +58,7 @@ export async function PUT(req: Request) {
   try {
     const auth = await getAuthenticatedUser().catch(() => null);
     const userId = auth?.userId || "singleton";
+    const memberId = auth?.memberId || userId;
 
     const body = await req.json().catch(() => null);
     if (!body || typeof body !== "object") {
@@ -152,14 +157,18 @@ export async function PUT(req: Request) {
       }
 
       const doc = await col.findOne({ userId });
-      return NextResponse.json({ success: true, profile: toPublicProfile(doc || defaultProfile()) });
+      const publicProf = toPublicProfile(doc || defaultProfile());
+      publicProf.avatar = getSafeAvatarUrl(publicProf.avatar, memberId || userId);
+      return NextResponse.json({ success: true, profile: publicProf });
     } catch (dbErr) {
       console.warn("PUT /api/profile MongoDB unavailable, returning local update fallback.");
     }
 
+    const fallbackProf = toPublicProfile({ ...defaultProfile(), ...updateDoc } as any);
+    fallbackProf.avatar = getSafeAvatarUrl(fallbackProf.avatar, memberId || userId);
     return NextResponse.json({
       success: true,
-      profile: toPublicProfile({ ...defaultProfile(), ...updateDoc } as any),
+      profile: fallbackProf,
     });
   } catch (err: any) {
     console.error("PUT /api/profile error:", err);

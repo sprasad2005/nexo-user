@@ -177,13 +177,6 @@ export async function ensureDatabaseIndexes(dbInstance?: Db): Promise<void> {
       profitDistCol.createIndex({ publishedAt: -1 }, { background: true }),
     ]);
 
-    // 10. Conversations & Messages indexes
-    const messagesCol = db.collection("messages");
-    await Promise.allSettled([
-      messagesCol.createIndex({ conversationId: 1, createdAt: -1 }, { background: true }),
-      messagesCol.createIndex({ senderId: 1, createdAt: -1 }, { background: true }),
-    ]);
-
     indexesInitialized = true;
   } catch (err) {
     console.warn("Auto-index setup encountered non-fatal error:", err);

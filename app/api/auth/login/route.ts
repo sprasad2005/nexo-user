@@ -2,16 +2,20 @@ import { NextResponse } from "next/server";
 import clientPromise from "@/lib/mongodb";
 import { UserDocument } from "@/src/models/User";
 import { MemberDocument } from "@/src/models/Member";
-import { verifyPassword, hashPassword } from "@/src/lib/auth/password";
+import { verifyPassword, verifyPasswordWithSalt, hashPassword } from "@/src/lib/auth/password";
 import { createSession, SESSION_COOKIE_NAME, ABSOLUTE_EXPIRATION_MS } from "@/src/lib/auth/session";
 import { checkRateLimit, resetRateLimit } from "@/src/lib/auth/rateLimit";
 import { recordSecurityEvent } from "@/src/lib/auth/security";
-import { MOCK_MEMBERS } from "@/lib/mockData";
+import { getSafeAvatarUrl } from "@/lib/avatarHelper";
 
 const DB_NAME = "nexo";
 
-function isAdminRole(role: string) {
+function isAdminRole(role?: string) {
   return role === "SUPER_ADMIN" || role === "ADMIN";
+}
+
+function escapeRegex(str: string) {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
 export async function POST(req: Request) {
@@ -35,7 +39,7 @@ export async function POST(req: Request) {
       );
     }
 
-    const identifier = identifierRaw.toLowerCase();
+    const identifier = identifierRaw.toLowerCase().replace(/^@+/, "");
 
     // ── Rate Limiting ───────────────────────────────────────────
     const rateLimitKey      = `${context.toLowerCase()}_login:${identifier}`;
@@ -58,102 +62,125 @@ export async function POST(req: Request) {
 
     // ── Super Admin Username Matching Alias ────────────────
     const isSuperAdminAlias = ["ankitgod", "aniketgod", "anikitgod"].includes(identifier);
+    const escapedIdentifier = escapeRegex(identifier);
 
-    // ── Resolve User ────────────────────────────────────────────
-    let user: UserDocument | null = await db
-      .collection<UserDocument>("users")
+    // ── Resolve Member & User dynamically from MongoDB ──────────
+    // 1. Check members collection first
+    let member: (MemberDocument & { passwordHash?: string; salt?: string; status?: string }) | null = await db
+      .collection<MemberDocument>("members")
       .findOne({
         $or: [
-          { emailNormalized: identifier },
+          { username: { $regex: new RegExp(`^@?${escapedIdentifier}$`, "i") } },
+          { email: { $regex: new RegExp(`^${escapedIdentifier}$`, "i") } },
+          { name: { $regex: new RegExp(`^${escapedIdentifier}$`, "i") } },
+          { displayName: { $regex: new RegExp(`^${escapedIdentifier}$`, "i") } },
           { id: identifier },
           ...(isSuperAdminAlias ? [{ role: "SUPER_ADMIN" as const }] : []),
         ],
-      });
+      }) as any;
 
-    let member: MemberDocument | null = null;
-
-    if (user) {
-      member = await db.collection<MemberDocument>("members").findOne({ id: user.memberId });
-    } else {
-      // Resolve by username, email, name, or id in members collection
-      member = await db.collection<MemberDocument>("members").findOne({
+    // 2. Check users collection
+    let user: (UserDocument & { password?: string; status?: string }) | null = null;
+    if (member) {
+      user = await db.collection<UserDocument>("users").findOne({
         $or: [
-          { username: { $regex: new RegExp(`^${identifier}$`, "i") } },
-          { email: { $regex: new RegExp(`^${identifier}$`, "i") } },
-          { name: { $regex: new RegExp(`^${identifier}$`, "i") } },
+          { memberId: member.id },
+          { id: member.id },
+          { id: `usr_${member.id.replace(/^mem_/, "")}` },
+          { emailNormalized: (member.email || "").toLowerCase() },
+          { username: { $regex: new RegExp(`^@?${escapedIdentifier}$`, "i") } },
+        ],
+      }) as any;
+    } else {
+      user = await db.collection<UserDocument>("users").findOne({
+        $or: [
+          { username: { $regex: new RegExp(`^@?${escapedIdentifier}$`, "i") } },
+          { emailNormalized: identifier },
+          { email: { $regex: new RegExp(`^${escapedIdentifier}$`, "i") } },
+          { memberId: identifier },
           { id: identifier },
           ...(isSuperAdminAlias ? [{ role: "SUPER_ADMIN" as const }] : []),
         ],
-      });
+      }) as any;
 
-      if (member) {
-        user = await db.collection<UserDocument>("users").findOne({ memberId: member.id });
+      if (user) {
+        member = await db.collection<MemberDocument>("members").findOne({
+          $or: [
+            { id: user.memberId },
+            { id: user.id },
+            { email: user.email },
+            { username: (user as any).username },
+          ],
+        }) as any;
       }
     }
 
-    // ── Fallback Seeding from MOCK_MEMBERS if DB is unseeded ─────
-    if (!member || !user) {
-      const mockMatch = MOCK_MEMBERS.find((m) => {
-        const uName = (m.username || m.name).toLowerCase();
-        const uEmail = m.email.toLowerCase();
-        return uName === identifier || uEmail === identifier || m.id.toLowerCase() === identifier || (isSuperAdminAlias && m.role === "SUPER_ADMIN");
-      });
-
-      if (mockMatch) {
-        const expectedPass = mockMatch.password || "admin123";
-        if (passwordRaw === expectedPass) {
-          // Seed member into MongoDB
-          const newMemberDoc: MemberDocument = {
-            id: mockMatch.id,
-            name: mockMatch.name,
-            username: mockMatch.username || mockMatch.name.toLowerCase(),
-            password: mockMatch.password || expectedPass,
-            email: mockMatch.email,
-            avatar: mockMatch.avatar,
-            role: mockMatch.role,
-            panMasked: mockMatch.panMasked,
-            panFull: mockMatch.panFull,
-            defaultContribution: mockMatch.defaultContribution,
-            joinedAt: mockMatch.joinedAt,
-            phone: mockMatch.phone,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-
-          const passHash = await hashPassword(passwordRaw);
-          const newUserDoc: UserDocument = {
-            id: `usr_${mockMatch.id}`,
-            memberId: mockMatch.id,
-            email: mockMatch.email,
-            emailNormalized: mockMatch.email.toLowerCase(),
-            passwordHash: passHash,
-            emailVerified: true,
-            role: mockMatch.role,
-            status: "ACTIVE",
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          };
-
-          await db.collection<MemberDocument>("members").updateOne(
-            { id: mockMatch.id },
-            { $set: newMemberDoc },
-            { upsert: true }
-          );
-
-          await db.collection<UserDocument>("users").updateOne(
-            { id: newUserDoc.id },
-            { $set: newUserDoc },
-            { upsert: true }
-          );
-
-          member = newMemberDoc;
-          user = newUserDoc;
-        }
-      }
-    }
-
-    // ── Credential Verification ─────────────────────────────────
     const failedLoginEvent = context === "ADMIN" ? "ADMIN_LOGIN_FAILED" : "USER_LOGIN_FAILED";
+
+    // If neither member nor user was found in MongoDB
+    if (!member && !user) {
+      await recordSecurityEvent(failedLoginEvent, {
+        email: identifier,
+        ipAddress,
+        loginContext: context,
+      });
+      return NextResponse.json(
+        { success: false, error: "Invalid username or password." },
+        { status: 401 }
+      );
+    }
+
+    // ── Auto-Sync Member / User Documents in MongoDB ────────────
+    if (member && !user) {
+      const memberPass = member.password || member.passwordHash || passwordRaw;
+      const passHash = memberPass && memberPass.includes(":") ? memberPass : hashPassword(memberPass || passwordRaw);
+      const isMemSuspended = String((member as any).status || "").toUpperCase() === "SUSPENDED" ||
+                             String((member as any).status || "").toUpperCase() === "INACTIVE" ||
+                             String((member as any).status || "").toUpperCase() === "BLOCKED";
+
+      const newUserDoc: UserDocument = {
+        id: `usr_${member.id.replace(/^mem_/, "")}`,
+        memberId: member.id,
+        email: member.email || `${(member.username || member.name || "user").toLowerCase().replace(/\s+/g, "_")}@nexo.private`,
+        emailNormalized: (member.email || `${(member.username || member.name || "user").toLowerCase().replace(/\s+/g, "_")}@nexo.private`).toLowerCase(),
+        passwordHash: passHash,
+        emailVerified: true,
+        role: member.role || "MEMBER",
+        status: isMemSuspended ? "DISABLED" : "ACTIVE",
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      (newUserDoc as any).username = member.username || (member.name || "").toLowerCase().replace(/\s+/g, "_");
+
+      await db.collection<UserDocument>("users").updateOne(
+        { id: newUserDoc.id },
+        { $set: newUserDoc },
+        { upsert: true }
+      );
+      user = newUserDoc as any;
+    } else if (user && !member) {
+      const userNameStr = (user as any).username || user.email.split("@")[0];
+      const newMemberDoc: MemberDocument = {
+        id: user.memberId || user.id.replace(/^usr_/, "mem_"),
+        name: userNameStr,
+        username: userNameStr,
+        email: user.email,
+        avatar: "/oggy.png",
+        role: user.role || "MEMBER",
+        defaultContribution: 15000,
+        joinedAt: "Jan 2025",
+        password: passwordRaw,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+      (newMemberDoc as any).status = user.status === "DISABLED" ? "SUSPENDED" : "ACTIVE";
+      await db.collection<MemberDocument>("members").updateOne(
+        { id: newMemberDoc.id },
+        { $set: newMemberDoc },
+        { upsert: true }
+      );
+      member = newMemberDoc as any;
+    }
 
     if (!user || !member) {
       await recordSecurityEvent(failedLoginEvent, {
@@ -161,38 +188,113 @@ export async function POST(req: Request) {
         ipAddress,
         loginContext: context,
       });
-      const msg = context === "ADMIN"
-        ? "Invalid credentials."
-        : "Invalid username or password.";
-      return NextResponse.json({ success: false, error: msg }, { status: 401 });
-    }
-
-    if (user.status !== "ACTIVE") {
-      await recordSecurityEvent(failedLoginEvent, {
-        email: identifier,
-        ipAddress,
-        loginContext: context,
-      });
       return NextResponse.json(
-        { success: false, error: "Your account is currently unavailable. Please contact support." },
+        { success: false, error: "Invalid username or password." },
         { status: 401 }
       );
     }
 
-    // Verify password hash or assigned member password
-    const isHashValid   = verifyPassword(passwordRaw, user.passwordHash);
-    const isMemberPass  = Boolean(member.password && passwordRaw === member.password);
+    // ── Check Account Status (Active vs Suspended / Inactive) ────
+    const userStatusUpper = String(user.status || "").toUpperCase();
+    const memberStatusUpper = String((member as any).status || "").toUpperCase();
 
-    if (!isHashValid && !isMemberPass) {
+    const isSuspended =
+      userStatusUpper === "DISABLED" ||
+      userStatusUpper === "SUSPENDED" ||
+      userStatusUpper === "INACTIVE" ||
+      userStatusUpper === "BLOCKED" ||
+      memberStatusUpper === "DISABLED" ||
+      memberStatusUpper === "SUSPENDED" ||
+      memberStatusUpper === "INACTIVE" ||
+      memberStatusUpper === "BLOCKED";
+
+    if (isSuspended) {
       await recordSecurityEvent(failedLoginEvent, {
-        email: user.email,
+        email: user.email || identifier,
         ipAddress,
         loginContext: context,
       });
-      const msg = context === "ADMIN"
-        ? "Invalid credentials."
-        : "Invalid username or password.";
-      return NextResponse.json({ success: false, error: msg }, { status: 401 });
+      return NextResponse.json(
+        { success: false, error: "Your account is inactive or suspended. Please contact support." },
+        { status: 403 }
+      );
+    }
+
+    // ── Credential Verification (Salted Hash & Assigned Passwords) ─
+    let isPasswordValid = false;
+
+    // 1. Verify against user.passwordHash (PBKDF2-SHA512 salt:hash)
+    if (user.passwordHash && verifyPassword(passwordRaw, user.passwordHash)) {
+      isPasswordValid = true;
+    }
+
+    // 2. Verify against member.salt + member.passwordHash
+    if (!isPasswordValid && member.salt && member.passwordHash) {
+      if (verifyPasswordWithSalt(passwordRaw, member.salt, member.passwordHash)) {
+        isPasswordValid = true;
+        // Sync to standard salt:hash format in users
+        const standardHash = `${member.salt}:${member.passwordHash}`;
+        await db.collection<UserDocument>("users").updateOne(
+          { id: user.id },
+          { $set: { passwordHash: standardHash, updatedAt: new Date() } }
+        ).catch(() => {});
+      }
+    }
+
+    // 3. Verify against member.passwordHash (if combined salt:hash)
+    if (!isPasswordValid && member.passwordHash && member.passwordHash.includes(":")) {
+      if (verifyPassword(passwordRaw, member.passwordHash)) {
+        isPasswordValid = true;
+        await db.collection<UserDocument>("users").updateOne(
+          { id: user.id },
+          { $set: { passwordHash: member.passwordHash, updatedAt: new Date() } }
+        ).catch(() => {});
+      }
+    }
+
+    // 4. Verify against member.password (plain text string or hashed)
+    if (!isPasswordValid && member.password && typeof member.password === "string") {
+      if (member.password.includes(":") && verifyPassword(passwordRaw, member.password)) {
+        isPasswordValid = true;
+        await db.collection<UserDocument>("users").updateOne(
+          { id: user.id },
+          { $set: { passwordHash: member.password, updatedAt: new Date() } }
+        ).catch(() => {});
+      } else if (passwordRaw === member.password) {
+        isPasswordValid = true;
+        // Upgrade plain password to secure hash in users collection
+        const secureHash = hashPassword(passwordRaw);
+        await db.collection<UserDocument>("users").updateOne(
+          { id: user.id },
+          { $set: { passwordHash: secureHash, updatedAt: new Date() } }
+        ).catch(() => {});
+      }
+    }
+
+    // 5. Verify against user.password (if present)
+    if (!isPasswordValid && (user as any).password && typeof (user as any).password === "string") {
+      if ((user as any).password.includes(":") && verifyPassword(passwordRaw, (user as any).password)) {
+        isPasswordValid = true;
+      } else if (passwordRaw === (user as any).password) {
+        isPasswordValid = true;
+        const secureHash = hashPassword(passwordRaw);
+        await db.collection<UserDocument>("users").updateOne(
+          { id: user.id },
+          { $set: { passwordHash: secureHash, updatedAt: new Date() } }
+        ).catch(() => {});
+      }
+    }
+
+    if (!isPasswordValid) {
+      await recordSecurityEvent(failedLoginEvent, {
+        email: user.email || identifier,
+        ipAddress,
+        loginContext: context,
+      });
+      return NextResponse.json(
+        { success: false, error: "Invalid username or password." },
+        { status: 401 }
+      );
     }
 
     // ── Admin Context Role Check ─────────────────────────────────
@@ -213,7 +315,6 @@ export async function POST(req: Request) {
       );
     }
 
-
     // ── Create Session ───────────────────────────────────────────
     const { sessionToken, session } = await createSession(user.id, userAgent, ipAddress);
 
@@ -232,22 +333,26 @@ export async function POST(req: Request) {
       sessionId:   session.id,
     });
 
-    // ── Build Response ───────────────────────────────────────────
+    // ── Build Response (No sensitive hashes/secrets) ─────────────
     const response = NextResponse.json({
       success: true,
       user: {
         id:     user.id,
         email:  user.email,
-        role:   user.role,
-        status: user.status,
+        role:   user.role || "MEMBER",
+        status: user.status || "ACTIVE",
       },
       member: {
-        id:       member.id,
-        name:     member.name,
-        username: member.username,
-        avatar:   member.avatar,
-        role:     member.role,
-        phone:    member.phone,
+        id:                  member.id,
+        name:                member.name,
+        username:            member.username || (member.name || "").toLowerCase().replace(/\s+/g, "_"),
+        email:               member.email,
+        avatar:              getSafeAvatarUrl(member.avatar, member.id),
+        role:                member.role || "MEMBER",
+        phone:               member.phone,
+        panMasked:           member.panMasked || "ABCDE2741D",
+        defaultContribution: member.defaultContribution || 15000,
+        joinedAt:            member.joinedAt || "Jan 2025",
       },
     });
 
@@ -270,3 +375,4 @@ export async function POST(req: Request) {
     );
   }
 }
+

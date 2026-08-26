@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useNexo } from "@/context/NexoContext";
 import { Lock, Eye, EyeSlash, ShieldCheck, ArrowRight, WarningCircle, CircleNotch, Phone, Sparkle, CheckCircle, UploadSimple } from "@phosphor-icons/react";
+import { uploadAvatar } from "@/src/features/profile/api";
 
 function safeNextPath(raw: string | null): string {
   if (!raw) return "/";
@@ -116,21 +117,20 @@ export function LoginForm() {
   const [setupError, setSetupError] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
 
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) {
         setSetupError("Image size must be under 5MB.");
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          setSelectedAvatar(event.target.result as string);
-          if (setupError) setSetupError(null);
-        }
-      };
-      reader.readAsDataURL(file);
+      try {
+        const res = await uploadAvatar(file);
+        setSelectedAvatar(res.avatarUrl);
+        if (setupError) setSetupError(null);
+      } catch {
+        setSetupError("Failed to process image.");
+      }
     }
   };
 

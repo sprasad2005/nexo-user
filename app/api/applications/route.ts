@@ -41,6 +41,13 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const memberId = searchParams.get("memberId");
     const ipoId = searchParams.get("ipoId");
+    const lotIndexParam = searchParams.get("lotIndex") !== null && searchParams.get("lotIndex") !== ""
+      ? parseInt(searchParams.get("lotIndex")!, 10)
+      : null;
+    const lotIdParam = searchParams.get("lotId")?.trim();
+    const panParam = searchParams.get("pan")?.trim().toUpperCase();
+    const statusParam = searchParams.get("status")?.trim().toUpperCase();
+    const allottedOnly = searchParams.get("allottedOnly") === "true" || statusParam === "ALLOTTED";
 
     const query: any = {};
     if (ipoId) query.ipoId = ipoId;
@@ -50,6 +57,25 @@ export async function GET(req: Request) {
         { "participants.memberId": memberId },
         { userId: memberId },
       ];
+    }
+    if (panParam) {
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { panNumbers: panParam },
+          { panMasked: panParam },
+          { panNormalized: panParam },
+        ],
+      });
+    }
+    if (statusParam && statusParam !== "ALL") {
+      query.$and = query.$and || [];
+      query.$and.push({
+        $or: [
+          { allotmentStatus: statusParam },
+          { status: statusParam },
+        ],
+      });
     }
 
     let dbApps: any[] = [];
@@ -69,6 +95,7 @@ export async function GET(req: Request) {
               applicationNumber: 1,
               panMasked: 1,
               panNumbers: 1,
+              allottedIndices: 1,
               numberOfPanCards: 1,
               lotCount: 1,
               lotsApplied: 1,
@@ -83,47 +110,127 @@ export async function GET(req: Request) {
           }
         )
         .sort({ createdAt: -1 })
+        .limit(300)
         .toArray();
     } catch (_e) {
       console.warn("GET /api/applications MongoDB fetch optional.");
     }
 
+    let rawApplications: any[] = [];
+
     if (dbApps.length > 0) {
-      return NextResponse.json(
-        { success: true, applications: dbApps },
-        {
-          headers: {
-            "Cache-Control": "public, max-age=5, stale-while-revalidate=15",
-          },
-        }
-      );
-    }
+      rawApplications = dbApps;
+    } else {
+      const sharedIpos = readSharedIpos();
+      const appMap = new Map<string, any>();
 
-    const sharedIpos = readSharedIpos();
-    const appMap = new Map<string, any>();
-
-    // Process embedded apps from shared_ipos.json fallback
-    sharedIpos.forEach((ipo) => {
-      if (Array.isArray(ipo.applications)) {
-        ipo.applications.forEach((app: any) => {
-          const id = app.id;
-          if (id && !appMap.has(id)) {
-            appMap.set(id, {
-              ...app,
-              ipoName: ipo.name,
+      // Process embedded apps from shared_ipos.json fallback
+      sharedIpos.forEach((ipo) => {
+        if (!ipoId || ipo.id === ipoId || ipo.name?.toLowerCase() === ipoId.toLowerCase()) {
+          if (Array.isArray(ipo.applications)) {
+            ipo.applications.forEach((app: any) => {
+              const id = app.id;
+              if (id && !appMap.has(id)) {
+                appMap.set(id, {
+                  ...app,
+                  ipoName: ipo.name,
+                });
+              }
             });
           }
-        });
-      }
-    });
+        }
+      });
 
-    const applications = Array.from(appMap.values());
+      rawApplications = Array.from(appMap.values());
+    }
+
+    // Apply lot / allocation level filtering so client receives only specifically selected/allotted accounts
+    let finalApplications = rawApplications;
+
+    if (allottedOnly) {
+      const allottedList: any[] = [];
+      rawApplications.forEach((app: any) => {
+        const totalLots = Math.max(1, app.lotsApplied || app.lotCount || app.numberOfPanCards || 1);
+        const pans = Array.isArray(app.panNumbers) && app.panNumbers.length > 0
+          ? app.panNumbers
+          : [app.panMasked || app.pan || "ABCDE2741D"];
+
+        if (Array.isArray(app.allottedIndices) && app.allottedIndices.length > 0) {
+          app.allottedIndices.forEach((lotIdx: number) => {
+            const specificPan = pans[lotIdx] || pans[0];
+            if (panParam && specificPan.toUpperCase() !== panParam) return;
+            if (lotIndexParam !== null && lotIdx !== lotIndexParam) return;
+            const specificLotId = totalLots > 1 ? `${app.id}_lot_${lotIdx}` : app.id;
+            if (lotIdParam && specificLotId !== lotIdParam) return;
+
+            allottedList.push({
+              ...app,
+              id: specificLotId,
+              lotIndex: lotIdx,
+              panMasked: specificPan,
+              panNumbers: [specificPan],
+              lotsApplied: 1,
+              lotCount: 1,
+              allotmentStatus: "ALLOTTED",
+              allottedIndices: [0],
+            });
+          });
+        } else if (app.allotmentStatus === "ALLOTTED") {
+          const specificPan = pans[0];
+          if (!panParam || specificPan.toUpperCase() === panParam) {
+            allottedList.push({
+              ...app,
+              panMasked: specificPan,
+              panNumbers: [specificPan],
+              lotsApplied: 1,
+              lotCount: 1,
+              allotmentStatus: "ALLOTTED",
+              allottedIndices: [0],
+            });
+          }
+        }
+      });
+      finalApplications = allottedList;
+    } else if (lotIndexParam !== null || lotIdParam || panParam) {
+      const filteredList: any[] = [];
+      rawApplications.forEach((app: any) => {
+        const totalLots = Math.max(1, app.lotsApplied || app.lotCount || app.numberOfPanCards || 1);
+        const pans = Array.isArray(app.panNumbers) && app.panNumbers.length > 0
+          ? app.panNumbers
+          : [app.panMasked || app.pan || "ABCDE2741D"];
+
+        for (let i = 0; i < totalLots; i++) {
+          const specificPan = pans[i] || pans[0];
+          const specificLotId = totalLots > 1 ? `${app.id}_lot_${i}` : app.id;
+
+          if (lotIndexParam !== null && i !== lotIndexParam) continue;
+          if (lotIdParam && specificLotId !== lotIdParam) continue;
+          if (panParam && specificPan.toUpperCase() !== panParam) continue;
+
+          const isAllotted = Array.isArray(app.allottedIndices) && app.allottedIndices.length > 0
+            ? app.allottedIndices.includes(i)
+            : (app.allotmentStatus === "ALLOTTED" && i === 0);
+
+          filteredList.push({
+            ...app,
+            id: specificLotId,
+            lotIndex: i,
+            panMasked: specificPan,
+            panNumbers: [specificPan],
+            lotsApplied: 1,
+            lotCount: 1,
+            allotmentStatus: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
+          });
+        }
+      });
+      finalApplications = filteredList;
+    }
 
     return NextResponse.json(
-      { success: true, applications },
+      { success: true, applications: finalApplications },
       {
         headers: {
-          "Cache-Control": "public, max-age=5, stale-while-revalidate=15",
+          "Cache-Control": "private, max-age=5, stale-while-revalidate=15",
         },
       }
     );

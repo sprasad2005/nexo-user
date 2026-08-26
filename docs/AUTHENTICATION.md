@@ -42,7 +42,7 @@ Server Authorization (requireUser / requireAdmin)
   - `lastActiveAt`: Refreshed on activity (7-day idle window).
 
 ### Middleware & Authorization
-- **Middleware (`middleware.ts`)**: Enforces authentication on all workspace routes (`/dashboard`, `/ipos`, `/applications`, `/portfolio`, `/members`, `/messages`, `/profile`, `/settings`, `/admin`). Unauthenticated requests redirect to `/login?next=...` (pages) or return `401 Unauthorized` (APIs).
+- **Middleware (`middleware.ts`)**: Enforces authentication on all workspace routes (`/dashboard`, `/ipos`, `/applications`, `/portfolio`, `/members`, `/profile`, `/settings`, `/admin`). Unauthenticated requests redirect to `/login?next=...` (pages) or return `401 Unauthorized` (APIs).
 - **Server Authorization Helpers (`src/lib/auth/authorization.ts`)**:
   - `getAuthenticatedUser()`: Reads cookie, validates session, returns identity context.
   - `requireUser()`: Asserts authenticated user session.

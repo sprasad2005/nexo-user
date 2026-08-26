@@ -93,6 +93,8 @@ export interface Application {
   applicationProofUrl?: string;
   applicationNumber?: string;
   panNumbers?: string[];
+  allottedIndices?: number[];
+  allottedPan?: string;
   participants?: ApplicationParticipant[];
   createdAt?: string;
 }
@@ -257,90 +259,7 @@ export interface Transaction {
   status: "SUBMITTED" | "ALLOTTED" | "REFUNDED" | "REJECTED";
 }
 
-/* ────────────────────────────────────────────────────────────────
-   CHAT SYSTEM TYPES
-──────────────────────────────────────────────────────────────── */
-export type ConversationType = "DIRECT" | "GROUP" | "IPO";
-export type ConversationMemberRole = "OWNER" | "MEMBER";
-export type MessageType = "TEXT" | "SYSTEM" | "IMAGE" | "FILE";
-export type UserPresenceStatus = "ONLINE" | "OFFLINE" | "AWAY";
 
-export interface Conversation {
-  id: string;
-  type: ConversationType;
-  title: string;
-  avatar?: string;
-  ipoId?: string;
-  createdBy: string;
-  directKey?: string;
-  lastMessage?: string;
-  lastMessageAt?: string;
-  lastMessageSenderId?: string;
-  createdAt: string;
-  updatedAt: string;
-  isArchived?: boolean;
-  unreadCount?: number;
-  members?: ConversationMember[];
-  otherMember?: Member;
-  participants?: Member[];
-}
-
-export interface ConversationMember {
-  id: string;
-  conversationId: string;
-  memberId: string;
-  role: ConversationMemberRole;
-  joinedAt: string;
-  lastReadAt?: string;
-  isMuted?: boolean;
-  isArchived?: boolean;
-}
-
-export type MessageAttachmentType = "IMAGE" | "DOCUMENT" | "AUDIO";
-
-export interface MessageAttachment {
-  type: MessageAttachmentType;
-  url: string;
-  name: string;
-  size?: number;
-}
-
-export interface MessageReaction {
-  emoji: string;
-  memberId: string;
-  memberName: string;
-  memberAvatar?: string;
-  createdAt: string;
-}
-
-export interface Message {
-  id: string;
-  seq?: number;
-  conversationId: string;
-  senderId: string;
-  senderName?: string;
-  senderUsername?: string;
-  senderAvatar?: string;
-  text: string;
-  type: MessageType;
-  attachment?: MessageAttachment;
-  reactions?: MessageReaction[];
-  replyToMessageId?: string;
-  createdAt: string;
-  updatedAt?: string;
-  isEdited?: boolean;
-  isDeleted?: boolean;
-  isDeletedByAdmin?: boolean;
-  deletedByUserId?: string;
-  status?: "SENT" | "DELIVERED" | "READ";
-}
-
-export interface UserPresence {
-  memberId: string;
-  status: UserPresenceStatus;
-  lastSeenAt: string;
-  updatedAt: string;
-}
 
 export interface MemberSearchUser {
   id: string;

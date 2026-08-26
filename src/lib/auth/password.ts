@@ -19,20 +19,28 @@ export function hashPassword(password: string): string {
 }
 
 /**
+ * Verifies a plaintext password against a salt and hash using timing-safe comparison.
+ */
+export function verifyPasswordWithSalt(password: string, salt: string, originalHash: string): boolean {
+  if (!password || !salt || !originalHash) return false;
+  try {
+    const testHash = crypto.pbkdf2Sync(password, salt, ITERATIONS, KEY_LEN, DIGEST).toString("hex");
+    const a = Buffer.from(originalHash, "hex");
+    const b = Buffer.from(testHash, "hex");
+    if (a.length !== b.length) return false;
+    return crypto.timingSafeEqual(a, b);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Verifies a plaintext password against a stored salt:hash string using timing-safe comparison.
  */
 export function verifyPassword(password: string, storedHash: string): boolean {
   if (!storedHash || !storedHash.includes(":")) return false;
   const [salt, originalHash] = storedHash.split(":");
-  if (!salt || !originalHash) return false;
-
-  const testHash = crypto.pbkdf2Sync(password, salt, ITERATIONS, KEY_LEN, DIGEST).toString("hex");
-  
-  const a = Buffer.from(originalHash, "hex");
-  const b = Buffer.from(testHash, "hex");
-  if (a.length !== b.length) return false;
-
-  return crypto.timingSafeEqual(a, b);
+  return verifyPasswordWithSalt(password, salt, originalHash);
 }
 
 /**

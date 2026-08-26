@@ -7,12 +7,12 @@ import { Button } from "../ui/Button";
 import { LifecycleBar } from "../ui/LifecycleBar";
 import { MaskedPAN } from "../ui/MaskedPAN";
 import { formatINR, formatDate, formatIpoAddedDateTime } from "@/lib/mockData";
-import { X, UserPlus, ShieldCheck, PencilSimple, Archive, ChatCircleDots, Clock } from "@phosphor-icons/react";
+import { X, UserPlus, ShieldCheck, PencilSimple, Archive, Clock } from "@phosphor-icons/react";
 import { EditIPOModal } from "../ipo/EditIPOModal";
 import { ArchiveIPOModal } from "../ipo/ArchiveIPOModal";
 
 export function IPODetailDrawer() {
-  const { selectedIpo, closeIpoDetail, openApplicationModal, currentUserRole, currentUser, currentMember, openIpoGroupChat } = useNexo();
+  const { selectedIpo, closeIpoDetail, openApplicationModal, currentUserRole, currentUser, currentMember } = useNexo();
 
   const [isEditOpen, setIsEditOpen] = useState(false);
   const [isArchiveOpen, setIsArchiveOpen] = useState(false);
@@ -53,18 +53,6 @@ export function IPODetailDrawer() {
             </div>
 
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => {
-                  openIpoGroupChat(selectedIpo.id, selectedIpo.name);
-                  closeIpoDetail();
-                }}
-                className="px-2.5 py-1 rounded-lg bg-accent-soft text-accent border border-accent/30 text-xs font-semibold hover:bg-accent-soft/80 transition-colors flex items-center gap-1.5 cursor-pointer"
-                title="Open Group Chat for this IPO"
-              >
-                <ChatCircleDots size={15} />
-                <span>Group Chat →</span>
-              </button>
-
               <button
                 onClick={closeIpoDetail}
                 className="p-1.5 rounded-lg text-ink-secondary hover:text-ink hover:bg-page transition-colors cursor-pointer"

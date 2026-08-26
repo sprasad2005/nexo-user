@@ -5,6 +5,7 @@ import { MOCK_MEMBERS } from "@/lib/mockData";
 import { MemberPermissions } from "@/types/nexo";
 import { logActivity } from "@/src/features/activity/activityService";
 import { cleanOldAvatar } from "@/lib/avatarCleanup";
+import { getSafeAvatarUrl } from "@/lib/avatarHelper";
 import {
   normalizePan,
   isValidPan,
@@ -79,7 +80,6 @@ export async function GET() {
       if (u === "shivam_p" || u.startsWith("shivam")) return 3;
       return 4;
     };
-
     members.sort((a: any, b: any) => {
       const pA = getPriority(a);
       const pB = getPriority(b);
@@ -87,8 +87,13 @@ export async function GET() {
       return (a.name || "").localeCompare(b.name || "");
     });
 
+    const safeMembers = members.map((m: any) => ({
+      ...m,
+      avatar: getSafeAvatarUrl(m.avatar, m.id),
+    }));
+
     return NextResponse.json(
-      { success: true, members },
+      { success: true, members: safeMembers },
       {
         headers: {
           "Cache-Control": "private, max-age=5, stale-while-revalidate=30",
@@ -199,43 +204,6 @@ export async function POST(req: Request) {
             updatedAt: new Date(),
           },
           $setOnInsert: { createdAt: new Date() },
-        },
-        { upsert: true }
-      );
-
-      // Automatically join newly created member to IPO Investor Group chat
-      const convCol = client.db(DB).collection("conversations");
-      const convMemberCol = client.db(DB).collection("conversationMembers");
-      const now = new Date();
-
-      const ipoGroupId = "conv_grp_main";
-      let ipoGroup = await convCol.findOne({ title: "IPO Investor" });
-      if (!ipoGroup) {
-        const newGroupDoc = {
-          id: ipoGroupId,
-          type: "GROUP",
-          title: "IPO Investor",
-          avatar: "/oggy.png",
-          createdBy: "mem_admin",
-          lastMessage: "Welcome to the IPO Investor Group Chat!",
-          lastMessageAt: now,
-          createdAt: now,
-          updatedAt: now,
-        };
-        await convCol.insertOne(newGroupDoc);
-      }
-
-      await convMemberCol.updateOne(
-        { conversationId: ipoGroupId, memberId: newMember.id },
-        {
-          $set: {
-            id: `cm_${ipoGroupId}_${newMember.id}`,
-            conversationId: ipoGroupId,
-            memberId: newMember.id,
-            role: "MEMBER",
-            joinedAt: now,
-            lastReadAt: now,
-          },
         },
         { upsert: true }
       );

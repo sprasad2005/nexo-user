@@ -7,7 +7,7 @@ import { FeaturedOpportunity } from "../dashboard/FeaturedOpportunity";
 import { Sparkle, Hourglass } from "@phosphor-icons/react";
 
 export function DashboardView() {
-  const { ipos, openIpoDetail, openApplicationModal } = useNexo();
+  const { ipos, openApplicationModal } = useNexo();
 
   // All visible IPOs on User Home page (not hidden, not archived, and not removed from home)
   const homeIpos = ipos.filter((i) => !i.isHidden && !i.isArchived && !i.hideFromHome);
@@ -59,7 +59,6 @@ export function DashboardView() {
               <FeaturedOpportunity
                 key={ipo.id}
                 ipo={ipo}
-                onInspect={openIpoDetail}
                 onApply={openApplicationModal}
               />
             ))}
@@ -87,7 +86,6 @@ export function DashboardView() {
               <FeaturedOpportunity
                 key={ipo.id}
                 ipo={ipo}
-                onInspect={openIpoDetail}
                 onApply={openApplicationModal}
               />
             ))}

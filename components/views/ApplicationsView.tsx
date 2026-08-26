@@ -573,34 +573,93 @@ export function ApplicationsView() {
 
       {/* SINGLE CLEAN FINTECH INVESTMENT LEDGER CONTAINER */}
       {selectedIpoList.map((ipo) => {
-        const filteredApps = ipo.applications.filter((app) => {
-          // Status filter
-          if (statusFilter !== "ALL") {
-            const st = app.allotmentStatus || app.status || "AWAITING";
-            if (st !== statusFilter) return false;
-          }
+        // Expand all applications for this IPO into individual lot records
+        const allExpandedLots = (ipo.applications || []).flatMap((app) => {
+          const lotCount = Math.max(1, app.lotCount || (Array.isArray(app.panNumbers) ? app.panNumbers.length : 1) || 1);
+          const pansList = Array.isArray(app.panNumbers) && app.panNumbers.length > 0 ? app.panNumbers : [app.panMasked || "ABCDE2741D"];
+          const displayNames = formatApplicantNames(app);
+          const minInvest = ipo.metrics?.minInvestment || 14964;
+          const perLotAmount = Math.round(app.totalContribution / lotCount) || minInvest;
 
-          // View scope filter (All vs My)
+          const currentUserName = (currentUser?.name || currentMember?.name || "").toLowerCase();
+          const currentUserId = currentUser?.id || currentMember?.id || "mem_1";
+          const isAdmin = (currentUser?.role || currentMember?.role) === "ADMIN";
+
+          const isMine = Boolean(
+            isAdmin ||
+            (app.memberId && app.memberId === currentUserId) ||
+            (app.applicantName && currentUserName && app.applicantName.toLowerCase().includes(currentUserName)) ||
+            (displayNames && currentUserName && displayNames.toLowerCase().includes(currentUserName)) ||
+            (Array.isArray(app.participants) &&
+              app.participants.some(
+                (p) =>
+                  p.memberId === currentUserId ||
+                  (p.memberName && currentUserName && p.memberName.toLowerCase().includes(currentUserName))
+              ))
+          );
+
+          return Array.from({ length: lotCount }).map((_, lotIdx) => {
+            const panFromApp = (pansList[lotIdx] && pansList[lotIdx].trim())
+              ? pansList[lotIdx].trim()
+              : (app.participants && app.participants[lotIdx]?.panMasked && !app.participants[lotIdx].panMasked.includes("X"))
+              ? app.participants[lotIdx].panMasked
+              : (app.panMasked && !app.panMasked.includes("X"))
+              ? app.panMasked
+              : `ABCDE${String(2741 + lotIdx).padStart(4, "0")}D`;
+            const panDisplay = panFromApp.toUpperCase();
+
+            const isLotAllotted = (Array.isArray(app.allottedIndices) && app.allottedIndices.length > 0)
+              ? app.allottedIndices.includes(lotIdx)
+              : (app.allottedPan && app.allottedPan.trim().toUpperCase() === panDisplay)
+              ? true
+              : (app.allotmentStatus === "ALLOTTED" && lotIdx === 0);
+
+            let lotStatus: "ALLOTTED" | "NOT_ALLOTTED" | "AWAITING" = "AWAITING";
+            if (isLotAllotted) {
+              lotStatus = "ALLOTTED";
+            } else if (ipo.allotmentFinalized || app.allotmentStatus === "NOT_ALLOTTED" || (app.allotmentStatus === "ALLOTTED" && !isLotAllotted)) {
+              lotStatus = "NOT_ALLOTTED";
+            } else {
+              lotStatus = "AWAITING";
+            }
+
+            return {
+              rawApp: app,
+              lotIdx,
+              lotCount,
+              lotId: `${app.id}_lot_${lotIdx}`,
+              panDisplay,
+              displayNames,
+              applicantName: app.applicantName || "Member",
+              perLotAmount,
+              lotStatus,
+              isMine,
+              createdAt: app.createdAt,
+            };
+          });
+        });
+
+        // Filter by View Scope (All vs My)
+        const scopedLots = allExpandedLots.filter((lot) => {
           if (viewScope === "MY") {
-            const currentUserName = (currentUser?.name || currentMember?.name || "ankit").toLowerCase();
-            const currentUserId = currentUser?.id || currentMember?.id || "mem_1";
-            const appName = (app.applicantName || "").toLowerCase();
-
-            const isMy =
-              app.memberId === currentUserId ||
-              (appName && currentUserName && appName.includes(currentUserName)) ||
-              (app.participants && app.participants.some(p => p.memberId === currentUserId || (p.memberName && p.memberName.toLowerCase().includes(currentUserName))));
-
-            if (!isMy) return false;
+            return lot.isMine;
           }
-
           return true;
         });
 
-        const totalExpandedCount = filteredApps.reduce(
-          (sum, app) => sum + Math.max(1, app.lotCount || 1),
-          0
-        );
+        // Dynamic tab counts
+        const totalCount = scopedLots.length;
+        const allottedCount = scopedLots.filter((l) => l.lotStatus === "ALLOTTED").length;
+        const awaitingCount = scopedLots.filter((l) => l.lotStatus === "AWAITING").length;
+        const notAllottedCount = scopedLots.filter((l) => l.lotStatus === "NOT_ALLOTTED").length;
+
+        // Filter by Status Tab
+        const filteredLots = scopedLots.filter((lot) => {
+          if (statusFilter !== "ALL") {
+            return lot.lotStatus === statusFilter;
+          }
+          return true;
+        });
 
         return (
           <div
@@ -638,7 +697,7 @@ export function ApplicationsView() {
                       : "text-ink-tertiary hover:text-ink"
                   }`}
                 >
-                  All ({totalExpandedCount})
+                  All ({totalCount})
                 </button>
                 <button
                   onClick={() => setStatusFilter("ALLOTTED")}
@@ -648,7 +707,7 @@ export function ApplicationsView() {
                       : "text-ink-secondary hover:text-positive"
                   }`}
                 >
-                  Allotted
+                  Allotted ({allottedCount})
                 </button>
                 <button
                   onClick={() => setStatusFilter("AWAITING")}
@@ -658,7 +717,7 @@ export function ApplicationsView() {
                       : "text-ink-secondary hover:text-caution"
                   }`}
                 >
-                  Awaiting
+                  Awaiting ({awaitingCount})
                 </button>
                 <button
                   onClick={() => setStatusFilter("NOT_ALLOTTED")}
@@ -668,7 +727,7 @@ export function ApplicationsView() {
                       : "text-ink-secondary hover:text-negative"
                   }`}
                 >
-                  Not Allotted
+                  Not Allotted ({notAllottedCount})
                 </button>
               </div>
             </div>
@@ -684,131 +743,145 @@ export function ApplicationsView() {
 
             {/* APPLICATION LEDGER ROWS */}
             <div className="divide-y divide-line-subtle">
-              {filteredApps.length === 0 ? (
+              {filteredLots.length === 0 ? (
                 <div className="p-12 text-center text-small text-ink-tertiary font-medium space-y-1">
                   <div className="text-body-md font-semibold text-ink">No applications found</div>
                   <div>No applications match your scope or filter criteria.</div>
                 </div>
-              ) : (() => {
-                const nameTotalCounts: Record<string, number> = {};
-                filteredApps.forEach((app) => {
-                  const name = formatApplicantNames(app);
-                  const count = Math.max(1, app.lotCount || 1);
-                  nameTotalCounts[name] = (nameTotalCounts[name] || 0) + count;
-                });
+              ) : (
+                filteredLots.map((lot, index) => {
+                  sequentialCounter += 1;
+                  const formattedSeq = String(index + 1).padStart(2, "0");
+                  const app = lot.rawApp;
 
-                const nameRunningIndex: Record<string, number> = {};
+                  return (
+                    <React.Fragment key={lot.lotId}>
+                      {/* DESKTOP ROW (md and larger) */}
+                      <div className="hidden md:grid md:grid-cols-12 px-6 py-4 items-center hover:bg-surface-alt/60 transition-colors text-small">
+                        {/* # SR No */}
+                        <div className="col-span-1 num-tabular font-semibold text-ink">
+                          {formattedSeq}
+                        </div>
 
-                return filteredApps.flatMap((app) => {
-                  const currentStatus =
-                    (app.allotmentStatus as AllotmentStatus) ||
-                    (app.status as AllotmentStatus) ||
-                    "AWAITING";
-
-                  const applicantName = app.applicantName || "Ashay";
-                  const lotCount = Math.max(1, app.lotCount || 1);
-                  const minInvest = ipo.metrics?.minInvestment || 14964;
-                  const perLotAmount = Math.round(app.totalContribution / lotCount) || minInvest;
-
-                  const displayNames = formatApplicantNames(app);
-
-                  const currentUserName = (currentUser?.name || currentMember?.name || "").toLowerCase();
-                  const currentUserId = currentUser?.id || currentMember?.id || "mem_1";
-                  const isAdmin = (currentUser?.role || currentMember?.role) === "ADMIN";
-
-                  const isMine = Boolean(
-                    isAdmin ||
-                    (app.memberId && app.memberId === currentUserId) ||
-                    (app.applicantName && currentUserName && app.applicantName.toLowerCase().includes(currentUserName)) ||
-                    (displayNames && currentUserName && displayNames.toLowerCase().includes(currentUserName)) ||
-                    (Array.isArray(app.participants) &&
-                      app.participants.some(
-                        (p) =>
-                          p.memberId === currentUserId ||
-                          (p.memberName && currentUserName && p.memberName.toLowerCase().includes(currentUserName))
-                      ))
-                  );
-
-                  return Array.from({ length: lotCount }).map((_, lotIdx) => {
-                    sequentialCounter += 1;
-                    const formattedSeq = String(sequentialCounter).padStart(2, "0");
-
-                    const panFromApp = (app.panNumbers && app.panNumbers[lotIdx] && app.panNumbers[lotIdx].trim())
-                      ? app.panNumbers[lotIdx].trim()
-                      : (app.participants && app.participants[lotIdx] && app.participants[lotIdx].panMasked && !app.participants[lotIdx].panMasked.includes("X"))
-                      ? app.participants[lotIdx].panMasked
-                      : (app.panMasked && !app.panMasked.includes("X"))
-                      ? app.panMasked
-                      : `ABCDE${String(2741 + lotIdx).padStart(4, "0")}D`;
-                    const panDisplay = panFromApp.toUpperCase();
-
-                    const lotDisplayName = displayNames;
-
-                    return (
-                      <React.Fragment key={`${app.id}_lot_${lotIdx}`}>
-                        {/* DESKTOP ROW (md and larger) */}
-                        <div className="hidden md:grid md:grid-cols-12 px-6 py-4 items-center hover:bg-surface-alt/60 transition-colors text-small">
-                          {/* # SR No */}
-                          <div className="col-span-1 num-tabular font-semibold text-ink">
-                            {formattedSeq}
+                        {/* Contributors List / Name */}
+                        <div className="col-span-4">
+                          <div className="text-body-md font-semibold text-ink tracking-tight">
+                            {lot.displayNames}
                           </div>
-
-                          {/* Contributors List / Name */}
-                          <div className="col-span-4">
-                            <div className="text-body-md font-semibold text-ink tracking-tight">
-                              {lotDisplayName}
+                          {lot.createdAt && (
+                            <div className="text-[11px] font-mono text-ink-tertiary mt-0.5">
+                              {formatAppDateTime(lot.createdAt)}
                             </div>
-                            {app.createdAt && (
-                              <div className="text-[11px] font-mono text-ink-tertiary mt-0.5">
-                                {formatAppDateTime(app.createdAt)}
-                              </div>
-                            )}
+                          )}
+                        </div>
+
+                        {/* PAN Card Column */}
+                        <div className="col-span-3 self-center">
+                          <CopyButton
+                            text={lot.panDisplay}
+                            label={lot.panDisplay}
+                            className="font-mono text-[12px] font-bold tracking-wider px-2.5 py-1 bg-surface-alt border border-line-strong text-ink shadow-2xs hover:bg-surface-hover"
+                          />
+                        </div>
+
+                        {/* Amount */}
+                        <div className="col-span-2 text-right self-center num-table text-ink font-semibold">
+                          {formatINR(lot.perLotAmount)}
+                        </div>
+
+                        {/* ACTIONS: EDIT & DELETE */}
+                        <div className="col-span-2 flex items-center justify-end gap-1.5">
+                          {lot.isMine ? (
+                            <>
+                              <button
+                                onClick={() => {
+                                  const initialCount = lot.lotCount || 1;
+                                  const existingPans = app.panNumbers && app.panNumbers.length > 0 ? app.panNumbers : [app.panMasked || "ABCDE2741D"];
+                                  const initialPans = Array.from({ length: initialCount }).map((_, idx) => {
+                                    const raw = existingPans[idx] || existingPans[0] || "";
+                                    return raw && !raw.includes("X") && raw.length === 10
+                                      ? raw
+                                      : `ABCDE274${idx + 1}D`;
+                                  });
+                                  setEditingApp({
+                                    ipoId: ipo.id,
+                                    appId: app.id,
+                                    applicantName: lot.applicantName,
+                                    lotCount: initialCount,
+                                    panNumbers: initialPans,
+                                  });
+                                }}
+                                className="p-1.5 rounded-lg text-ink-tertiary hover:text-accent hover:bg-accent-soft transition-colors cursor-pointer"
+                                title="Edit Application"
+                              >
+                                <PencilSimple size={16} weight="bold" />
+                              </button>
+                              <button
+                                onClick={() => handleDeleteApp(ipo.id, app.id, lot.applicantName)}
+                                className="p-1.5 rounded-lg text-ink-muted hover:text-negative hover:bg-negative-soft transition-colors cursor-pointer"
+                                title="Delete Application"
+                              >
+                                <Trash size={16} weight="bold" />
+                              </button>
+                            </>
+                          ) : (
+                            <span className="text-caption font-medium text-ink-muted flex items-center gap-1">
+                              <LockKey size={13} />
+                              View Only
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* MOBILE CARD VIEW (< md screens) */}
+                      <div className="md:hidden p-4 border-b border-line-subtle flex flex-col gap-3 hover:bg-surface-alt/50 transition-colors">
+                        {/* Top: # SR + Names + Edit/Delete */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="num-tabular text-caption font-semibold text-ink-secondary bg-surface-alt px-2 py-0.5 rounded-md shrink-0 border border-line-subtle">
+                              #{formattedSeq}
+                            </span>
+                            <div className="min-w-0">
+                              <span className="text-body-md font-semibold text-ink tracking-tight truncate block">
+                                {lot.displayNames}
+                              </span>
+                              {lot.createdAt && (
+                                <span className="text-[10px] font-mono text-ink-tertiary block mt-0.5">
+                                  {formatAppDateTime(lot.createdAt)}
+                                </span>
+                              )}
+                            </div>
                           </div>
 
-                          {/* PAN Card Column */}
-                          <div className="col-span-3 self-center">
-                            <CopyButton
-                              text={panDisplay}
-                              label={panDisplay}
-                              className="font-mono text-[12px] font-bold tracking-wider px-2.5 py-1 bg-surface-alt border border-line-strong text-ink shadow-2xs hover:bg-surface-hover"
-                            />
-                          </div>
-
-                          {/* Amount */}
-                          <div className="col-span-2 text-right self-center num-table text-ink font-semibold">
-                            {formatINR(perLotAmount)}
-                          </div>
-
-                          {/* ACTIONS: EDIT & DELETE */}
-                          <div className="col-span-2 flex items-center justify-end gap-1.5">
-                            {isMine ? (
+                          <div className="flex items-center gap-1 shrink-0">
+                            {lot.isMine ? (
                               <>
-                                  <button
-                                    onClick={() => {
-                                      const initialCount = lotCount || 1;
-                                      const existingPans = app.panNumbers && app.panNumbers.length > 0 ? app.panNumbers : [app.panMasked || "ABCDE2741D"];
-                                      const initialPans = Array.from({ length: initialCount }).map((_, idx) => {
-                                        const raw = existingPans[idx] || existingPans[0] || "";
-                                        return raw && !raw.includes("X") && raw.length === 10
-                                          ? raw
-                                          : `ABCDE274${idx + 1}D`;
-                                      });
-                                      setEditingApp({
-                                        ipoId: ipo.id,
-                                        appId: app.id,
-                                        applicantName: applicantName,
-                                        lotCount: initialCount,
-                                        panNumbers: initialPans,
-                                      });
-                                    }}
-                                  className="p-1.5 rounded-lg text-ink-tertiary hover:text-accent hover:bg-accent-soft transition-colors cursor-pointer"
+                                <button
+                                  onClick={() => {
+                                    const initialCount = lot.lotCount || 1;
+                                    const existingPans = app.panNumbers && app.panNumbers.length > 0 ? app.panNumbers : [app.panMasked || "ABCDE2741D"];
+                                    const initialPans = Array.from({ length: initialCount }).map((_, idx) => {
+                                      const raw = existingPans[idx] || existingPans[0] || "";
+                                      return raw && !raw.includes("X") && raw.length === 10
+                                        ? raw
+                                        : `ABCDE274${idx + 1}D`;
+                                    });
+                                    setEditingApp({
+                                      ipoId: ipo.id,
+                                      appId: app.id,
+                                      applicantName: lot.applicantName,
+                                      lotCount: initialCount,
+                                      panNumbers: initialPans,
+                                    });
+                                  }}
+                                  className="p-1.5 rounded-lg text-ink-tertiary hover:text-accent hover:bg-accent-soft transition-colors"
                                   title="Edit Application"
                                 >
                                   <PencilSimple size={16} weight="bold" />
                                 </button>
                                 <button
-                                  onClick={() => handleDeleteApp(ipo.id, app.id, applicantName)}
-                                  className="p-1.5 rounded-lg text-ink-muted hover:text-negative hover:bg-negative-soft transition-colors cursor-pointer"
+                                  onClick={() => handleDeleteApp(ipo.id, app.id, lot.applicantName)}
+                                  className="p-1.5 rounded-lg text-ink-muted hover:text-negative hover:bg-negative-soft transition-colors"
                                   title="Delete Application"
                                 >
                                   <Trash size={16} weight="bold" />
@@ -823,99 +896,35 @@ export function ApplicationsView() {
                           </div>
                         </div>
 
-                        {/* MOBILE CARD VIEW (< md screens) */}
-                        <div className="md:hidden p-4 border-b border-line-subtle flex flex-col gap-3 hover:bg-surface-alt/50 transition-colors">
-                          {/* Top: # SR + Names + Edit/Delete */}
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2 min-w-0">
-                              <span className="num-tabular text-caption font-semibold text-ink-secondary bg-surface-alt px-2 py-0.5 rounded-md shrink-0 border border-line-subtle">
-                                #{formattedSeq}
-                              </span>
-                              <div className="min-w-0">
-                                <span className="text-body-md font-semibold text-ink tracking-tight truncate block">
-                                  {lotDisplayName}
-                                </span>
-                                {app.createdAt && (
-                                  <span className="text-[10px] font-mono text-ink-tertiary block mt-0.5">
-                                    {formatAppDateTime(app.createdAt)}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-1 shrink-0">
-                              {isMine ? (
-                                <>
-                                  <button
-                                    onClick={() => {
-                                      const initialCount = lotCount || 1;
-                                      const existingPans = app.panNumbers && app.panNumbers.length > 0 ? app.panNumbers : [app.panMasked || "ABCDE2741D"];
-                                      const initialPans = Array.from({ length: initialCount }).map((_, idx) => {
-                                        const raw = existingPans[idx] || existingPans[0] || "";
-                                        return raw && !raw.includes("X") && raw.length === 10
-                                          ? raw
-                                          : `ABCDE274${idx + 1}D`;
-                                      });
-                                      setEditingApp({
-                                        ipoId: ipo.id,
-                                        appId: app.id,
-                                        applicantName: applicantName,
-                                        lotCount: initialCount,
-                                        panNumbers: initialPans,
-                                      });
-                                    }}
-                                    className="p-1.5 rounded-lg text-ink-tertiary hover:text-accent hover:bg-accent-soft transition-colors"
-                                    title="Edit Application"
-                                  >
-                                    <PencilSimple size={16} weight="bold" />
-                                  </button>
-                                  <button
-                                    onClick={() => handleDeleteApp(ipo.id, app.id, applicantName)}
-                                    className="p-1.5 rounded-lg text-ink-muted hover:text-negative hover:bg-negative-soft transition-colors"
-                                    title="Delete Application"
-                                  >
-                                    <Trash size={16} weight="bold" />
-                                  </button>
-                                </>
-                              ) : (
-                                <span className="text-caption font-medium text-ink-muted flex items-center gap-1">
-                                  <LockKey size={13} />
-                                  View Only
-                                </span>
-                              )}
-                            </div>
+                        {/* Middle: PAN + Amount */}
+                        <div className="flex items-center justify-between bg-surface-alt/70 p-2.5 rounded-xl border border-line-subtle text-small">
+                          <div>
+                            <span className="text-caption text-ink-tertiary block uppercase font-medium">PAN</span>
+                            <span className="font-mono font-bold text-ink text-[12px] tracking-wider">{lot.panDisplay}</span>
                           </div>
-
-                          {/* Middle: PAN + Amount */}
-                          <div className="flex items-center justify-between bg-surface-alt/70 p-2.5 rounded-xl border border-line-subtle text-small">
-                            <div>
-                              <span className="text-caption text-ink-tertiary block uppercase font-medium">PAN</span>
-                              <span className="font-mono font-bold text-ink text-[12px] tracking-wider">{panDisplay}</span>
-                            </div>
-                            <div className="text-right">
-                              <span className="text-caption text-ink-tertiary block uppercase font-medium">Total Amount</span>
-                              <span className="num-table font-semibold text-ink">{formatINR(perLotAmount)}</span>
-                            </div>
-                          </div>
-
-                          {/* Bottom: Status */}
-                          <div className="flex items-center justify-between pt-1">
-                            <span className="text-small font-medium text-ink-tertiary">Status</span>
-                            <div>{renderStatusControl(currentStatus)}</div>
+                          <div className="text-right">
+                            <span className="text-caption text-ink-tertiary block uppercase font-medium">Total Amount</span>
+                            <span className="num-table font-semibold text-ink">{formatINR(lot.perLotAmount)}</span>
                           </div>
                         </div>
-                      </React.Fragment>
-                    );
-                  });
-                });
-              })()}
+
+                        {/* Bottom: Status */}
+                        <div className="flex items-center justify-between pt-1">
+                          <span className="text-small font-medium text-ink-tertiary">Status</span>
+                          <div>{renderStatusControl(lot.lotStatus)}</div>
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  );
+                })
+              )}
             </div>
 
             {/* FOOTER NOTE */}
             <div className="px-6 py-3 bg-surface-alt/40 border-t border-line-subtle flex items-center justify-between text-caption font-medium text-ink-tertiary">
               <div className="flex items-center gap-1.5">
                 <CheckCircle size={14} className="text-positive" />
-                <span>Showing {totalExpandedCount} application(s) for {ipo.name}</span>
+                <span>Showing {filteredLots.length} application(s) for {ipo.name}</span>
               </div>
               <div className="flex items-center gap-1 text-ink-muted">
                 <LockKey size={13} />

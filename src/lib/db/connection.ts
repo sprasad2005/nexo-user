@@ -15,9 +15,9 @@ export const DB_NAME = "nexo";
 const mongoOptions: MongoClientOptions = {
   retryWrites: true,
   retryReads: true,
-  maxPoolSize: 20,
-  minPoolSize: 2,
-  maxIdleTimeMS: 30000,
+  maxPoolSize: 10,
+  minPoolSize: 0,
+  maxIdleTimeMS: 15000,
   serverSelectionTimeoutMS: 5000,
   connectTimeoutMS: 10000,
   socketTimeoutMS: 45000,

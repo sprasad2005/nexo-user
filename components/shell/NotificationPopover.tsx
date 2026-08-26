@@ -13,7 +13,6 @@ import {
   User,
   Users,
 } from "@phosphor-icons/react";
-import { SendNotificationModal } from "../admin/SendNotificationModal";
 
 export function NotificationPopover() {
   const {
@@ -26,8 +25,6 @@ export function NotificationPopover() {
   } = useNexo();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [isSendModalOpen, setIsSendModalOpen] = useState(false);
-  const [editTargetNotification, setEditTargetNotification] = useState<any>(null);
   const [deleteTargetNotifId, setDeleteTargetNotifId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -81,12 +78,6 @@ export function NotificationPopover() {
       setDeletingId(null);
       setDeleteTargetNotifId(null);
     }
-  };
-
-  const handleEditNotification = (notif: any, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setEditTargetNotification(notif);
-    setIsSendModalOpen(true);
   };
 
   // Helper to format relative time cleanly
@@ -197,23 +188,6 @@ export function NotificationPopover() {
                   Stay updated on group alerts and announcements
                 </p>
               </div>
-
-              <div className="flex items-center gap-2">
-                {/* Super Admin Action */}
-                {isSuperAdmin && (
-                  <button
-                    onClick={() => {
-                      setEditTargetNotification(null);
-                      setIsSendModalOpen(true);
-                    }}
-                    className="px-3 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-[11px] shadow-sm active:scale-95 transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
-                    title="Broadcast New Notification to Members"
-                  >
-                    <Plus size={13} weight="bold" />
-                    <span>New Alert</span>
-                  </button>
-                )}
-              </div>
             </div>
 
             {/* Notifications Feed */}
@@ -272,66 +246,16 @@ export function NotificationPopover() {
                             {formatTime(notif.createdAt)}
                           </span>
 
-                          <div className="flex items-center gap-0.5 ml-1 relative">
-                            {isSuperAdmin && (
-                              <button
-                                onClick={(e) => handleEditNotification(notif, e)}
-                                className="p-1 rounded-lg hover:bg-[#252A38] text-slate-400 hover:text-white transition-colors cursor-pointer"
-                                title="Edit Notification"
-                              >
-                                <PencilSimple size={13} weight="bold" />
-                              </button>
-                            )}
-
-                            {/* Trash Button & Small Dropdown Box */}
-                            <div className="relative">
-                              <button
-                                onClick={(e) => handleDeleteClick(notif, e)}
-                                disabled={deletingId === notif.id}
-                                className={`p-1 rounded-lg transition-colors cursor-pointer disabled:opacity-50 ${
-                                  isDeleteOpen
-                                    ? "bg-rose-500/20 text-rose-400"
-                                    : "hover:bg-rose-500/20 text-slate-400 hover:text-rose-400"
-                                }`}
-                                title={isSuperAdmin ? "Delete options" : "Remove"}
-                              >
-                                <Trash size={13} weight="bold" />
-                              </button>
-
-                              {/* Small Box Context Dropdown Menu */}
-                              {isDeleteOpen && isSuperAdmin && (
-                                <div
-                                  onClick={(e) => e.stopPropagation()}
-                                  className="absolute right-0 top-full mt-1.5 z-50 w-44 rounded-xl bg-[#11131A] border border-[#2A3144] shadow-[0_12px_36px_rgba(0,0,0,0.9)] p-1 space-y-0.5 animate-scale-up font-sans"
-                                >
-                                  {/* Delete for Everyone */}
-                                  <button
-                                    onClick={() => handleExecuteDelete(notif.id, "everyone")}
-                                    disabled={deletingId === notif.id}
-                                    className="w-full px-2.5 py-1.5 rounded-lg text-left text-rose-400 hover:text-rose-300 hover:bg-rose-500/15 font-bold text-[11px] transition-colors flex items-center justify-between group cursor-pointer"
-                                  >
-                                    <span className="flex items-center gap-1.5">
-                                      <Users size={13} weight="bold" />
-                                      <span>Delete for everyone</span>
-                                    </span>
-                                    <Trash size={11} weight="bold" className="text-rose-400/80 group-hover:text-rose-300" />
-                                  </button>
-
-                                  {/* Delete for Me */}
-                                  <button
-                                    onClick={() => handleExecuteDelete(notif.id, "me")}
-                                    disabled={deletingId === notif.id}
-                                    className="w-full px-2.5 py-1.5 rounded-lg text-left text-slate-300 hover:text-white hover:bg-white/10 font-medium text-[11px] transition-colors flex items-center justify-between group cursor-pointer"
-                                  >
-                                    <span className="flex items-center gap-1.5">
-                                      <User size={13} weight="bold" />
-                                      <span>Delete for me</span>
-                                    </span>
-                                    <Trash size={11} weight="bold" className="text-slate-400 group-hover:text-white" />
-                                  </button>
-                                </div>
-                              )}
-                            </div>
+                          {/* Trash Button & Delete Action */}
+                          <div className="relative">
+                            <button
+                              onClick={(e) => handleDeleteClick(notif, e)}
+                              disabled={deletingId === notif.id}
+                              className="p-1 rounded-lg hover:bg-rose-500/20 text-slate-400 hover:text-rose-400 transition-colors cursor-pointer disabled:opacity-50"
+                              title="Remove Notification"
+                            >
+                              <Trash size={13} weight="bold" />
+                            </button>
                           </div>
                         </div>
                       </div>
@@ -351,19 +275,6 @@ export function NotificationPopover() {
           </div>
         )}
       </div>
-
-      {/* Admin Send / Edit Notification Modal */}
-      <SendNotificationModal
-        isOpen={isSendModalOpen}
-        onClose={() => {
-          setIsSendModalOpen(false);
-          setEditTargetNotification(null);
-        }}
-        editNotification={editTargetNotification}
-        onNotificationSaved={() => {
-          if (refreshNotifications) refreshNotifications();
-        }}
-      />
     </>
   );
 }

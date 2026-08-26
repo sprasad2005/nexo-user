@@ -151,41 +151,6 @@ export function CommandPalette({ isOpen, onClose, onOpen }: CommandPaletteProps)
                   ⌘3
                 </kbd>
               </button>
-
-              {isAdmin && (
-                <>
-                  <button
-                    onClick={() => {
-                      router.push("/admin");
-                      onClose();
-                    }}
-                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-surface-hover text-blue-600 dark:text-[#6B93FF] font-semibold text-small transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Shield size={16} />
-                      <span>Open Admin Management Console</span>
-                    </div>
-                    <kbd className="hidden sm:inline-block text-[10px] font-sans font-semibold px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-500">
-                      ADMIN
-                    </kbd>
-                  </button>
-                  <button
-                    onClick={() => {
-                      router.push("/admin/security");
-                      onClose();
-                    }}
-                    className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl hover:bg-surface-hover text-blue-600 dark:text-[#6B93FF] font-semibold text-small transition-colors cursor-pointer"
-                  >
-                    <div className="flex items-center gap-2.5">
-                      <Shield size={16} />
-                      <span>Open Security Console</span>
-                    </div>
-                    <kbd className="hidden sm:inline-block text-[10px] font-sans font-semibold px-2 py-0.5 rounded bg-blue-500/10 border border-blue-500/20 text-blue-500">
-                      SECURITY
-                    </kbd>
-                  </button>
-                </>
-              )}
             </div>
           )}
 
@@ -234,11 +199,7 @@ export function CommandPalette({ isOpen, onClose, onOpen }: CommandPaletteProps)
                 <button
                   key={member.id}
                   onClick={() => {
-                    if (isAdmin) {
-                      router.push(`/admin/members/${member.id}`);
-                    } else {
-                      setActiveTab("members");
-                    }
+                    setActiveTab("members");
                     onClose();
                   }}
                   className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-surface-hover transition-colors cursor-pointer text-left"

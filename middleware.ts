@@ -2,35 +2,29 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 /* ─────────────────────────────────────────────────────────────────
-   NEXO Route Protection Middleware
-   Two distinct auth contexts:
-     USER  → /login  → / (member workspace)
-     ADMIN → /admin/login → /admin (console)
+   NEXO User-Side Route Protection Middleware
+   User context:
+     /login  → / (member workspace)
 ───────────────────────────────────────────────────────────────── */
 
 // Public pages — no session required
-const USER_LOGIN_PAGE  = "/login";
-const ADMIN_LOGIN_PAGE = "/admin/login";
+const USER_LOGIN_PAGE = "/login";
 
 // Public API routes
 const PUBLIC_API_PREFIXES = [
   "/api/auth/login",
-  "/api/auth/logout",   // logout should always work
-  "/api/auth/me",       // used by login pages to check session
-  "/api/seed-db",
-  "/api/seed-ipos",
+  "/api/auth/logout",
+  "/api/auth/me",
   "/api/ipos",
   "/api/applications",
-  "/api/admin/allotment",
-  "/api/admin/distribution",
-  "/api/admin/ipos",
-  "/api/admin/dashboard",
   "/api/health",
   "/api/members",
+  "/api/portfolio",
+  "/api/profile",
   "/api/transactions",
   "/api/notifications",
-  "/api/conversations",
-  "/api/presence",
+  "/api/avatar",
+  "/api/upload",
 ];
 
 // Static asset extensions — always pass through
@@ -60,8 +54,13 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(new URL(USER_LOGIN_PAGE, request.url));
   }
 
-  // ── Public login pages & root page pass-through ────────────
-  if (pathname === USER_LOGIN_PAGE || pathname === ADMIN_LOGIN_PAGE || pathname === "/") {
+  // ── Block /admin — separate deployment ───────────────────────
+  if (pathname.startsWith("/admin")) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
+  // ── Public login page & root page pass-through ─────────────
+  if (pathname === USER_LOGIN_PAGE || pathname === "/") {
     return NextResponse.next();
   }
 
@@ -75,16 +74,6 @@ export function middleware(request: NextRequest) {
         { success: false, error: "Authentication required." },
         { status: 401 }
       );
-    }
-    return NextResponse.next();
-  }
-
-  // ── Admin routes (/admin, /admin/*) ─────────────────────────
-  if (pathname.startsWith("/admin")) {
-    if (!isAuthenticated) {
-      const loginUrl = new URL(ADMIN_LOGIN_PAGE, request.url);
-      loginUrl.searchParams.set("next", pathname);
-      return NextResponse.redirect(loginUrl);
     }
     return NextResponse.next();
   }

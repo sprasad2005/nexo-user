@@ -32,7 +32,6 @@ export function TopBar() {
     ipos: "IPO Workspace",
     applications: "Applications",
     portfolio: "Portfolio",
-    messages: "Messages",
     members: "Group Members",
     premium: "Nexo Premium",
     profile: "Profile & Identity",

@@ -13,7 +13,6 @@ import {
   Users,
   DotsThree,
   CaretUp,
-  ChatCircleDots,
   ShieldCheck,
 } from "@phosphor-icons/react";
 import { MoreDrawer } from "./MoreDrawer";
@@ -22,7 +21,7 @@ import { ProfilePopover } from "../profile/ProfilePopover";
 import { KeyboardShortcutsModal } from "../profile/KeyboardShortcutsModal";
 
 export function Sidebar() {
-  const { activeTab, setActiveTab, members, ipos, currentUser: sessionUser, unreadMessageCount, isSidebarCollapsed } = useNexo();
+  const { activeTab, setActiveTab, members, ipos, currentUser: sessionUser, isSidebarCollapsed } = useNexo();
   const [isMoreOpen, setIsMoreOpen] = useState(false);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [isShortcutsOpen, setIsShortcutsOpen] = useState(false);
@@ -43,10 +42,9 @@ export function Sidebar() {
     document.body.style.cursor = "col-resize";
     document.body.style.userSelect = "none";
 
-    const onMouseMove = (ev: MouseEvent) => {
+    const onMouseMove = (moveEvent: MouseEvent) => {
       if (!isDragging.current) return;
-      const delta = ev.clientX - dragStartX.current;
-      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, dragStartWidth.current + delta));
+      const newWidth = Math.min(MAX_WIDTH, Math.max(MIN_WIDTH, dragStartWidth.current + (moveEvent.clientX - dragStartX.current)));
       setSidebarWidth(newWidth);
     };
 
@@ -69,7 +67,6 @@ export function Sidebar() {
     { id: "ipos", label: "IPO Workspace", icon: TrendUp },
     { id: "applications", label: "Applications", icon: Files },
     { id: "portfolio", label: "Portfolio", icon: ChartPie },
-    { id: "messages", label: "Messages", icon: ChatCircleDots, badge: unreadMessageCount },
   ];
 
   const groupNav: { id: string; label: string; icon: any; badge?: number }[] = [
@@ -209,9 +206,7 @@ export function Sidebar() {
                         {item.badge !== undefined && (item.badge as number) > 0 && (
                           <span
                             className={`text-[10px] px-2 py-0.5 rounded-full font-bold shadow-2xs ${
-                              item.id === "messages"
-                                ? "bg-emerald-500 text-white font-extrabold"
-                                : isActive
+                              isActive
                                 ? "bg-accent/15 text-accent font-semibold"
                                 : "bg-surface-alt text-ink-secondary"
                             }`}

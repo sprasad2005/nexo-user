@@ -75,6 +75,7 @@ export async function GET(req: NextRequest) {
         .collection("ipos")
         .find({ isArchived: { $ne: true } })
         .sort({ _id: -1 })
+        .limit(100)
         .toArray();
 
       if (Array.isArray(dbIpos) && dbIpos.length > 0) {

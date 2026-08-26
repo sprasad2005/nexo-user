@@ -9,7 +9,6 @@ import {
   ShieldCheck,
   Moon,
   Sun,
-  ChatCircleDots,
   User,
   LockKey,
   SignOut,
@@ -32,7 +31,6 @@ export function MoreDrawer({ isOpen, onClose }: MoreDrawerProps) {
     setActiveTab,
     members,
     portfolioSummary,
-    unreadMessageCount,
     currentUser: sessionUser,
     logout,
   } = useNexo();
@@ -46,7 +44,7 @@ export function MoreDrawer({ isOpen, onClose }: MoreDrawerProps) {
   const isAdmin = role === "ADMIN" || role === "SUPER_ADMIN";
 
   const handleNavClick = (tabId: string) => {
-    if (["dashboard", "ipos", "applications", "portfolio", "messages", "members", "profile", "admin"].includes(tabId)) {
+    if (["dashboard", "ipos", "applications", "portfolio", "members", "profile", "admin"].includes(tabId)) {
       setActiveTab(tabId as any);
     }
     onClose();
@@ -177,28 +175,6 @@ export function MoreDrawer({ isOpen, onClose }: MoreDrawerProps) {
               </span>
             </button>
           )}
-
-          {/* Messages */}
-          <button
-            onClick={() => handleNavClick("messages")}
-            className={`w-full flex items-center justify-between p-3 rounded-xl text-sm font-semibold transition-all cursor-pointer ${
-              activeTab === "messages"
-                ? "bg-accent-soft text-accent border border-accent/30"
-                : "text-ink hover:bg-surface-hover"
-            }`}
-          >
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-accent-soft text-accent flex items-center justify-center">
-                <ChatCircleDots size={18} />
-              </div>
-              <span>Messages</span>
-            </div>
-            {unreadMessageCount > 0 && (
-              <span className="text-xs font-mono font-extrabold bg-accent text-white px-2 py-0.5 rounded-full">
-                {unreadMessageCount}
-              </span>
-            )}
-          </button>
 
           {/* Group Members */}
           <button

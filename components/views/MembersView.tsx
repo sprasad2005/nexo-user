@@ -18,7 +18,6 @@ import {
   Crown,
   Sparkle,
   Phone,
-  ChatCircleDots,
   Trash,
   Eye,
   EyeSlash,
@@ -28,15 +27,13 @@ import {
 } from "@phosphor-icons/react";
 import { useRouter } from "next/navigation";
 import { Member, MemberRole } from "@/types/nexo";
-import { SendNotificationModal } from "../admin/SendNotificationModal";
 import { normalizePan, isValidPan } from "@/src/lib/validation/uniqueness";
 
 export function MembersView() {
   const router = useRouter();
-  const { members, ipos, addMember, updateMember, deleteMember, currentUser, openDirectChatWithUser } = useNexo();
+  const { members, ipos, addMember, updateMember, deleteMember, currentUser } = useNexo();
 
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
-  const [isSendNotifOpen, setIsSendNotifOpen] = useState(false);
   const [editingMember, setEditingMember] = useState<Member | null>(null);
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
@@ -354,13 +351,6 @@ export function MembersView() {
 
         {canAddMembers && (
           <div className="flex items-center gap-2">
-            <button
-              onClick={() => setIsSendNotifOpen(true)}
-              className="px-3.5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs shadow-md shadow-blue-500/20 active:scale-[0.98] transition-all flex items-center gap-1.5 cursor-pointer"
-            >
-              <Megaphone size={16} weight="bold" />
-              <span>Send Notification</span>
-            </button>
             <Button
               size="sm"
               variant="primary"
@@ -538,17 +528,7 @@ export function MembersView() {
                       {/* Name, Username & Phone */}
                       <div className="space-y-1.5 min-w-0">
                         <div className="flex items-center gap-2">
-                          <h3
-                            onClick={() => {
-                              if (currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN") {
-                                router.push(`/admin/members/${member.id}`);
-                              } else {
-                                openDirectChatWithUser(member.id);
-                              }
-                            }}
-                            className={`text-base font-black transition-colors truncate tracking-tight cursor-pointer ${theme.nameHover} hover:underline`}
-                            title={currentUser?.role === "ADMIN" || currentUser?.role === "SUPER_ADMIN" ? "Click to view detailed member IPO history & PnL" : `Click to message @${mUsername}`}
-                          >
+                          <h3 className="text-base font-black truncate tracking-tight text-ink">
                             {member.name}
                           </h3>
                           {theme.isFeatured && (
@@ -565,14 +545,11 @@ export function MembersView() {
 
                         {/* Username Tag & Phone Badge */}
                         <div className="flex flex-wrap items-center gap-1.5">
-                          <button
-                            type="button"
-                            onClick={() => openDirectChatWithUser(member.id)}
-                            className={`inline-flex items-center gap-1 text-xs font-sans font-semibold tracking-tight px-2.5 py-0.5 rounded-lg border transition-all shadow-2xs cursor-pointer active:scale-95 ${theme.usernameTag}`}
-                            title={`Click to chat with @${mUsername}`}
+                          <span
+                            className={`inline-flex items-center gap-1 text-xs font-sans font-semibold tracking-tight px-2.5 py-0.5 rounded-lg border shadow-2xs ${theme.usernameTag}`}
                           >
                             @{mUsername}
-                          </button>
+                          </span>
 
                           <div className={`inline-flex items-center gap-1 text-[11px] font-sans font-medium px-2.5 py-0.5 rounded-lg border shadow-2xs ${theme.phoneTag}`}>
                             <Phone size={11} className={theme.phoneIcon} /> {mPhone}
@@ -628,20 +605,10 @@ export function MembersView() {
                   </span>
 
                   <div className="flex items-center gap-1.5">
-                    {member.id === currentUser?.id ? (
+                    {member.id === currentUser?.id && (
                       <span className={`px-3 py-1 rounded-xl font-bold text-xs border ${theme.youBadge}`}>
                         You
                       </span>
-                    ) : (
-                      <button
-                        onClick={() => openDirectChatWithUser(member.id)}
-                        className={`px-3.5 py-1.5 rounded-xl font-bold text-xs transition-all cursor-pointer flex items-center gap-1.5 active:scale-95 ${theme.messageBtn}`}
-                        title={`Message @${mUsername}`}
-                      >
-                        <ChatCircleDots size={14} weight="bold" />
-                        <span>Message</span>
-                        <span className="text-white/80 font-sans font-normal">→</span>
-                      </button>
                     )}
                   </div>
                 </div>
@@ -988,12 +955,6 @@ export function MembersView() {
           </div>
         </div>
       )}
-
-      {/* Admin Send Notification Modal */}
-      <SendNotificationModal
-        isOpen={isSendNotifOpen}
-        onClose={() => setIsSendNotifOpen(false)}
-      />
     </div>
   );
 }

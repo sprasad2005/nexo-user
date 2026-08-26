@@ -33,9 +33,8 @@ import { logActivity } from "@/src/features/activity/activityService";
 import { UserLogoutModal } from "@/components/auth/UserLogoutModal";
 import { LoginSuccessModal } from "@/components/auth/LoginSuccessModal";
 import { nexoDataCache, AdminDataCache } from "@/lib/nexoDataCache";
-import { chatRealtime } from "@/src/features/chat/utils/chatRealtime";
 
-type ViewTab = "dashboard" | "ipos" | "applications" | "portfolio" | "messages" | "members" | "profile";
+type ViewTab = "dashboard" | "ipos" | "applications" | "portfolio" | "members" | "profile";
 
 export interface NexoContextType {
   isAuthenticated: boolean;
@@ -167,14 +166,6 @@ export interface NexoContextType {
   addMember: (memberData: Partial<Member> & { name: string; username: string; password: string }) => Promise<void>;
   updateMember: (id: string, patch: Partial<Member>) => Promise<void>;
   deleteMember: (id: string) => Promise<void>;
-  unreadMessageCount: number;
-  setUnreadMessageCount: React.Dispatch<React.SetStateAction<number>>;
-  markConversationAsRead: (conversationId: string, unreadCount?: number) => Promise<void>;
-  refreshUnreadMessageCount: (forceRefresh?: boolean) => Promise<void>;
-  activeConversationId: string | null;
-  setActiveConversationId: (id: string | null) => void;
-  openDirectChatWithUser: (targetMemberId: string) => Promise<void>;
-  openIpoGroupChat: (ipoId: string, ipoTitle?: string) => Promise<void>;
   isSidebarCollapsed: boolean;
   toggleSidebar: () => void;
   isUserLogoutModalOpen: boolean;
@@ -256,131 +247,6 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       return updated;
     });
   };
-
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(null);
-  const [unreadMessageCount, setUnreadMessageCount] = useState<number>(0);
-
-  const isRefreshingUnreadRef = React.useRef(false);
-  const refreshUnreadMessageCount = useCallback(async (forceRefresh = false) => {
-    if (isRefreshingUnreadRef.current) return;
-    isRefreshingUnreadRef.current = true;
-    try {
-      const activeMemberId = currentUser?.id || "mem_1";
-      const unreadCount = await nexoDataCache.fetchSWR<number>(
-        `unread_${activeMemberId}`,
-        async () => {
-          const res = await fetch(`/api/conversations?memberId=${activeMemberId}`);
-          if (!res.ok) return 0;
-          const data = await res.json().catch(() => null);
-          if (data?.success && Array.isArray(data.conversations)) {
-            if (typeof data.totalUnreadCount === "number") {
-              return data.totalUnreadCount;
-            }
-            return data.conversations.reduce(
-              (sum: number, c: any) => sum + (typeof c.unreadCount === "number" ? c.unreadCount : 0),
-              0
-            );
-          }
-          return 0;
-        },
-        {
-          ttlMs: 5000,
-          forceRefresh,
-          onUpdate: (freshCount) => setUnreadMessageCount(freshCount),
-        }
-      );
-      if (typeof unreadCount === "number") {
-        setUnreadMessageCount(unreadCount);
-      }
-    } catch {} finally {
-      isRefreshingUnreadRef.current = false;
-    }
-  }, [currentUser]);
-
-  const markConversationAsRead = useCallback(
-    async (conversationId: string, currentUnread = 0) => {
-      if (!conversationId) return;
-      const activeMemberId = currentUser?.id || "mem_1";
-
-      // 1. Optimistic global badge update immediately
-      if (currentUnread > 0) {
-        setUnreadMessageCount((prev) => Math.max(0, prev - currentUnread));
-      }
-
-      nexoDataCache.invalidate(`unread_${activeMemberId}`);
-
-      try {
-        const res = await fetch(`/api/conversations/${conversationId}/read`, {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ memberId: activeMemberId }),
-        });
-        const data = await res.json().catch(() => null);
-        if (data?.success) {
-          if (typeof data.totalUnreadCount === "number") {
-            setUnreadMessageCount(data.totalUnreadCount);
-          }
-          chatRealtime.emit("message:read", {
-            conversationId,
-            memberId: activeMemberId,
-            unreadCount: 0,
-            totalUnreadCount: data.totalUnreadCount,
-          });
-        } else {
-          // Rollback on failure
-          if (currentUnread > 0) {
-            setUnreadMessageCount((prev) => prev + currentUnread);
-          }
-        }
-      } catch (err) {
-        console.error("Failed to mark conversation as read:", err);
-        if (currentUnread > 0) {
-          setUnreadMessageCount((prev) => prev + currentUnread);
-        }
-      }
-    },
-    [currentUser]
-  );
-
-  // Real-time synchronization listeners for global unread counter
-  useEffect(() => {
-    const activeMemberId = currentUser?.id || "mem_1";
-
-    const unsubRead = chatRealtime.on("message:read", (data: any) => {
-      if (data?.memberId === activeMemberId) {
-        if (typeof data.totalUnreadCount === "number") {
-          setUnreadMessageCount(data.totalUnreadCount);
-        } else {
-          refreshUnreadMessageCount(true);
-        }
-      }
-    });
-
-    const unsubNew = chatRealtime.on("message:new", (msg: any) => {
-      if (msg && msg.senderId !== activeMemberId) {
-        const isViewingThisConv =
-          activeTab === "messages" &&
-          activeConversationId === msg.conversationId &&
-          typeof document !== "undefined" &&
-          document.visibilityState === "visible";
-
-        if (!isViewingThisConv) {
-          setUnreadMessageCount((prev) => prev + 1);
-        }
-      }
-    });
-
-    return () => {
-      unsubRead();
-      unsubNew();
-    };
-  }, [currentUser, activeTab, activeConversationId, refreshUnreadMessageCount]);
-
-  useEffect(() => {
-    refreshUnreadMessageCount();
-    const interval = setInterval(refreshUnreadMessageCount, 8000);
-    return () => clearInterval(interval);
-  }, [refreshUnreadMessageCount]);
 
   const isRefreshingIposRef = React.useRef(false);
   const refreshIpos = useCallback(async (forceRefresh = false) => {
@@ -625,7 +491,6 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
           "ipos",
           "applications",
           "portfolio",
-          "messages",
           "members",
           "profile",
         ];
@@ -701,7 +566,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     const handleHashChange = () => {
       if (typeof window === "undefined" || window.location.pathname !== "/") return;
       const hashTab = window.location.hash.replace("#", "").toLowerCase() as ViewTab;
-      const validTabs: ViewTab[] = ["dashboard", "ipos", "applications", "portfolio", "messages", "members", "profile"];
+      const validTabs: ViewTab[] = ["dashboard", "ipos", "applications", "portfolio", "members", "profile"];
       if (validTabs.includes(hashTab)) {
         setActiveTabState(hashTab);
       }
@@ -710,13 +575,45 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener("hashchange", handleHashChange);
     window.addEventListener("storage", () => refreshIpos(true));
 
-    // Auto-fetch fresh data from MongoDB every 8 seconds
-    const ipoInterval = setInterval(() => refreshIpos(false), 8000);
+    let ipoInterval: ReturnType<typeof setInterval> | null = null;
+
+    const startIpoPolling = () => {
+      if (!ipoInterval && typeof document !== "undefined" && !document.hidden) {
+        ipoInterval = setInterval(() => {
+          if (!document.hidden) {
+            refreshIpos(false);
+          }
+        }, 60000);
+      }
+    };
+
+    const stopIpoPolling = () => {
+      if (ipoInterval) {
+        clearInterval(ipoInterval);
+        ipoInterval = null;
+      }
+    };
+
+    const handleVisibility = () => {
+      if (document.hidden) {
+        stopIpoPolling();
+      } else {
+        refreshIpos(true);
+        startIpoPolling();
+      }
+    };
+
+    startIpoPolling();
+    document.addEventListener("visibilitychange", handleVisibility);
+    window.addEventListener("focus", () => {
+      if (!document.hidden) refreshIpos(false);
+    });
 
     return () => {
       window.removeEventListener("hashchange", handleHashChange);
       window.removeEventListener("storage", () => refreshIpos(true));
-      clearInterval(ipoInterval);
+      document.removeEventListener("visibilitychange", handleVisibility);
+      stopIpoPolling();
     };
   }, [refreshIpos, refreshMembers]);
 
@@ -747,9 +644,6 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(newMember),
       });
-
-      // Automatically join new member to all group & IPO chats
-      await fetch(`/api/conversations?memberId=${newMember.id}`).catch(() => {});
     } catch (err) {
       console.error("Failed to sync new member to MongoDB:", err);
     }
@@ -777,7 +671,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     nexoDataCache.invalidate("members");
 
     try {
-      await fetch(`/api/admin/members/${id}`, {
+      await fetch(`/api/members?id=${encodeURIComponent(id)}`, {
         method: "DELETE",
       });
     } catch (err) {
@@ -860,7 +754,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
 
   const login = async (userIdInput: string, passInput: string): Promise<{ success: boolean; role?: MemberRole; message?: string; member?: Member }> => {
     setAuthError(null);
-    const cleanUser = userIdInput.trim().toLowerCase();
+    const cleanUser = userIdInput.trim().toLowerCase().replace(/^@+/, "");
     const cleanPass = passInput.trim();
 
     if (!cleanUser) {
@@ -875,7 +769,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
       return { success: false, message: msg };
     }
 
-    // 1. Try server-side authentication API against database (members provisioned by Admin)
+    // Server-side authentication against MongoDB database
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -897,51 +791,17 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
           }
         } catch {}
         return { success: true, role: data.member.role, member: data.member };
-      } else if (data.error && res.status !== 404 && res.status !== 500) {
-        setAuthError(data.error);
-        return { success: false, message: data.error };
+      } else {
+        const errorMsg = data.error || "Invalid username or password.";
+        setAuthError(errorMsg);
+        return { success: false, message: errorMsg };
       }
     } catch (err) {
-      console.warn("API login attempt failed, attempting local verification:", err);
+      console.error("Login request failed:", err);
+      const networkError = "Unable to connect to authentication service. Please check your connection.";
+      setAuthError(networkError);
+      return { success: false, message: networkError };
     }
-
-    const isSuperAdminAlias = ["ankitgod", "aniketgod", "anikitgod"].includes(cleanUser);
-    let foundMember = members.find((m) => {
-      const uName = (m.username || m.name).toLowerCase();
-      const uEmail = m.email.toLowerCase();
-      const uId = m.id.toLowerCase();
-      return uName === cleanUser || uEmail === cleanUser || uId === cleanUser || (isSuperAdminAlias && m.role === "SUPER_ADMIN");
-    });
-
-    if (!foundMember) {
-      const msg = "Invalid Username. Access restricted to registered members.";
-      setAuthError(msg);
-      return { success: false, message: msg };
-    }
-
-    // Verify assigned password
-    const expectedPass = foundMember.password || "admin123";
-    if (cleanPass !== expectedPass) {
-      const msg = "Incorrect password. Please enter the password provisioned by your Admin.";
-      setAuthError(msg);
-      return { success: false, message: msg };
-    }
-
-    // Valid credentials verified!
-    setCurrentUser(foundMember);
-    setCurrentUserRole(foundMember.role);
-    setIsAuthenticated(true);
-    const targetTab: ViewTab = "dashboard";
-    setActiveTabState(targetTab);
-    try {
-      localStorage.setItem("nexo_session_user", JSON.stringify(foundMember));
-      localStorage.setItem("nexo_active_tab", targetTab);
-      if (typeof window !== "undefined" && window.location.pathname === "/") {
-        window.history.replaceState(null, "", `#${targetTab}`);
-      }
-    } catch {}
-
-    return { success: true, role: foundMember.role, member: foundMember };
   };
 
 
@@ -1899,53 +1759,6 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     };
   };
 
-  const openDirectChatWithUser = useCallback(async (targetMemberId: string) => {
-    try {
-      const activeId = currentUser?.id || "mem_1";
-      if (targetMemberId === activeId) {
-        setActiveTab("messages");
-        return;
-      }
-
-      setActiveConversationId(targetMemberId);
-      setActiveTab("messages");
-
-      const res = await fetch("/api/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentMemberId: activeId, targetMemberId, type: "DIRECT" }),
-      });
-      const data = await res.json();
-      if (data?.success && data.conversation) {
-        setActiveConversationId(data.conversation.id);
-      }
-    } catch (err) {
-      console.error("Failed to open direct chat:", err);
-      setActiveTab("messages");
-    }
-  }, [currentUser, setActiveConversationId, setActiveTab]);
-
-  const openIpoGroupChat = useCallback(async (ipoId: string, ipoTitle?: string) => {
-    try {
-      const activeId = currentUser?.id || "mem_1";
-      const res = await fetch("/api/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ currentMemberId: activeId, ipoId, title: ipoTitle || "IPO Chat", type: "IPO" }),
-      });
-      const data = await res.json();
-      if (data?.success && data.conversation) {
-        setActiveConversationId(data.conversation.id);
-      } else {
-        setActiveConversationId(`conv_ipo_${ipoId}`);
-      }
-      setActiveTab("messages");
-    } catch (err) {
-      console.error("Failed to open IPO group chat:", err);
-      setActiveTab("messages");
-    }
-  }, [currentUser, setActiveConversationId, setActiveTab]);
-
   const deleteTransaction = useCallback((txnId: string) => {
     const txn = transactions.find((t) => t.id === txnId);
     if (!txn) return;
@@ -2043,14 +1856,6 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     addMember,
     updateMember,
     deleteMember,
-    unreadMessageCount,
-    setUnreadMessageCount,
-    markConversationAsRead,
-    refreshUnreadMessageCount,
-    activeConversationId,
-    setActiveConversationId,
-    openDirectChatWithUser,
-    openIpoGroupChat,
     isSidebarCollapsed,
     toggleSidebar,
     isUserLogoutModalOpen,
@@ -2124,13 +1929,6 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     addMember,
     updateMember,
     deleteMember,
-    unreadMessageCount,
-    markConversationAsRead,
-    refreshUnreadMessageCount,
-    activeConversationId,
-    setActiveConversationId,
-    openDirectChatWithUser,
-    openIpoGroupChat,
     isSidebarCollapsed,
     toggleSidebar,
     isUserLogoutModalOpen,
