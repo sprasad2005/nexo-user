@@ -117,24 +117,31 @@ export async function GET(req: Request) {
       allAppsByIpoId.get(targetIpoId)!.push(app);
     });
 
-    // 2. Compute cumulative profit across all historical IPOs
+    // 2. Compute exact profit per IPO and cumulative profit across all historical IPOs for the user
     let cumulativeProfit = 0;
     const ipoProfitMap = new Map<string, number>();
 
     allProfitDists.forEach((dist: any) => {
       const targetIpoId = dist.ipoId;
       const memberPayouts = dist.memberPayouts || dist.profitDistribution?.memberPayouts || dist.participants || [];
-      const userPayout = memberPayouts.find((p: any) =>
+      
+      // Find all payout entries for this authenticated user in this distribution
+      const userPayouts = memberPayouts.filter((p: any) =>
         isUserSelf(p.memberId, p.name || p.memberName || p.username)
       );
 
-      if (userPayout) {
-        const profit = Number(userPayout.profit || userPayout.profitAmount || 0);
-        cumulativeProfit += profit;
+      let distProfitForUser = 0;
+      userPayouts.forEach((p: any) => {
+        distProfitForUser += Number(p.profit || p.profitAmount || 0);
+      });
+
+      if (distProfitForUser > 0) {
+        cumulativeProfit += distProfitForUser;
         if (targetIpoId) {
-          ipoProfitMap.set(targetIpoId, (ipoProfitMap.get(targetIpoId) || 0) + profit);
           const cleanId = targetIpoId.replace(/^pub_/, "");
-          ipoProfitMap.set(cleanId, (ipoProfitMap.get(cleanId) || 0) + profit);
+          ipoProfitMap.set(targetIpoId, distProfitForUser);
+          ipoProfitMap.set(cleanId, distProfitForUser);
+          ipoProfitMap.set(`pub_${cleanId}`, distProfitForUser);
         }
       }
     });
