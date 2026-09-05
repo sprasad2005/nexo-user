@@ -24,9 +24,14 @@ export async function GET(request: Request) {
 
     if (res.status === 200) {
       const data = await res.json();
+      
+      // KFintech returns 200 if the PAN is found, even if shares allotted is 0.
+      // We must check if All_Shares > 0 to confirm actual allotment.
+      const isAllotted = data && data.data && data.data.length > 0 && parseInt(data.data[0].All_Shares || "0") > 0;
+      
       return NextResponse.json({
         success: true,
-        status: "ALLOTTED",
+        status: isAllotted ? "ALLOTTED" : "NOT_ALLOTTED",
         data,
       });
     } else if (res.status === 404) {
