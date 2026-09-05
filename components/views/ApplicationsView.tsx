@@ -838,24 +838,26 @@ export function ApplicationsView() {
 
                         {/* ACTIONS: EDIT & DELETE & CHECK STATUS */}
                         <div className="col-span-2 flex items-center justify-end gap-1.5">
-                          {lot.lotStatus !== "AWAITING" ? (
-                             <span className={`text-caption font-bold flex items-center gap-1 ${lot.lotStatus === "ALLOTTED" ? "text-positive" : "text-negative"}`}>
-                                {lot.lotStatus === "ALLOTTED" ? "✅ Allotted" : "❌ Not Allotted"}
-                             </span>
-                          ) : (
-                            <div className="flex flex-col items-end gap-1">
+                          <div className="flex flex-col items-end gap-1">
+                            <div className="flex items-center gap-2">
+                              {lot.lotStatus !== "AWAITING" && (
+                                <span className={`text-caption font-bold flex items-center gap-1 ${lot.lotStatus === "ALLOTTED" ? "text-positive" : "text-negative"}`}>
+                                  {lot.lotStatus === "ALLOTTED" ? "✅ Allotted" : "❌ Not Allotted"}
+                                </span>
+                              )}
                               <button
                                 onClick={() => handleCheckAllotment(lot.lotId, ipo.id, app.id, lot.panDisplay, ipo.kfintechClientId)}
                                 disabled={checkingLotId === lot.lotId}
                                 className="px-2 py-1 text-xs font-semibold bg-surface-alt border border-line rounded text-ink-secondary hover:text-accent hover:border-accent disabled:opacity-50"
+                                title="Check Allotment"
                               >
-                                {checkingLotId === lot.lotId ? "Checking..." : "Check"}
+                                {checkingLotId === lot.lotId ? "..." : (lot.lotStatus !== "AWAITING" ? "↻" : "Check")}
                               </button>
-                              {checkError && checkError.id === lot.lotId && (
-                                <span className="text-[10px] text-negative">{checkError.message}</span>
-                              )}
                             </div>
-                          )}
+                            {checkError && checkError.id === lot.lotId && (
+                              <span className="text-[10px] text-negative">{checkError.message}</span>
+                            )}
+                          </div>
 
                           {lot.isMine ? (
                             <>
@@ -977,9 +979,24 @@ export function ApplicationsView() {
                         </div>
 
                         {/* Bottom: Status */}
-                        <div className="flex items-center justify-between pt-1">
-                          <span className="text-small font-medium text-ink-tertiary">Status</span>
-                          <div>{renderStatusControl(lot.lotStatus)}</div>
+                        <div className="flex flex-col items-end gap-1">
+                          <div className="w-full flex items-center justify-between pt-1">
+                            <span className="text-small font-medium text-ink-tertiary">Status</span>
+                            <div className="flex items-center gap-2">
+                              <div>{renderStatusControl(lot.lotStatus)}</div>
+                              <button
+                                onClick={() => handleCheckAllotment(lot.lotId, ipo.id, app.id, lot.panDisplay, ipo.kfintechClientId)}
+                                disabled={checkingLotId === lot.lotId}
+                                className="px-2 py-0.5 text-[10px] font-semibold bg-surface-alt border border-line rounded text-ink-secondary hover:text-accent hover:border-accent disabled:opacity-50"
+                                title="Check Allotment"
+                              >
+                                {checkingLotId === lot.lotId ? "..." : (lot.lotStatus !== "AWAITING" ? "↻" : "Check")}
+                              </button>
+                            </div>
+                          </div>
+                          {checkError && checkError.id === lot.lotId && (
+                            <span className="text-[10px] text-negative">{checkError.message}</span>
+                          )}
                         </div>
                       </div>
                     </React.Fragment>
