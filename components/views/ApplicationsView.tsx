@@ -53,6 +53,7 @@ export function ApplicationsView() {
   
   const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
   const [customRegistrarUrl, setCustomRegistrarUrl] = useState("");
+  const [customKfintechClientId, setCustomKfintechClientId] = useState("");
 
   // Edit Application Modal State
   const [editingApp, setEditingApp] = useState<{
@@ -62,6 +63,10 @@ export function ApplicationsView() {
     lotCount: number | "";
     panNumbers: string[];
   } | null>(null);
+
+  // Allotment Check State
+  const [checkingLotId, setCheckingLotId] = useState<string | null>(null);
+  const [checkError, setCheckError] = useState<{ id: string; message: string } | null>(null);
 
   // Delete Application Confirmation Modal State
   const [deleteConfirmApp, setDeleteConfirmApp] = useState<{
@@ -147,7 +152,7 @@ export function ApplicationsView() {
 
   const handleSaveRegistrarUrl = () => {
     if (activeIpo && customRegistrarUrl.trim()) {
-      updateRegistrarUrl(activeIpo.id, customRegistrarUrl.trim());
+      updateRegistrarUrl(activeIpo.id, customRegistrarUrl.trim(), customKfintechClientId.trim());
       setIsUrlModalOpen(false);
     }
   };
@@ -259,6 +264,31 @@ export function ApplicationsView() {
     setDeleteConfirmApp(null);
   };
 
+  const handleCheckAllotment = async (lotId: string, ipoId: string, appId: string, pan: string, clientId?: string) => {
+    if (!clientId) {
+      setCheckError({ id: lotId, message: "KFintech Client ID is not configured for this IPO" });
+      return;
+    }
+    
+    setCheckingLotId(lotId);
+    setCheckError(null);
+
+    try {
+      const res = await fetch(`/api/allotment/check?pan=${encodeURIComponent(pan)}&clientId=${encodeURIComponent(clientId)}`);
+      const data = await res.json();
+      
+      if (data.success) {
+        updateApplication(ipoId, appId, { allotmentStatus: data.status });
+      } else {
+        setCheckError({ id: lotId, message: data.error || "Failed to check status" });
+      }
+    } catch (err) {
+      setCheckError({ id: lotId, message: "Network Error" });
+    } finally {
+      setCheckingLotId(null);
+    }
+  };
+
   // Sequential numbering counter
   let sequentialCounter = 0;
 
@@ -346,6 +376,7 @@ export function ApplicationsView() {
                   type="button"
                   onClick={() => {
                     setCustomRegistrarUrl(activeIpo.registrarUrl || "");
+                    setCustomKfintechClientId(activeIpo.kfintechClientId || "");
                     setIsUrlModalOpen(true);
                   }}
                   className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-surface-alt hover:bg-surface border border-line text-ink-secondary hover:text-accent font-extrabold text-xs transition-all cursor-pointer shadow-2xs shrink-0"
@@ -532,6 +563,22 @@ export function ApplicationsView() {
                   ))}
                 </div>
               </div>
+
+              {customRegistrarUrl.includes("kfintech") && (
+                <div className="pt-2">
+                  <label className="block text-caption font-bold text-ink-secondary uppercase tracking-wider mb-1.5">
+                    KFintech IPO Client ID (Required for 1-click check)
+                  </label>
+                  <input
+                    type="text"
+                    value={customKfintechClientId}
+                    onChange={(e) => setCustomKfintechClientId(e.target.value)}
+                    placeholder="e.g. 86153103110"
+                    className="w-full bg-surface-alt border border-line-strong rounded-xl px-3.5 py-2.5 text-small font-medium text-ink focus:border-accent focus:bg-surface outline-none transition-all"
+                  />
+                  <p className="text-[11px] text-ink-tertiary mt-1">This ID is required to fetch the allotment status automatically without captcha.</p>
+                </div>
+              )}
             </div>
 
             <div className="flex items-center justify-between pt-2 border-t border-line-subtle">
@@ -789,8 +836,27 @@ export function ApplicationsView() {
                           {formatINR(lot.perLotAmount)}
                         </div>
 
-                        {/* ACTIONS: EDIT & DELETE */}
+                        {/* ACTIONS: EDIT & DELETE & CHECK STATUS */}
                         <div className="col-span-2 flex items-center justify-end gap-1.5">
+                          {lot.lotStatus !== "AWAITING" ? (
+                             <span className={`text-caption font-bold flex items-center gap-1 ${lot.lotStatus === "ALLOTTED" ? "text-positive" : "text-negative"}`}>
+                                {lot.lotStatus === "ALLOTTED" ? "✅ Allotted" : "❌ Not Allotted"}
+                             </span>
+                          ) : (
+                            <div className="flex flex-col items-end gap-1">
+                              <button
+                                onClick={() => handleCheckAllotment(lot.lotId, ipo.id, app.id, lot.panDisplay, ipo.kfintechClientId)}
+                                disabled={checkingLotId === lot.lotId}
+                                className="px-2 py-1 text-xs font-semibold bg-surface-alt border border-line rounded text-ink-secondary hover:text-accent hover:border-accent disabled:opacity-50"
+                              >
+                                {checkingLotId === lot.lotId ? "Checking..." : "Check"}
+                              </button>
+                              {checkError && checkError.id === lot.lotId && (
+                                <span className="text-[10px] text-negative">{checkError.message}</span>
+                              )}
+                            </div>
+                          )}
+
                           {lot.isMine ? (
                             <>
                               <button
@@ -832,6 +898,8 @@ export function ApplicationsView() {
                           )}
                         </div>
                       </div>
+
+
 
                       {/* MOBILE CARD VIEW (< md screens) */}
                       <div className="md:hidden p-4 border-b border-line-subtle flex flex-col gap-3 hover:bg-surface-alt/50 transition-colors">

@@ -43,6 +43,7 @@ export interface IPODocument {
   listingGainPercent?: number;
   createdBy: string;
   registrarUrl?: string;
+  kfintechClientId?: string;
   participantsCount: number;
   combinedCapital: number;
   tags?: string[];

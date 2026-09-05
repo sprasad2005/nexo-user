@@ -121,7 +121,7 @@ export interface NexoContextType {
     }
   ) => void;
   updateApplicationStatus: (ipoId: string, applicationId: string, status: AllotmentStatus) => void;
-  updateRegistrarUrl: (ipoId: string, url: string) => void;
+  updateRegistrarUrl: (ipoId: string, url: string, kfintechClientId?: string) => void;
   updateApplication: (
     ipoId: string,
     applicationId: string,
@@ -1509,12 +1509,13 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
     }).catch((err) => console.error("Failed to sync application update to MongoDB:", err));
   };
 
-  const updateRegistrarUrl = (ipoId: string, url: string) => {
+  const updateRegistrarUrl = (ipoId: string, url: string, kfintechClientId?: string) => {
     const cleanUrl = url.trim();
+    const cleanClientId = kfintechClientId ? kfintechClientId.trim() : "";
     setIpos((prev) => {
       const updated = prev.map((ipo) =>
         ipo.id === ipoId || ipo.name.toLowerCase() === ipoId.toLowerCase()
-          ? { ...ipo, registrarUrl: cleanUrl }
+          ? { ...ipo, registrarUrl: cleanUrl, kfintechClientId: cleanClientId }
           : ipo
       );
       try {
@@ -1530,6 +1531,7 @@ export function NexoProvider({ children }: { children: React.ReactNode }) {
         action: "updateRegistrarUrl",
         ipoId,
         registrarUrl: cleanUrl,
+        kfintechClientId: cleanClientId,
       }),
     }).catch((err) => console.error("Failed to sync registrar URL to API:", err));
   };

@@ -137,6 +137,7 @@ export interface IPOOpportunity {
   listingGainPercent?: number;
   realizedProfit?: number;
   registrarUrl?: string;
+  kfintechClientId?: string;
   tags?: string[];
   isHidden?: boolean;
   hideFromHome?: boolean;

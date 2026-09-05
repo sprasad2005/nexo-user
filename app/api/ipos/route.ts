@@ -323,6 +323,7 @@ export async function POST(req: NextRequest) {
             hideFromHome: data.hideFromHome !== undefined ? Boolean(data.hideFromHome) : ipo.hideFromHome,
             isHidden: data.isHidden !== undefined ? Boolean(data.isHidden) : ipo.isHidden,
             isCompleted: data.isCompleted !== undefined ? Boolean(data.isCompleted) : ipo.isCompleted,
+            kfintechClientId: data.kfintechClientId !== undefined ? data.kfintechClientId.trim() : ipo.kfintechClientId,
             metrics: {
               ...currentMetrics,
               issueSize: formattedIssueSize,
@@ -370,6 +371,7 @@ export async function POST(req: NextRequest) {
               ...(data.hideFromHome !== undefined ? { hideFromHome: Boolean(data.hideFromHome) } : {}),
               ...(data.isHidden !== undefined ? { isHidden: Boolean(data.isHidden) } : {}),
               ...(data.isCompleted !== undefined ? { isCompleted: Boolean(data.isCompleted) } : {}),
+              ...(data.kfintechClientId !== undefined ? { kfintechClientId: data.kfintechClientId.trim() } : {}),
               "metrics.issueSize": formattedIssueSize,
               ...(data.minInvestment !== undefined ? { "metrics.minInvestment": Number(data.minInvestment) } : {}),
               ...(data.gmpPercent !== undefined ? { "metrics.gmpPercent": Number(data.gmpPercent) } : {}),
@@ -415,14 +417,16 @@ export async function POST(req: NextRequest) {
 
     // 3b. Action: Update Registrar Check Allotment URL
     if (body.action === "updateRegistrarUrl") {
-      const { ipoId, registrarUrl } = body;
+      const { ipoId, registrarUrl, kfintechClientId } = body;
       const urlToSave = String(registrarUrl || "").trim();
+      const clientIdToSave = String(kfintechClientId || "").trim();
 
       const updated = allIpos.map((ipo) => {
         if (ipo.id === ipoId || ipo.name?.toLowerCase() === String(ipoId).toLowerCase()) {
           return {
             ...ipo,
             registrarUrl: urlToSave,
+            kfintechClientId: clientIdToSave,
           };
         }
         return ipo;
@@ -434,13 +438,13 @@ export async function POST(req: NextRequest) {
         const db = client.db(DB_NAME);
         await db.collection("ipos").updateOne(
           { $or: [{ id: ipoId }, { name: { $regex: new RegExp(`^${ipoId}$`, "i") } }] },
-          { $set: { registrarUrl: urlToSave } }
+          { $set: { registrarUrl: urlToSave, kfintechClientId: clientIdToSave } }
         );
       } catch (err) {
         console.warn("MongoDB update optional for registrarUrl:", err);
       }
 
-      return NextResponse.json({ success: true, message: "Check Allotment link updated successfully.", registrarUrl: urlToSave }, { headers: corsHeaders });
+      return NextResponse.json({ success: true, message: "Check Allotment link updated successfully.", registrarUrl: urlToSave, kfintechClientId: clientIdToSave }, { headers: corsHeaders });
     }
 
     // 4. Action: Create New IPO Opportunity
