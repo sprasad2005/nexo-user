@@ -15,8 +15,6 @@ import {
   Trash,
   X,
   CheckCircle,
-  FloppyDisk,
-  ShieldCheck,
 } from "@phosphor-icons/react";
 
 function formatAppDateTime(dateStr?: string): string {
@@ -53,15 +51,6 @@ export function ApplicationsView() {
   
   const [isUrlModalOpen, setIsUrlModalOpen] = useState(false);
   const [customRegistrarUrl, setCustomRegistrarUrl] = useState("");
-
-  // Edit Application Modal State
-  const [editingApp, setEditingApp] = useState<{
-    ipoId: string;
-    appId: string;
-    applicantName: string;
-    lotCount: number | "";
-    panNumbers: string[];
-  } | null>(null);
 
   // Delete Application Confirmation Modal State
   const [deleteConfirmApp, setDeleteConfirmApp] = useState<{
@@ -149,98 +138,6 @@ export function ApplicationsView() {
     if (activeIpo && customRegistrarUrl.trim()) {
       updateRegistrarUrl(activeIpo.id, customRegistrarUrl.trim());
       setIsUrlModalOpen(false);
-    }
-  };
-
-  const handleLotCountChange = (valStr: string) => {
-    if (!editingApp) return;
-    if (valStr === "") {
-      setEditingApp({
-        ...editingApp,
-        lotCount: "",
-      });
-      return;
-    }
-
-    const num = parseInt(valStr, 10);
-    if (isNaN(num)) return;
-    const count = Math.max(1, Math.min(50, num));
-
-    const updatedPans = [...editingApp.panNumbers];
-    while (updatedPans.length < count) {
-      updatedPans.push("");
-    }
-
-    setEditingApp({
-      ...editingApp,
-      lotCount: count,
-      panNumbers: updatedPans,
-    });
-  };
-
-  const [editPanError, setEditPanError] = useState<string | null>(null);
-
-  const handlePanNumberChange = (index: number, val: string) => {
-    if (!editingApp) return;
-    setEditPanError(null);
-    const updated = [...editingApp.panNumbers];
-    updated[index] = val.toUpperCase().slice(0, 10);
-    setEditingApp({ ...editingApp, panNumbers: updated });
-  };
-
-  const handleSaveEditApp = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (editingApp) {
-      setEditPanError(null);
-      const effectiveCount = Math.max(1, typeof editingApp.lotCount === "number" ? editingApp.lotCount : 1);
-      const cleanPans = editingApp.panNumbers.map((p, idx) =>
-        p && !p.includes("X") && p.length === 10 ? p.trim().toUpperCase() : `ABCDE274${idx + 1}D`
-      );
-
-      // 1. Intra-form duplicate check
-      const seenPans = new Set<string>();
-      for (const pan of cleanPans) {
-        if (seenPans.has(pan)) {
-          setEditPanError(`Duplicate PAN card "${pan}" in form. Each PAN must be unique.`);
-          return;
-        }
-        seenPans.add(pan);
-      }
-
-      // 2. Check against other applications for this IPO
-      const targetIpo = ipos.find((i) => i.id === editingApp.ipoId);
-      if (targetIpo && targetIpo.applications) {
-        const otherAppsPans = new Set<string>();
-        targetIpo.applications
-          .filter((a) => a.id !== editingApp.appId)
-          .forEach((a) => {
-            if (a.panMasked) otherAppsPans.add(a.panMasked.trim().toUpperCase());
-            if (Array.isArray(a.panNumbers)) {
-              a.panNumbers.forEach((p) => p && otherAppsPans.add(p.trim().toUpperCase()));
-            }
-          });
-
-        for (const pan of cleanPans) {
-          if (otherAppsPans.has(pan)) {
-            setEditPanError(`PAN card "${pan}" is already used in another application for this IPO.`);
-            return;
-          }
-        }
-      }
-
-      const primaryPan = cleanPans[0] || "ABCDE2741D";
-
-      updateApplication(
-        editingApp.ipoId,
-        editingApp.appId,
-        {
-          applicantName: editingApp.applicantName.trim() || "Member",
-          lotCount: effectiveCount,
-          panMasked: primaryPan,
-          panNumbers: cleanPans,
-        }
-      );
-      setEditingApp(null);
     }
   };
 
@@ -361,113 +258,7 @@ export function ApplicationsView() {
       </div>
 
 
-      {/* EDIT APPLICATION MODAL */}
-      {editingApp && (
-        <div className="fixed inset-0 z-50 bg-overlay backdrop-blur-xs flex items-center justify-center p-4 animate-fade-in">
-          <div className="bg-surface rounded-2xl p-6 max-w-md w-full border border-line shadow-2xl space-y-4 animate-modal-pop-in">
-            <div className="flex items-center justify-between border-b border-line pb-3">
-              <div className="flex items-center gap-2">
-                <ShieldCheck size={20} className="text-accent" />
-                <h3 className="text-h4 font-semibold text-ink tracking-tight">
-                  Edit Application
-                </h3>
-              </div>
-              <button
-                onClick={() => setEditingApp(null)}
-                className="w-7 h-7 rounded-full text-ink-muted hover:text-ink-secondary hover:bg-surface-alt flex items-center justify-center transition-colors"
-              >
-                <X size={16} />
-              </button>
-            </div>
 
-            <form onSubmit={handleSaveEditApp} className="space-y-4 text-small">
-              {editPanError && (
-                <div className="p-3 bg-rose-500/10 border border-rose-500/30 text-rose-600 dark:text-rose-400 rounded-xl text-xs font-semibold">
-                  {editPanError}
-                </div>
-              )}
-              <div className="space-y-1">
-                <label className="block text-caption font-semibold text-ink">
-                  Applicant Name
-                </label>
-                <input
-                  type="text"
-                  required
-                  value={editingApp.applicantName}
-                  onChange={(e) =>
-                    setEditingApp({ ...editingApp, applicantName: e.target.value })
-                  }
-                  placeholder="Enter applicant name"
-                  className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2.5 text-body font-normal text-ink focus:bg-surface focus:border-accent outline-none"
-                />
-              </div>
-
-              <div className="space-y-1">
-                <label className="block text-caption font-semibold text-ink">
-                  Number of PAN Cards / Lots
-                </label>
-                <input
-                  type="number"
-                  min={1}
-                  max={50}
-                  required
-                  value={editingApp.lotCount}
-                  onChange={(e) => handleLotCountChange(e.target.value)}
-                  onBlur={() => {
-                    if (editingApp.lotCount === "" || editingApp.lotCount < 1) {
-                      handleLotCountChange("1");
-                    }
-                  }}
-                  placeholder="Enter number of lots (e.g. 5)"
-                  className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2.5 text-body font-normal text-ink num-tabular focus:bg-surface focus:border-accent outline-none"
-                />
-              </div>
-
-              <div className="space-y-2">
-                <label className="block text-caption font-semibold text-ink flex items-center justify-between">
-                  <span>PAN Card Numbers ({editingApp.panNumbers.length} Required)</span>
-                  <span className="text-[11px] text-ink-muted font-normal">Auto-Uppercase</span>
-                </label>
-
-                <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                  {editingApp.panNumbers.map((pan, idx) => (
-                    <div key={idx} className="flex items-center gap-2">
-                      <span className="text-[11px] font-bold text-ink-tertiary w-16 shrink-0 font-mono text-center bg-surface-alt py-2 px-2 rounded-xl border border-line shadow-2xs">
-                        PAN #{idx + 1}
-                      </span>
-                      <input
-                        type="text"
-                        maxLength={10}
-                        required
-                        placeholder={`e.g. ABCDE274${(idx % 9) + 1}D`}
-                        value={pan}
-                        onChange={(e) => handlePanNumberChange(idx, e.target.value)}
-                        className="w-full bg-surface-alt border border-line rounded-xl px-3.5 py-2 text-xs font-mono font-bold text-ink uppercase focus:bg-surface focus:border-accent outline-none"
-                      />
-                    </div>
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-line">
-                <button
-                  type="button"
-                  onClick={() => setEditingApp(null)}
-                  className="px-4 py-2 rounded-xl border border-line text-small font-medium text-ink-secondary hover:bg-surface-alt cursor-pointer transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2 rounded-xl bg-accent hover:bg-accent-hover text-white font-semibold text-small shadow-xs flex items-center gap-1.5 cursor-pointer transition-colors"
-                >
-                  <FloppyDisk size={15} weight="bold" /> Save Changes
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* ADMIN REGISTRAR URL EDIT MODAL */}
       {isUrlModalOpen && (
@@ -789,41 +580,16 @@ export function ApplicationsView() {
                           {formatINR(lot.perLotAmount)}
                         </div>
 
-                        {/* ACTIONS: EDIT & DELETE */}
+                        {/* ACTIONS: DELETE ONLY */}
                         <div className="col-span-2 flex items-center justify-end gap-1.5">
                           {lot.isMine ? (
-                            <>
-                              <button
-                                onClick={() => {
-                                  const initialCount = lot.lotCount || 1;
-                                  const existingPans = app.panNumbers && app.panNumbers.length > 0 ? app.panNumbers : [app.panMasked || "ABCDE2741D"];
-                                  const initialPans = Array.from({ length: initialCount }).map((_, idx) => {
-                                    const raw = existingPans[idx] || existingPans[0] || "";
-                                    return raw && !raw.includes("X") && raw.length === 10
-                                      ? raw
-                                      : `ABCDE274${idx + 1}D`;
-                                  });
-                                  setEditingApp({
-                                    ipoId: ipo.id,
-                                    appId: app.id,
-                                    applicantName: lot.applicantName,
-                                    lotCount: initialCount,
-                                    panNumbers: initialPans,
-                                  });
-                                }}
-                                className="p-1.5 rounded-lg text-ink-tertiary hover:text-accent hover:bg-accent-soft transition-colors cursor-pointer"
-                                title="Edit Application"
-                              >
-                                <PencilSimple size={16} weight="bold" />
-                              </button>
-                              <button
-                                onClick={() => handleDeleteApp(ipo.id, app.id, lot.applicantName)}
-                                className="p-1.5 rounded-lg text-ink-muted hover:text-negative hover:bg-negative-soft transition-colors cursor-pointer"
-                                title="Delete Application"
-                              >
-                                <Trash size={16} weight="bold" />
-                              </button>
-                            </>
+                            <button
+                              onClick={() => handleDeleteApp(ipo.id, app.id, lot.applicantName)}
+                              className="p-1.5 rounded-lg text-ink-muted hover:text-negative hover:bg-negative-soft transition-colors cursor-pointer"
+                              title="Delete Application"
+                            >
+                              <Trash size={16} weight="bold" />
+                            </button>
                           ) : (
                             <span className="text-caption font-medium text-ink-muted flex items-center gap-1">
                               <LockKey size={13} />
@@ -855,38 +621,13 @@ export function ApplicationsView() {
 
                           <div className="flex items-center gap-1 shrink-0">
                             {lot.isMine ? (
-                              <>
-                                <button
-                                  onClick={() => {
-                                    const initialCount = lot.lotCount || 1;
-                                    const existingPans = app.panNumbers && app.panNumbers.length > 0 ? app.panNumbers : [app.panMasked || "ABCDE2741D"];
-                                    const initialPans = Array.from({ length: initialCount }).map((_, idx) => {
-                                      const raw = existingPans[idx] || existingPans[0] || "";
-                                      return raw && !raw.includes("X") && raw.length === 10
-                                        ? raw
-                                        : `ABCDE274${idx + 1}D`;
-                                    });
-                                    setEditingApp({
-                                      ipoId: ipo.id,
-                                      appId: app.id,
-                                      applicantName: lot.applicantName,
-                                      lotCount: initialCount,
-                                      panNumbers: initialPans,
-                                    });
-                                  }}
-                                  className="p-1.5 rounded-lg text-ink-tertiary hover:text-accent hover:bg-accent-soft transition-colors"
-                                  title="Edit Application"
-                                >
-                                  <PencilSimple size={16} weight="bold" />
-                                </button>
-                                <button
-                                  onClick={() => handleDeleteApp(ipo.id, app.id, lot.applicantName)}
-                                  className="p-1.5 rounded-lg text-ink-muted hover:text-negative hover:bg-negative-soft transition-colors"
-                                  title="Delete Application"
-                                >
-                                  <Trash size={16} weight="bold" />
-                                </button>
-                              </>
+                              <button
+                                onClick={() => handleDeleteApp(ipo.id, app.id, lot.applicantName)}
+                                className="p-1.5 rounded-lg text-ink-muted hover:text-negative hover:bg-negative-soft transition-colors"
+                                title="Delete Application"
+                              >
+                                <Trash size={16} weight="bold" />
+                              </button>
                             ) : (
                               <span className="text-caption font-medium text-ink-muted flex items-center gap-1">
                                 <LockKey size={13} />
